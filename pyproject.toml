@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project]
+name = "trichess"
+version = "0.1.0"
+description = "Chess game for three at hexagonal board"
+readme = "README.md"
+maintainers = [
+    { name = "Ondrej Lexa", email = "lexa.ondrej@gmail.com" },
+    { name = "Patrik Filustek", email = "filustek@gmail.com" },
+]
+requires-python = ">=3.10"
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
+dependencies = ["matplotlib", "click"]
+
+[project.optional-dependencies]
+tests = ["pytest"]
+docs = ["sphinx", "sphinx_mdinclude", "sphinx_rtd_theme"]
+dev = ["pytest", "black"]
+all = ["trichess[tests,docs]", "black"]
+
+[project.scripts]
+trichess = "trichess.__main__:cli"
+
+[tool.black]
+line-length = 88
+extend-exclude = '''.*ui_.*'''
+
+[tool.isort]
+profile = "black"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
