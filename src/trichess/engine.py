@@ -213,19 +213,20 @@ class Board:
 
     def init_pieces(self):
         # place pawns
-        for i in range(-7, 2):
+        for i in range(-7, -3):
+            self.place_piece(Pos(i, 6), self.player0.pawn)
+            self.place_piece(Pos(6, i), self.player1.pawn)
+            self.place_piece(Pos(i, -6 - i), self.player2.pawn)
+        for i in range(-2, 2):
             self.place_piece(Pos(i, 6), self.player0.pawn)
             self.place_piece(Pos(6, i), self.player1.pawn)
             self.place_piece(Pos(i, -6 - i), self.player2.pawn)
         # place knights
         self.place_piece(Pos(-5, 7), self.player0.knight)
-        self.place_piece(Pos(-3, 6), self.player0.knight)
         self.place_piece(Pos(-2, 7), self.player0.knight)
         self.place_piece(Pos(-2, -5), self.player1.knight)
-        self.place_piece(Pos(-3, -3), self.player1.knight)
         self.place_piece(Pos(-5, -2), self.player1.knight)
         self.place_piece(Pos(7, -2), self.player2.knight)
-        self.place_piece(Pos(6, -3), self.player2.knight)
         self.place_piece(Pos(7, -5), self.player2.knight)
 
     def __iter__(self) -> iter:
