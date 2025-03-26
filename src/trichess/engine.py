@@ -38,7 +38,7 @@ class Pos:
     def __hash__(self):
         return hash((self.value, abs(self.value)))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Pos({self.q:g},{self.r:g})"
 
     @property
@@ -67,7 +67,7 @@ class Piece:
         self.hex = kwargs.get("hex", None)
         self.jump = kwargs.get("jump", False)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if self.hex is None:
             return f"{self.label}{self.player} (not placed)"
         else:
@@ -128,7 +128,7 @@ class Player:
         self.pid = pid
         self.name = kwargs.get("name", f"Player {pid}")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"[{self.name}]"
 
     def step(self, step) -> complex:
@@ -178,7 +178,7 @@ class Hex:
         self.gid = gid
         self.piece = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Hex({self.pos.q:g},{self.pos.r:g})[{self.gid}]"
 
     @property

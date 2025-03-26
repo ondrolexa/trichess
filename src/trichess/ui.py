@@ -56,12 +56,12 @@ class AppMPL(App):
     def show_board(self):
         """Show board with axial coordinates"""
         plt.rcParams["toolbar"] = "None"
-        fig, ax = plt.subplots(num="TriChess coordinates")
+        fig, ax = plt.subplots(num="TriChess coordinates", figsize=(8, 7))
         for h in self.board:
             patch = self.get_hex_patch(h)
             ax.add_patch(patch)
             x, y = self.get_hex_xy(h)
-            ax.text(x, y, f"{h.qr.real:g},{h.qr.imag:g}", ha="center", va="center")
+            ax.text(x, y, f"{h.pos.q:g},{h.pos.r:g}", ha="center", va="center")
 
         # set limits to fit
         ax.set_xlim(-8, 8)

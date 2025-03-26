@@ -32,7 +32,7 @@ you’ll use the -e option of pip install. This option allows you to install pac
 Editable mode lets you work on the source code while being able to try the latest modifications as you implement them.
 This mode is quite useful in the development stage.
 
-Here’s the command that you need to run to install calc:
+Here’s the command that you need to run to install trichess:
 
     pip install -e .[dev]
 
