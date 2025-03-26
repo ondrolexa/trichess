@@ -42,9 +42,9 @@ In the moment you can use command line to test engine. To show board coords:
 
     trichess coords
 
-To show possible moves of piece on coords `(q, r)`
+To run testing app use:
 
-    trichess moves -- -4 -2
+    trichess run
 
 ## License
 
