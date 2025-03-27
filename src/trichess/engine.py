@@ -182,6 +182,10 @@ class Hex:
         return f"Hex({self.pos.q:g},{self.pos.r:g})[{self.gid}]"
 
     @property
+    def has_piece(self) -> bool:
+        return True if self.piece is not None else False
+
+    @property
     def color(self) -> int:
         return int(2 * self.pos.q + self.pos.r) % 3
 
@@ -194,9 +198,7 @@ class Board:
         self.board = {}
         self.gid = {}
         # setup players
-        self.player0 = kwargs.get("player0", Player(0))
-        self.player1 = kwargs.get("player1", Player(1))
-        self.player2 = kwargs.get("player2", Player(2))
+        self.players = kwargs.get("players", [Player(0), Player(1), Player(2)])
         # generate all cells
         gid = 0
         for q in range(-7, 8):
@@ -214,20 +216,23 @@ class Board:
     def init_pieces(self):
         # place pawns
         for i in range(-7, -3):
-            self.place_piece(Pos(i, 6), self.player0.pawn)
-            self.place_piece(Pos(6, i), self.player1.pawn)
-            self.place_piece(Pos(i, -6 - i), self.player2.pawn)
+            self.place_piece(Pos(i, 6), self.players[0].pawn)
+            self.place_piece(Pos(6, i), self.players[1].pawn)
+            self.place_piece(Pos(i, -6 - i), self.players[2].pawn)
         for i in range(-2, 2):
-            self.place_piece(Pos(i, 6), self.player0.pawn)
-            self.place_piece(Pos(6, i), self.player1.pawn)
-            self.place_piece(Pos(i, -6 - i), self.player2.pawn)
+            self.place_piece(Pos(i, 6), self.players[0].pawn)
+            self.place_piece(Pos(6, i), self.players[1].pawn)
+            self.place_piece(Pos(i, -6 - i), self.players[2].pawn)
         # place knights
-        self.place_piece(Pos(-5, 7), self.player0.knight)
-        self.place_piece(Pos(-2, 7), self.player0.knight)
-        self.place_piece(Pos(-2, -5), self.player1.knight)
-        self.place_piece(Pos(-5, -2), self.player1.knight)
-        self.place_piece(Pos(7, -2), self.player2.knight)
-        self.place_piece(Pos(7, -5), self.player2.knight)
+        self.place_piece(Pos(-5, 7), self.players[0].knight)
+        self.place_piece(Pos(-2, 7), self.players[0].knight)
+        self.place_piece(Pos(-2, -5), self.players[1].knight)
+        self.place_piece(Pos(-5, -2), self.players[1].knight)
+        self.place_piece(Pos(7, -2), self.players[2].knight)
+        self.place_piece(Pos(7, -5), self.players[2].knight)
+        # test
+        self.place_piece(Pos(-4, 4), self.players[0].pawn)
+        self.place_piece(Pos(-3, 4), self.players[1].pawn)
 
     def __iter__(self) -> iter:
         return iter(self.board.values())
@@ -238,5 +243,37 @@ class Board:
     def place_piece(self, pos, piece) -> Piece:
         self.board[pos].piece = piece(hex=self.board[pos])
 
-    def hexs_from_piece(self, piece) -> list[Hex]:
+    def all_moves(self, piece) -> list[Hex]:
         return [self.board[dest] for dest in piece.moves() if dest in self.board]
+
+
+class GameManager:
+    def __init__(self):
+        self.ready = False
+
+    def new_game(self, **kwargs):
+        self.players = [
+            kwargs.get("player0", Player(0)),
+            kwargs.get("player1", Player(1)),
+            kwargs.get("player2", Player(2)),
+        ]
+        self.board = Board(players=self.players)
+        self.on_move = kwargs.get("on_move", 0)
+        self.ready = True
+
+    def prepare_move(self, hex):
+        ok = False
+        moves = []
+        if self.ready:
+            if hex.has_piece:
+                piece = hex.piece
+                if self.players[self.on_move] is piece.player:
+                    moves = self.board.all_moves(piece)
+                    ok = True
+        return ok, moves
+
+    def finish_move(self, hex_from, hex_to):
+        hex_from.piece.hex = hex_to
+        hex_to.piece = hex_from.piece
+        hex_from.piece = None
+        self.on_move = (self.on_move + 1) % 3

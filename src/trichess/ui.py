@@ -1,11 +1,12 @@
 from math import sqrt
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import RegularPolygon
 
 
 class App:
-    def __init__(self, board):
-        self.board = board
+    def __init__(self, gm):
+        self.gm = gm
 
 
 class AppMPL(App):
@@ -13,9 +14,12 @@ class AppMPL(App):
 
     colors = ["#ffffffff", "#009fffff", "#ff7171ff"]
 
-    def __init__(self, board):
-        super().__init__(board)
+    def __init__(self, gm):
+        super().__init__(gm)
         self.selected_patch = None
+        self.patch = {}
+        self.piece = {}
+        self.ongoing = {}
         self.move_arrows = {}
 
     def get_hex_xy(self, h):
@@ -25,39 +29,51 @@ class AppMPL(App):
         return AppMPL.colors[h.color]
 
     def get_hex_patch(self, h, gid="_"):
-        patch = RegularPolygon(
+        return RegularPolygon(
             self.get_hex_xy(h),
             numVertices=6,
             radius=sqrt(1 / 3),
             fc=self.get_hex_color(h),
             ec="k",
+            zorder=1,
+            gid=gid,
         )
-        patch.set_gid(gid)
-        return patch
 
-    def reset_patch(self, patch):
-        gid = patch.get_gid()
-        # clear move hints
-        while self.move_arrows[gid]:
-            self.move_arrows[gid].pop().remove()
+    def clear_patch(self, gid):
         # reset edge color
-        patch.set_edgecolor("k")
-        patch.set_linewidth(1)
-        patch.set_zorder(1)
+        self.patch[gid].set_edgecolor("k")
+        self.patch[gid].set_linewidth(1)
+        self.patch[gid].set_zorder(1)
 
-    def select_patch(self, patch):
-        gid = patch.get_gid()
+    def set_patch_selected(self, gid):
+        if self.selected_patch is not None:
+            self.clear_patch(self.selected_patch)
+        self.selected_patch = gid
         # set edge color
-        patch.set_edgecolor("yellow")
-        patch.set_linewidth(3)
-        patch.set_zorder(2)
-        return gid
+        self.patch[gid].set_edgecolor("yellow")
+        self.patch[gid].set_linewidth(3)
+        self.patch[gid].set_zorder(2)
+
+    def set_patch_safe(self, gid):
+        # set edge color
+        self.patch[gid].set_edgecolor("green")
+        self.patch[gid].set_linewidth(3)
+        self.patch[gid].set_zorder(3)
+
+    def set_patch_attack(self, gid):
+        # set edge color
+        self.patch[gid].set_edgecolor("red")
+        self.patch[gid].set_linewidth(3)
+        self.patch[gid].set_zorder(3)
+
+    def update_label(self, hex):
+        self.piece[hex.gid].set_text(hex.piece.label if hex.piece is not None else "")
 
     def show_board(self):
         """Show board with axial coordinates"""
         plt.rcParams["toolbar"] = "None"
         fig, ax = plt.subplots(num="TriChess coordinates", figsize=(8, 7))
-        for h in self.board:
+        for h in self.gm.board:
             patch = self.get_hex_patch(h)
             ax.add_patch(patch)
             x, y = self.get_hex_xy(h)
@@ -73,37 +89,47 @@ class AppMPL(App):
         plt.show()
 
     def run(self):
-        """Show board and possible moves for selected Piece"""
+        """Run trichess game"""
 
         def on_pick(event):
-            if self.selected_patch is not None:
-                self.reset_patch(self.selected_patch)
-            self.selected_patch = event.artist
-            gid = self.select_patch(self.selected_patch)
-            h = self.board.gid[gid]
-            if h.piece is not None:
-                for nh in self.board.hexs_from_piece(h.piece):
-                    self.move_arrows[gid].append(
-                        ax.annotate(
-                            "",
-                            xytext=self.get_hex_xy(h),
-                            xy=self.get_hex_xy(nh),
-                            arrowprops=dict(arrowstyle="->"),
-                        )
-                    )
+            gid = event.artist.get_gid()
+            h = self.gm.board.gid[gid]
+            if self.ongoing:
+                if h in self.ongoing["targets"]:
+                    self.gm.finish_move(self.ongoing["from"], h)
+                    self.update_label(self.ongoing["from"])
+                    self.update_label(h)
+                self.clear_patch(self.ongoing["from"].gid)
+                for nh in self.ongoing["targets"]:
+                    self.clear_patch(nh.gid)
+                self.ongoing = {}
+            else:
+                self.set_patch_selected(gid)
+                ok, moves = self.gm.prepare_move(h)
+                if ok and moves:
+                    self.ongoing["from"] = h
+                    self.ongoing["targets"] = moves
+                    for nh in moves:
+                        if not nh.has_piece:
+                            self.set_patch_safe(nh.gid)
+                        else:
+                            self.set_patch_attack(nh.gid)
             fig.canvas.draw()
 
         plt.rcParams["toolbar"] = "None"
         fig, ax = plt.subplots(num="TriChess")
-        for h in self.board:
+        for h in self.gm.board:
             patch = self.get_hex_patch(h, gid=h.gid)
             self.move_arrows[h.gid] = []
             patch.set_picker(2)
             ax.add_patch(patch)
-            x, y = self.get_hex_xy(h)
-            # Draw piece label
-            if h.piece is not None:
-                ax.text(x, y, h.piece.label, ha="center", va="center")
+            self.patch[h.gid] = patch
+            self.piece[h.gid] = ax.text(
+                *self.get_hex_xy(h),
+                h.piece.label if h.piece is not None else "",
+                ha="center",
+                va="center",
+            )
 
         # set limits to fit
         ax.set_xlim(-8, 8)
