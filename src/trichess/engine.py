@@ -10,20 +10,20 @@ STEP = {
         "DR": 2 - 1j,
     },
     1: {
-        "FL": -1 + 1j,
-        "FR": -1 + 0j,
-        "SL": 0 + 1j,
-        "DF": -2 + 1j,
-        "DL": -1 + 2j,
-        "DR": -1 - 1j,
-    },
-    2: {
         "FL": 1 + 0j,
         "FR": 0 + 1j,
         "SL": 1 - 1j,
         "DF": 1 + 1j,
         "DL": 2 - 1j,
         "DR": -1 + 2j,
+    },
+    2: {
+        "FL": -1 + 1j,
+        "FR": -1 + 0j,
+        "SL": 0 + 1j,
+        "DF": -2 + 1j,
+        "DL": -1 + 2j,
+        "DR": -1 - 1j,
     },
 }
 
@@ -62,10 +62,11 @@ class Move:
 
 
 class Piece:
-    def __init__(self, label, player, **kwargs):
+    def __init__(self, symbol, label, player, **kwargs):
+        self.symbol = symbol
         self.label = label
         self.player = player
-        self.used = kwargs.get("used", 0)
+        self.used = kwargs.get("used", False)
         self.hex = kwargs.get("hex", None)
         self.special_attack = False
 
@@ -80,14 +81,30 @@ class Piece:
         if self.hex is not None:
             return self.hex.pos
 
-    def moves(self) -> list[Pos]:
+    def reachable(self) -> list[Pos]:
         if self.hex is not None:
-            return [self.player.pos_from_move(self.pos, move) for move in self._moves]
+            res = []
+            for move in self._moves:
+                if move.code != "n":
+                    res.append(self.player.pos_from_move(self.pos, move))
+                else:
+                    pos = self.pos
+                    for i in range(1, 15):
+                        pos = self.player.pos_from_move(pos, move)
+                        if pos in self.hex.board:
+                            if self.hex.board[pos].has_piece:
+                                if self.player is not self.hex.board[pos].piece.player:
+                                    res.append(pos)
+                                break
+                            res.append(pos)
+                        else:
+                            break
+            return res
 
 
 class Pawn(Piece):
     def __init__(self, player, **kwargs):
-        super().__init__("P", player, **kwargs)
+        super().__init__("♟", "P", player, **kwargs)
         self.special_attack = True
 
     @property
@@ -111,11 +128,11 @@ class Pawn(Piece):
 
 class Knight(Piece):
     def __init__(self, player, **kwargs):
-        super().__init__("K", player, **kwargs)
+        super().__init__("♞", "N", player, **kwargs)
 
     @property
     def _moves(self) -> list[Move]:
-        moves = [
+        return [
             Move("SL", "SL", "FRr"),
             Move("SL", "SL", "FL"),
             Move("FL", "FL", "SL"),
@@ -129,7 +146,38 @@ class Knight(Piece):
             Move("FRr", "FRr", "FLr"),
             Move("FRr", "FRr", "SL"),
         ]
-        return moves
+
+
+class Bishop(Piece):
+    def __init__(self, player, **kwargs):
+        super().__init__("♝", "B", player, **kwargs)
+
+    @property
+    def _moves(self) -> list[Move]:
+        return [
+            Move("DL", code="n"),
+            Move("DF", code="n"),
+            Move("DR", code="n"),
+            Move("DLr", code="n"),
+            Move("DFr", code="n"),
+            Move("DRr", code="n"),
+        ]
+
+
+class Rook(Piece):
+    def __init__(self, player, **kwargs):
+        super().__init__("♜", "R", player, **kwargs)
+
+    @property
+    def _moves(self) -> list[Move]:
+        return [
+            Move("SL", code="n"),
+            Move("FL", code="n"),
+            Move("FR", code="n"),
+            Move("SLr", code="n"),
+            Move("FLr", code="n"),
+            Move("FRr", code="n"),
+        ]
 
 
 class Player:
@@ -178,13 +226,20 @@ class Player:
     def knight(self, **kwargs) -> Knight:
         return Knight(self, **kwargs)
 
+    def bishop(self, **kwargs) -> Bishop:
+        return Bishop(self, **kwargs)
+
+    def rook(self, **kwargs) -> Rook:
+        return Rook(self, **kwargs)
+
 
 class Hex:
     """Trichess board cell"""
 
-    def __init__(self, pos, gid):
+    def __init__(self, pos, gid, board):
         self.pos = pos
         self.gid = gid
+        self.board = board
         self.piece = None
 
     def __repr__(self) -> str:
@@ -217,7 +272,7 @@ class Board:
                 if -7 <= s <= 7:
                     pos = Pos(q, r)
                     sgid = str(gid)
-                    self.board[pos] = Hex(pos, sgid)
+                    self.board[pos] = Hex(pos, sgid, self.board)
                     self.gid[sgid] = self.board[pos]
                     gid += 1
         self.init_pieces()
@@ -226,12 +281,12 @@ class Board:
         # place pawns
         for i in range(-7, -3):
             self.place_piece(Pos(i, 6), self.players[0].pawn)
-            self.place_piece(Pos(6, i), self.players[1].pawn)
-            self.place_piece(Pos(i, -6 - i), self.players[2].pawn)
+            self.place_piece(Pos(i, -6 - i), self.players[1].pawn)
+            self.place_piece(Pos(6, i), self.players[2].pawn)
         for i in range(-2, 2):
             self.place_piece(Pos(i, 6), self.players[0].pawn)
-            self.place_piece(Pos(6, i), self.players[1].pawn)
-            self.place_piece(Pos(i, -6 - i), self.players[2].pawn)
+            self.place_piece(Pos(i, -6 - i), self.players[1].pawn)
+            self.place_piece(Pos(6, i), self.players[2].pawn)
         # place knights
         self.place_piece(Pos(-5, 7), self.players[0].knight)
         self.place_piece(Pos(-2, 7), self.players[0].knight)
@@ -239,9 +294,23 @@ class Board:
         self.place_piece(Pos(-5, -2), self.players[1].knight)
         self.place_piece(Pos(7, -2), self.players[2].knight)
         self.place_piece(Pos(7, -5), self.players[2].knight)
-        # test
-        self.place_piece(Pos(-4, 4), self.players[0].pawn)
-        self.place_piece(Pos(-3, 4), self.players[1].pawn)
+        # place bishops
+        self.place_piece(Pos(-6, 7), self.players[0].bishop)
+        self.place_piece(Pos(-1, 7), self.players[0].bishop)
+        self.place_piece(Pos(-3, 6), self.players[0].bishop)
+        self.place_piece(Pos(-1, -6), self.players[1].bishop)
+        self.place_piece(Pos(-6, -1), self.players[1].bishop)
+        self.place_piece(Pos(-3, -3), self.players[1].bishop)
+        self.place_piece(Pos(7, -1), self.players[2].bishop)
+        self.place_piece(Pos(7, -6), self.players[2].bishop)
+        self.place_piece(Pos(6, -3), self.players[2].bishop)
+        # place rooks
+        self.place_piece(Pos(-7, 7), self.players[0].rook)
+        self.place_piece(Pos(0, 7), self.players[0].rook)
+        self.place_piece(Pos(0, -7), self.players[1].rook)
+        self.place_piece(Pos(-7, 0), self.players[1].rook)
+        self.place_piece(Pos(7, 0), self.players[2].rook)
+        self.place_piece(Pos(7, -7), self.players[2].rook)
 
     def __iter__(self) -> iter:
         return iter(self.board.values())
@@ -260,12 +329,18 @@ class Board:
 
     def all_moves(self, piece) -> list[Pos]:
         all = []
-        for dest in piece.moves():
+        for dest in piece.reachable():
             if dest in self.board:
                 if dest.code == "a" and self.board[dest].has_piece:
                     if self.board[dest].piece.player is not piece.player:
                         all.append(dest)
                 elif dest.code == "s":
+                    if self.board[dest].has_piece:
+                        if self.board[dest].piece.player is not piece.player:
+                            all.append(dest)
+                    else:
+                        all.append(dest)
+                elif dest.code == "n":
                     if self.board[dest].has_piece:
                         if self.board[dest].piece.player is not piece.player:
                             all.append(dest)
@@ -304,5 +379,6 @@ class GameAPI:
     def make_move(self, hex_from, hex_to):
         hex_from.piece.hex = hex_to
         hex_to.piece = hex_from.piece
+        hex_to.piece.used = True
         hex_from.piece = None
         self.on_move = (self.on_move + 1) % 3

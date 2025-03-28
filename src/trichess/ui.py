@@ -26,6 +26,7 @@ class AppMPL(App):
         self.patch = {}
         self.piece = {}
         self.move_in_progress = {}
+        self.title = None
 
     def get_hex_xy(self, h):
         return h.pos.q + 0.5 * h.pos.r, -h.pos.r * sqrt(3) / 2
@@ -71,8 +72,8 @@ class AppMPL(App):
         self.patch[hex.gid].set_linewidth(3)
         self.patch[hex.gid].set_zorder(4)
 
-    def update_label(self, hex):
-        self.piece[hex.gid].set_text(hex.piece.label if hex.piece is not None else "")
+    def update_symbol(self, hex):
+        self.piece[hex.gid].set_text(hex.piece.symbol if hex.piece is not None else "")
 
     def show_board(self):
         """Show board with axial coordinates"""
@@ -102,8 +103,8 @@ class AppMPL(App):
             if self.move_in_progress:
                 if h in self.move_in_progress["targets"]:
                     self.ga.make_move(self.move_in_progress["from"], h)
-                    self.update_label(self.move_in_progress["from"])
-                    self.update_label(h)
+                    self.update_symbol(self.move_in_progress["from"])
+                    self.update_symbol(h)
                 self.clear_hex(self.move_in_progress["from"])
                 for nh in self.move_in_progress["targets"]:
                     self.clear_hex(nh)
@@ -130,6 +131,7 @@ class AppMPL(App):
                                 self.move_in_progress["targets"].append(
                                     self.ga.board[pos]
                                 )
+            self.title.set_text(f"On move: {self.ga.on_move}")
             fig.canvas.draw()
 
         plt.rcParams["toolbar"] = "None"
@@ -141,9 +143,10 @@ class AppMPL(App):
             self.patch[h.gid] = patch
             self.piece[h.gid] = ax.text(
                 *self.get_hex_xy(h),
-                h.piece.label if h.piece is not None else "",
+                h.piece.symbol if h.piece is not None else "",
                 ha="center",
                 va="center",
+                size="xx-large",
                 zorder=5,
             )
 
@@ -153,6 +156,7 @@ class AppMPL(App):
         ax.set_aspect(1)
         # hide axes
         ax.set_axis_off()
+        self.title = ax.set_title(f"On move: {self.ga.on_move}")
         fig.tight_layout()
         # connect pick event
         fig.canvas.mpl_connect("pick_event", on_pick)

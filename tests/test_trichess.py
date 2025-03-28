@@ -16,13 +16,13 @@ class Test_Player_Steps:
         assert player0.pos_from_move(Pos(0, 0), Move("FR")) == Pos(1, -1)
 
     def test_player1_fl(self, player1):
-        assert player1.pos_from_move(Pos(0, 0), Move("FL")) == Pos(-1, 1)
+        assert player1.pos_from_move(Pos(0, 0), Move("FL")) == Pos(1, 0)
 
     def test_player1_fr(self, player1):
-        assert player1.pos_from_move(Pos(0, 0), Move("FR")) == Pos(-1, 0)
+        assert player1.pos_from_move(Pos(0, 0), Move("FR")) == Pos(0, 1)
 
     def test_player2_fl(self, player2):
-        assert player2.pos_from_move(Pos(0, 0), Move("FL")) == Pos(1, 0)
+        assert player2.pos_from_move(Pos(0, 0), Move("FL")) == Pos(-1, 1)
 
     def test_player2_fr(self, player2):
-        assert player2.pos_from_move(Pos(0, 0), Move("FR")) == Pos(0, 1)
+        assert player2.pos_from_move(Pos(0, 0), Move("FR")) == Pos(-1, 0)
