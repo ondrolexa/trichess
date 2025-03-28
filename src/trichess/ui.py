@@ -22,11 +22,10 @@ class AppMPL(App):
 
     def __init__(self, api=None):
         super().__init__(api=None)
-        self.selected_patch = None
+        self.selected_hex = None
         self.patch = {}
         self.piece = {}
-        self.ongoing = {}
-        self.move_arrows = {}
+        self.move_in_progress = {}
 
     def get_hex_xy(self, h):
         return h.pos.q + 0.5 * h.pos.r, -h.pos.r * sqrt(3) / 2
@@ -34,7 +33,7 @@ class AppMPL(App):
     def get_hex_color(self, h):
         return AppMPL.colors[h.color]
 
-    def get_hex_patch(self, h, gid="_"):
+    def create_hex_patch(self, h, gid="_"):
         return RegularPolygon(
             self.get_hex_xy(h),
             numVertices=6,
@@ -45,32 +44,32 @@ class AppMPL(App):
             gid=gid,
         )
 
-    def clear_patch(self, gid):
+    def clear_hex(self, hex):
         # reset edge color
-        self.patch[gid].set_edgecolor("k")
-        self.patch[gid].set_linewidth(1)
-        self.patch[gid].set_zorder(1)
+        self.patch[hex.gid].set_edgecolor("k")
+        self.patch[hex.gid].set_linewidth(1)
+        self.patch[hex.gid].set_zorder(1)
 
-    def set_patch_selected(self, gid):
-        if self.selected_patch is not None:
-            self.clear_patch(self.selected_patch)
-        self.selected_patch = gid
+    def set_hex_selected(self, hex):
+        if self.selected_hex is not None:
+            self.clear_hex(self.selected_hex)
+        self.selected_hex = hex
         # set edge color
-        self.patch[gid].set_edgecolor("yellow")
-        self.patch[gid].set_linewidth(3)
-        self.patch[gid].set_zorder(2)
+        self.patch[hex.gid].set_edgecolor("yellow")
+        self.patch[hex.gid].set_linewidth(3)
+        self.patch[hex.gid].set_zorder(2)
 
-    def set_patch_safe(self, gid):
+    def set_hex_safe(self, hex):
         # set edge color
-        self.patch[gid].set_edgecolor("green")
-        self.patch[gid].set_linewidth(3)
-        self.patch[gid].set_zorder(3)
+        self.patch[hex.gid].set_edgecolor("green")
+        self.patch[hex.gid].set_linewidth(3)
+        self.patch[hex.gid].set_zorder(3)
 
-    def set_patch_attack(self, gid):
+    def set_hex_attack(self, hex):
         # set edge color
-        self.patch[gid].set_edgecolor("red")
-        self.patch[gid].set_linewidth(3)
-        self.patch[gid].set_zorder(3)
+        self.patch[hex.gid].set_edgecolor("red")
+        self.patch[hex.gid].set_linewidth(3)
+        self.patch[hex.gid].set_zorder(4)
 
     def update_label(self, hex):
         self.piece[hex.gid].set_text(hex.piece.label if hex.piece is not None else "")
@@ -80,7 +79,7 @@ class AppMPL(App):
         plt.rcParams["toolbar"] = "None"
         fig, ax = plt.subplots(num="TriChess coordinates", figsize=(8, 7))
         for h in self.ga.board:
-            patch = self.get_hex_patch(h)
+            patch = self.create_hex_patch(h)
             ax.add_patch(patch)
             x, y = self.get_hex_xy(h)
             ax.text(x, y, f"{h.pos.q:g},{h.pos.r:g}", ha="center", va="center")
@@ -99,41 +98,44 @@ class AppMPL(App):
 
         def on_pick(event):
             gid = event.artist.get_gid()
-            h = self.ga.board.gid[gid]
-            if self.ongoing:
-                if h in self.ongoing["targets"]:
-                    self.ga.make_move(self.ongoing["from"], h)
-                    self.update_label(self.ongoing["from"])
+            h = self.ga.board[gid]
+            if self.move_in_progress:
+                if h in self.move_in_progress["targets"]:
+                    self.ga.make_move(self.move_in_progress["from"], h)
+                    self.update_label(self.move_in_progress["from"])
                     self.update_label(h)
-                self.clear_patch(self.ongoing["from"].gid)
-                for nh in self.ongoing["targets"]:
-                    self.clear_patch(nh.gid)
-                self.ongoing = {}
+                self.clear_hex(self.move_in_progress["from"])
+                for nh in self.move_in_progress["targets"]:
+                    self.clear_hex(nh)
+                self.move_in_progress = {}
             else:
-                self.set_patch_selected(gid)
+                self.set_hex_selected(h)
                 ok, moves = self.ga.get_moves(h)
                 if ok and moves:
-                    self.ongoing["from"] = h
-                    self.ongoing["targets"] = []
+                    self.move_in_progress["from"] = h
+                    self.move_in_progress["targets"] = []
                     for pos in moves:
                         if not self.ga.board[pos].has_piece:
-                            self.set_patch_safe(self.ga.board[pos].gid)
-                            self.ongoing["targets"].append(self.ga.board[pos])
+                            self.set_hex_safe(self.ga.board[pos])
+                            self.move_in_progress["targets"].append(self.ga.board[pos])
                         else:
                             if h.piece.special_attack:
                                 if pos.code == "a":
-                                    self.set_patch_attack(self.ga.board[pos].gid)
-                                    self.ongoing["targets"].append(self.ga.board[pos])
+                                    self.set_hex_attack(self.ga.board[pos])
+                                    self.move_in_progress["targets"].append(
+                                        self.ga.board[pos]
+                                    )
                             else:
-                                self.set_patch_attack(self.ga.board[pos].gid)
-                                self.ongoing["targets"].append(self.ga.board[pos])
+                                self.set_hex_attack(self.ga.board[pos])
+                                self.move_in_progress["targets"].append(
+                                    self.ga.board[pos]
+                                )
             fig.canvas.draw()
 
         plt.rcParams["toolbar"] = "None"
         fig, ax = plt.subplots(num="TriChess")
         for h in self.ga.board:
-            patch = self.get_hex_patch(h, gid=h.gid)
-            self.move_arrows[h.gid] = []
+            patch = self.create_hex_patch(h, gid=h.gid)
             patch.set_picker(2)
             ax.add_patch(patch)
             self.patch[h.gid] = patch
@@ -142,6 +144,7 @@ class AppMPL(App):
                 h.piece.label if h.piece is not None else "",
                 ha="center",
                 va="center",
+                zorder=5,
             )
 
         # set limits to fit

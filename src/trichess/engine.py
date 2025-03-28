@@ -246,8 +246,14 @@ class Board:
     def __iter__(self) -> iter:
         return iter(self.board.values())
 
-    def __getitem__(self, pos) -> Hex:
-        return self.board[pos]
+    def __getitem__(self, pos: Pos | int) -> Hex:
+        if isinstance(pos, Pos):
+            return self.board.get(pos, None)
+        else:
+            return self.gid.get(pos, None)
+
+    def __contains__(self, pos: Pos) -> bool:
+        return pos in self.board
 
     def place_piece(self, pos, piece) -> Piece:
         self.board[pos].piece = piece(hex=self.board[pos])
