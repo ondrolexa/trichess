@@ -1,21 +1,17 @@
 import click
 
-from trichess import AppMPL, GameManager
+from trichess import AppMPL
 
 
 @click.command(help="show board coords.")
 def show():
-    gm = GameManager()
-    gm.new_game()
-    app = AppMPL(gm)
+    app = AppMPL()
     app.show_board()
 
 
 @click.command(help="run board interactive.")
 def run():
-    gm = GameManager()
-    gm.new_game()
-    app = AppMPL(gm)
+    app = AppMPL()
     app.run()
 
 

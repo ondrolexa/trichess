@@ -1,4 +1,4 @@
-from trichess.engine import Board, GameManager, Hex, Knight, Move, Pawn, Player, Pos
+from trichess.engine import Board, Hex, Knight, Move, Pawn, Player, Pos, GameAPI
 from trichess.ui import AppMPL
 
 __all__ = (
@@ -7,8 +7,8 @@ __all__ = (
     "Player",
     "Hex",
     "Board",
-    "GameManager",
     "Pawn",
     "Knight",
+    "GameAPI",
     "AppMPL",
 )

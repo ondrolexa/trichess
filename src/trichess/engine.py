@@ -29,8 +29,9 @@ STEP = {
 
 
 class Pos:
-    def __init__(self, q, r):
+    def __init__(self, q, r, code="s"):
         self.value = complex(q, r)
+        self.code = code
 
     def __eq__(self, another):
         return hasattr(another, "value") and self.value == another.value
@@ -49,14 +50,15 @@ class Pos:
     def r(self) -> float:
         return self.value.imag
 
-    def from_deltas(self, deltas) -> Self:
+    def from_deltas(self, deltas, code="s") -> Self:
         res = self.value + sum(deltas)
-        return Pos(res.real, res.imag)
+        return Pos(res.real, res.imag, code=code)
 
 
 class Move:
-    def __init__(self, *args):
+    def __init__(self, *args, code="s"):
         self.steps = args
+        self.code = code
 
 
 class Piece:
@@ -65,7 +67,7 @@ class Piece:
         self.player = player
         self.used = kwargs.get("used", 0)
         self.hex = kwargs.get("hex", None)
-        self.jump = kwargs.get("jump", False)
+        self.special_attack = False
 
     def __repr__(self) -> str:
         if self.hex is None:
@@ -86,10 +88,17 @@ class Piece:
 class Pawn(Piece):
     def __init__(self, player, **kwargs):
         super().__init__("P", player, **kwargs)
+        self.special_attack = True
 
     @property
     def _moves(self) -> list[Move]:
-        moves = [Move("FL"), Move("FR")]
+        moves = [
+            Move("FL"),
+            Move("FR"),
+            Move("DL", code="a"),
+            Move("DF", code="a"),
+            Move("DR", code="a"),
+        ]
         if not self.used:
             moves.extend(
                 [
@@ -161,7 +170,7 @@ class Player:
                 raise ValueError(f"Step code {step} not recognized")
 
     def pos_from_move(self, pos, move) -> Pos:
-        return pos.from_deltas([self.step(step) for step in move.steps])
+        return pos.from_deltas([self.step(step) for step in move.steps], code=move.code)
 
     def pawn(self, **kwargs) -> Pawn:
         return Pawn(self, **kwargs)
@@ -243,11 +252,25 @@ class Board:
     def place_piece(self, pos, piece) -> Piece:
         self.board[pos].piece = piece(hex=self.board[pos])
 
-    def all_moves(self, piece) -> list[Hex]:
-        return [self.board[dest] for dest in piece.moves() if dest in self.board]
+    def all_moves(self, piece) -> list[Pos]:
+        all = []
+        for dest in piece.moves():
+            if dest in self.board:
+                if dest.code == "a" and self.board[dest].has_piece:
+                    if self.board[dest].piece.player is not piece.player:
+                        all.append(dest)
+                elif dest.code == "s":
+                    if self.board[dest].has_piece:
+                        if self.board[dest].piece.player is not piece.player:
+                            all.append(dest)
+                    else:
+                        all.append(dest)
+                else:
+                    pass
+        return all
 
 
-class GameManager:
+class GameAPI:
     def __init__(self):
         self.ready = False
 
@@ -261,7 +284,7 @@ class GameManager:
         self.on_move = kwargs.get("on_move", 0)
         self.ready = True
 
-    def prepare_move(self, hex):
+    def get_moves(self, hex):
         ok = False
         moves = []
         if self.ready:
@@ -272,7 +295,7 @@ class GameManager:
                     ok = True
         return ok, moves
 
-    def finish_move(self, hex_from, hex_to):
+    def make_move(self, hex_from, hex_to):
         hex_from.piece.hex = hex_to
         hex_to.piece = hex_from.piece
         hex_from.piece = None

@@ -3,10 +3,16 @@ from math import sqrt
 import matplotlib.pyplot as plt
 from matplotlib.patches import RegularPolygon
 
+from trichess import GameAPI
+
 
 class App:
-    def __init__(self, gm):
-        self.gm = gm
+    def __init__(self, api=None):
+        if api is None:
+            self.ga = GameAPI()
+            self.ga.new_game()
+        else:
+            self.ga = api
 
 
 class AppMPL(App):
@@ -14,8 +20,8 @@ class AppMPL(App):
 
     colors = ["#ffffffff", "#009fffff", "#ff7171ff"]
 
-    def __init__(self, gm):
-        super().__init__(gm)
+    def __init__(self, api=None):
+        super().__init__(api=None)
         self.selected_patch = None
         self.patch = {}
         self.piece = {}
@@ -73,7 +79,7 @@ class AppMPL(App):
         """Show board with axial coordinates"""
         plt.rcParams["toolbar"] = "None"
         fig, ax = plt.subplots(num="TriChess coordinates", figsize=(8, 7))
-        for h in self.gm.board:
+        for h in self.ga.board:
             patch = self.get_hex_patch(h)
             ax.add_patch(patch)
             x, y = self.get_hex_xy(h)
@@ -93,10 +99,10 @@ class AppMPL(App):
 
         def on_pick(event):
             gid = event.artist.get_gid()
-            h = self.gm.board.gid[gid]
+            h = self.ga.board.gid[gid]
             if self.ongoing:
                 if h in self.ongoing["targets"]:
-                    self.gm.finish_move(self.ongoing["from"], h)
+                    self.ga.make_move(self.ongoing["from"], h)
                     self.update_label(self.ongoing["from"])
                     self.update_label(h)
                 self.clear_patch(self.ongoing["from"].gid)
@@ -105,20 +111,27 @@ class AppMPL(App):
                 self.ongoing = {}
             else:
                 self.set_patch_selected(gid)
-                ok, moves = self.gm.prepare_move(h)
+                ok, moves = self.ga.get_moves(h)
                 if ok and moves:
                     self.ongoing["from"] = h
-                    self.ongoing["targets"] = moves
-                    for nh in moves:
-                        if not nh.has_piece:
-                            self.set_patch_safe(nh.gid)
+                    self.ongoing["targets"] = []
+                    for pos in moves:
+                        if not self.ga.board[pos].has_piece:
+                            self.set_patch_safe(self.ga.board[pos].gid)
+                            self.ongoing["targets"].append(self.ga.board[pos])
                         else:
-                            self.set_patch_attack(nh.gid)
+                            if h.piece.special_attack:
+                                if pos.code == "a":
+                                    self.set_patch_attack(self.ga.board[pos].gid)
+                                    self.ongoing["targets"].append(self.ga.board[pos])
+                            else:
+                                self.set_patch_attack(self.ga.board[pos].gid)
+                                self.ongoing["targets"].append(self.ga.board[pos])
             fig.canvas.draw()
 
         plt.rcParams["toolbar"] = "None"
         fig, ax = plt.subplots(num="TriChess")
-        for h in self.gm.board:
+        for h in self.ga.board:
             patch = self.get_hex_patch(h, gid=h.gid)
             self.move_arrows[h.gid] = []
             patch.set_picker(2)
