@@ -180,6 +180,50 @@ class Rook(Piece):
         ]
 
 
+class Queen(Piece):
+    def __init__(self, player, **kwargs):
+        super().__init__("♛", "Q", player, **kwargs)
+
+    @property
+    def _moves(self) -> list[Move]:
+        return [
+            Move("SL", code="n"),
+            Move("FL", code="n"),
+            Move("FR", code="n"),
+            Move("SLr", code="n"),
+            Move("FLr", code="n"),
+            Move("FRr", code="n"),
+            Move("DL", code="n"),
+            Move("DF", code="n"),
+            Move("DR", code="n"),
+            Move("DLr", code="n"),
+            Move("DFr", code="n"),
+            Move("DRr", code="n"),
+        ]
+
+
+class King(Piece):
+    def __init__(self, player, **kwargs):
+        super().__init__("♚", "K", player, **kwargs)
+
+    @property
+    def _moves(self) -> list[Move]:
+        return [
+            Move("SL"),
+            Move("FL"),
+            Move("FR"),
+            Move("SLr"),
+            Move("FLr"),
+            Move("FRr"),
+            Move("DL"),
+            Move("DF"),
+            Move("DR"),
+            Move("DLr"),
+            Move("DFr"),
+            Move("DRr"),
+        ]
+
+
 class Player:
     def __init__(self, pid, **kwargs):
         self.pid = pid
@@ -231,6 +275,12 @@ class Player:
 
     def rook(self, **kwargs) -> Rook:
         return Rook(self, **kwargs)
+
+    def queen(self, **kwargs) -> Queen:
+        return Queen(self, **kwargs)
+
+    def king(self, **kwargs) -> King:
+        return King(self, **kwargs)
 
 
 class Hex:
@@ -311,6 +361,14 @@ class Board:
         self.place_piece(Pos(-7, 0), self.players[1].rook)
         self.place_piece(Pos(7, 0), self.players[2].rook)
         self.place_piece(Pos(7, -7), self.players[2].rook)
+        # place queens
+        self.place_piece(Pos(-3, 7), self.players[0].queen)
+        self.place_piece(Pos(-4, -3), self.players[1].queen)
+        self.place_piece(Pos(7, -4), self.players[2].queen)
+        # place kings
+        self.place_piece(Pos(-4, 7), self.players[0].king)
+        self.place_piece(Pos(-3, -4), self.players[1].king)
+        self.place_piece(Pos(7, -3), self.players[2].king)
 
     def __iter__(self) -> iter:
         return iter(self.board.values())
