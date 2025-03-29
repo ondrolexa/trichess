@@ -286,14 +286,13 @@ class Player:
 class Hex:
     """Trichess board cell"""
 
-    def __init__(self, pos, gid, board):
+    def __init__(self, pos, board):
         self.pos = pos
-        self.gid = gid
         self.board = board
         self.piece = None
 
     def __repr__(self) -> str:
-        return f"Hex({self.pos.q:g},{self.pos.r:g})[{self.gid}]"
+        return f"Hex({self.pos.q:g},{self.pos.r:g})"
 
     @property
     def has_piece(self) -> bool:
@@ -310,22 +309,20 @@ class Board:
     def __init__(self, **kwargs):
         # board dict
         self.board = {}
-        self.gid = {}
         # setup players
         self.players = kwargs.get("players", [Player(0), Player(1), Player(2)])
         # generate all cells
-        gid = 0
         for q in range(-7, 8):
             for r in range(-7, 8):
                 # check whether on board
                 s = -q - r
                 if -7 <= s <= 7:
                     pos = Pos(q, r)
-                    sgid = str(gid)
-                    self.board[pos] = Hex(pos, sgid, self.board)
-                    self.gid[sgid] = self.board[pos]
-                    gid += 1
+                    self.board[pos] = Hex(pos, self.board)
         self.init_pieces()
+        log = kwargs.get("log", [])
+        for pos_from, pos_to in log:
+            self.move_piece(pos_from, pos_to)
 
     def init_pieces(self):
         # place pawns
@@ -374,16 +371,20 @@ class Board:
         return iter(self.board.values())
 
     def __getitem__(self, pos: Pos | int) -> Hex:
-        if isinstance(pos, Pos):
-            return self.board.get(pos, None)
-        else:
-            return self.gid.get(pos, None)
+        return self.board.get(pos, None)
 
     def __contains__(self, pos: Pos) -> bool:
         return pos in self.board
 
-    def place_piece(self, pos, piece) -> Piece:
-        self.board[pos].piece = piece(hex=self.board[pos])
+    def place_piece(self, pos: Pos, create_piece_fn) -> Piece:
+        self.board[pos].piece = create_piece_fn(hex=self.board[pos])
+
+    def move_piece(self, pos_from, pos_to):
+        piece = self.board[pos_from].piece
+        piece.used = True
+        piece.hex = self.board[pos_to]
+        self.board[pos_to].piece = piece
+        self.board[pos_from].piece = None
 
     def all_moves(self, piece) -> list[Pos]:
         all = []
@@ -412,7 +413,7 @@ class Board:
 class GameAPI:
     def __init__(self):
         self.ready = False
-        self.history = {}
+        self.log = []
         self.move_number = 0
 
     def new_game(self, **kwargs):
@@ -442,21 +443,17 @@ class GameAPI:
 
     def make_move(self, hex_from, hex_to):
         if self.ready:
-            # store pieces positions
-            self.history[self.move_number] = {
-                gid: self.board.gid[gid].piece for gid in self.board.gid
-            }
+            # add move to log
+            self.log.append((hex_from.pos, hex_to.pos))
             # make move
-            hex_from.piece.hex = hex_to
-            hex_to.piece = hex_from.piece
-            hex_to.piece.used = True
-            hex_from.piece = None
+            self.board.move_piece(hex_from.pos, hex_to.pos)
             self.move_number += 1
 
-    def undo(self):  # TODO used property must be stored. May be store copy of piece?
+    def undo(self):
         if self.ready and self.move_number > 0:
-            self.move_number -= 1
-            for gid in self.history[self.move_number]:
-                self.board.gid[gid].piece = self.history[self.move_number][gid]
-                if self.board.gid[gid].piece is not None:
-                    self.board.gid[gid].piece.hex = self.board.gid[gid]
+            self.replay_from_log(self.log[:-1])
+
+    def replay_from_log(self, log):
+        self.log = log
+        self.move_number = len(log)
+        self.board = Board(players=self.players, log=log)

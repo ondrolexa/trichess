@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import RegularPolygon
 from matplotlib.widgets import Button
 
-from trichess import GameAPI, Hex
+from trichess import GameAPI
 
 player_lbs_prop = dict(
     ha="center",
@@ -22,6 +22,9 @@ class App:
             self.ga.new_game()
         else:
             self.ga = api
+        # UI gid mappings to engine hex and pos
+        self.gid2hex = {}
+        self.pos2gid = {}
 
 
 class AppMPL(App):
@@ -54,35 +57,36 @@ class AppMPL(App):
             gid=gid,
         )
 
-    def clear_hex(self, hex):
+    def clear_hex(self, gid):
         # reset edge color
-        self.patch[hex.gid].set_edgecolor("k")
-        self.patch[hex.gid].set_linewidth(1)
-        self.patch[hex.gid].set_zorder(1)
+        self.patch[gid].set_edgecolor("k")
+        self.patch[gid].set_linewidth(1)
+        self.patch[gid].set_zorder(1)
 
-    def set_hex_selected(self, hex):
+    def set_hex_selected(self, gid):
         if self.selected_hex is not None:
             self.clear_hex(self.selected_hex)
-        self.selected_hex = hex
+        self.selected_hex = gid
         # set edge color
-        self.patch[hex.gid].set_edgecolor("yellow")
-        self.patch[hex.gid].set_linewidth(3)
-        self.patch[hex.gid].set_zorder(2)
+        self.patch[gid].set_edgecolor("yellow")
+        self.patch[gid].set_linewidth(3)
+        self.patch[gid].set_zorder(2)
 
-    def set_hex_safe(self, hex):
+    def set_hex_safe(self, gid):
         # set edge color
-        self.patch[hex.gid].set_edgecolor("green")
-        self.patch[hex.gid].set_linewidth(3)
-        self.patch[hex.gid].set_zorder(3)
+        self.patch[gid].set_edgecolor("green")
+        self.patch[gid].set_linewidth(3)
+        self.patch[gid].set_zorder(3)
 
-    def set_hex_attack(self, hex):
+    def set_hex_attack(self, gid):
         # set edge color
-        self.patch[hex.gid].set_edgecolor("red")
-        self.patch[hex.gid].set_linewidth(3)
-        self.patch[hex.gid].set_zorder(4)
+        self.patch[gid].set_edgecolor("red")
+        self.patch[gid].set_linewidth(3)
+        self.patch[gid].set_zorder(4)
 
-    def update_symbol(self, hex):
-        self.piece[hex.gid].set_text(hex.piece.symbol if hex.piece is not None else "")
+    def update_symbol(self, gid):
+        hex = self.gid2hex[gid]
+        self.piece[gid].set_text(hex.piece.symbol if hex.piece is not None else "")
 
     def show_board(self):
         """Show board with axial coordinates"""
@@ -108,39 +112,37 @@ class AppMPL(App):
 
         def on_pick(event):
             gid = event.artist.get_gid()
-            h = self.ga.board[gid]
             if self.move_in_progress:
-                if h in self.move_in_progress["targets"]:
+                if gid in self.move_in_progress["targets"]:
                     self.player_labels[self.ga.on_move].set_visible(False)
-                    self.ga.make_move(self.move_in_progress["from"], h)
+                    self.ga.make_move(
+                        self.gid2hex[self.move_in_progress["from"]], self.gid2hex[gid]
+                    )
                     self.update_symbol(self.move_in_progress["from"])
-                    self.update_symbol(h)
+                    self.update_symbol(gid)
                 self.clear_hex(self.move_in_progress["from"])
-                for nh in self.move_in_progress["targets"]:
-                    self.clear_hex(nh)
+                for tgid in self.move_in_progress["targets"]:
+                    self.clear_hex(tgid)
                 self.move_in_progress = {}
             else:
-                self.set_hex_selected(h)
-                ok, moves = self.ga.get_moves(h)
+                self.set_hex_selected(gid)
+                ok, moves = self.ga.get_moves(self.gid2hex[gid])
                 if ok and moves:
-                    self.move_in_progress["from"] = h
+                    self.move_in_progress["from"] = gid
                     self.move_in_progress["targets"] = []
                     for pos in moves:
+                        tgid = self.pos2gid[pos]
                         if not self.ga.board[pos].has_piece:
-                            self.set_hex_safe(self.ga.board[pos])
-                            self.move_in_progress["targets"].append(self.ga.board[pos])
+                            self.set_hex_safe(tgid)
+                            self.move_in_progress["targets"].append(tgid)
                         else:
-                            if h.piece.special_attack:
+                            if hex.piece.special_attack:
                                 if pos.code == "a":
-                                    self.set_hex_attack(self.ga.board[pos])
-                                    self.move_in_progress["targets"].append(
-                                        self.ga.board[pos]
-                                    )
+                                    self.set_hex_attack(tgid)
+                                    self.move_in_progress["targets"].append(tgid)
                             else:
-                                self.set_hex_attack(self.ga.board[pos])
-                                self.move_in_progress["targets"].append(
-                                    self.ga.board[pos]
-                                )
+                                self.set_hex_attack(tgid)
+                                self.move_in_progress["targets"].append(tgid)
             self.player_labels[self.ga.on_move].set_visible(True)
             self.title.set_text(f"Move: {self.ga.move_number}")
             fig.canvas.draw()
@@ -150,21 +152,24 @@ class AppMPL(App):
             self.ga.undo()
             self.player_labels[self.ga.on_move].set_visible(True)
             self.title.set_text(f"Move: {self.ga.move_number}")
-            for h in self.ga.board:
-                self.update_symbol(h)
+            for gid, hex in enumerate(self.ga.board):
+                self.gid2hex[gid] = hex
+                self.update_symbol(self.pos2gid[hex.pos])
             fig.canvas.draw()
 
         plt.rcParams["toolbar"] = "None"
         plt.rcParams["figure.constrained_layout.use"] = True
         fig, ax = plt.subplots(num="TriChess")
-        for h in self.ga.board:
-            patch = self.create_hex_patch(h, gid=h.gid)
+        for gid, hex in enumerate(self.ga.board):
+            self.gid2hex[gid] = hex
+            self.pos2gid[hex.pos] = gid
+            patch = self.create_hex_patch(hex, gid=gid)
             patch.set_picker(2)
             ax.add_patch(patch)
-            self.patch[h.gid] = patch
-            self.piece[h.gid] = ax.text(
-                *self.get_hex_xy(h),
-                h.piece.symbol if h.piece is not None else "",
+            self.patch[gid] = patch
+            self.piece[gid] = ax.text(
+                *self.get_hex_xy(hex),
+                hex.piece.symbol if hex.piece is not None else "",
                 ha="center",
                 va="center",
                 size="xx-large",
