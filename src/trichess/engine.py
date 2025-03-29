@@ -412,6 +412,8 @@ class Board:
 class GameAPI:
     def __init__(self):
         self.ready = False
+        self.history = {}
+        self.move_number = 0
 
     def new_game(self, **kwargs):
         self.players = [
@@ -420,23 +422,41 @@ class GameAPI:
             kwargs.get("player2", Player(2)),
         ]
         self.board = Board(players=self.players)
-        self.on_move = kwargs.get("on_move", 0)
         self.ready = True
 
+    @property
+    def on_move(self):
+        return self.move_number % 3
+
     def get_moves(self, hex):
-        ok = False
-        moves = []
         if self.ready:
-            if hex.has_piece:
-                piece = hex.piece
-                if self.players[self.on_move] is piece.player:
-                    moves = self.board.all_moves(piece)
-                    ok = True
-        return ok, moves
+            ok = False
+            moves = []
+            if self.ready:
+                if hex.has_piece:
+                    piece = hex.piece
+                    if self.players[self.on_move] is piece.player:
+                        moves = self.board.all_moves(piece)
+                        ok = True
+            return ok, moves
 
     def make_move(self, hex_from, hex_to):
-        hex_from.piece.hex = hex_to
-        hex_to.piece = hex_from.piece
-        hex_to.piece.used = True
-        hex_from.piece = None
-        self.on_move = (self.on_move + 1) % 3
+        if self.ready:
+            # store pieces positions
+            self.history[self.move_number] = {
+                gid: self.board.gid[gid].piece for gid in self.board.gid
+            }
+            # make move
+            hex_from.piece.hex = hex_to
+            hex_to.piece = hex_from.piece
+            hex_to.piece.used = True
+            hex_from.piece = None
+            self.move_number += 1
+
+    def undo(self):  # TODO used property must be stored. May be store copy of piece?
+        if self.ready and self.move_number > 0:
+            self.move_number -= 1
+            for gid in self.history[self.move_number]:
+                self.board.gid[gid].piece = self.history[self.move_number][gid]
+                if self.board.gid[gid].piece is not None:
+                    self.board.gid[gid].piece.hex = self.board.gid[gid]

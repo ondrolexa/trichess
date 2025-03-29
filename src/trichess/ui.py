@@ -2,8 +2,17 @@ from math import sqrt
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import RegularPolygon
+from matplotlib.widgets import Button
 
-from trichess import GameAPI
+from trichess import GameAPI, Hex
+
+player_lbs_prop = dict(
+    ha="center",
+    va="top",
+    visible=False,
+    rotation_mode="anchor",
+    fontsize=12,
+)
 
 
 class App:
@@ -102,6 +111,7 @@ class AppMPL(App):
             h = self.ga.board[gid]
             if self.move_in_progress:
                 if h in self.move_in_progress["targets"]:
+                    self.player_labels[self.ga.on_move].set_visible(False)
                     self.ga.make_move(self.move_in_progress["from"], h)
                     self.update_symbol(self.move_in_progress["from"])
                     self.update_symbol(h)
@@ -131,10 +141,21 @@ class AppMPL(App):
                                 self.move_in_progress["targets"].append(
                                     self.ga.board[pos]
                                 )
-            self.title.set_text(f"On move: {self.ga.on_move}")
+            self.player_labels[self.ga.on_move].set_visible(True)
+            self.title.set_text(f"Move: {self.ga.move_number}")
+            fig.canvas.draw()
+
+        def undo(event):
+            self.player_labels[self.ga.on_move].set_visible(False)
+            self.ga.undo()
+            self.player_labels[self.ga.on_move].set_visible(True)
+            self.title.set_text(f"Move: {self.ga.move_number}")
+            for h in self.ga.board:
+                self.update_symbol(h)
             fig.canvas.draw()
 
         plt.rcParams["toolbar"] = "None"
+        plt.rcParams["figure.constrained_layout.use"] = True
         fig, ax = plt.subplots(num="TriChess")
         for h in self.ga.board:
             patch = self.create_hex_patch(h, gid=h.gid)
@@ -149,15 +170,23 @@ class AppMPL(App):
                 size="xx-large",
                 zorder=5,
             )
-
+        # undo button
+        btnax = plt.axes([0.85, 0.9, 0.1, 0.05])
+        btn = Button(btnax, "Undo")
+        btn.on_clicked(undo)
         # set limits to fit
         ax.set_xlim(-8, 8)
         ax.set_ylim(-8, 8)
         ax.set_aspect(1)
         # hide axes
         ax.set_axis_off()
-        self.title = ax.set_title(f"On move: {self.ga.on_move}")
-        fig.tight_layout()
+        self.title = ax.set_title(f"Move: {self.ga.move_number}")
+        self.player_labels = [
+            ax.text(0, -7.2, self.ga.players[0].name, **player_lbs_prop),
+            ax.text(-7, 3.46, self.ga.players[1].name, rotation=60, **player_lbs_prop),
+            ax.text(7, 3.46, self.ga.players[2].name, rotation=-60, **player_lbs_prop),
+        ]
+        self.player_labels[self.ga.on_move].set_visible(True)
         # connect pick event
         fig.canvas.mpl_connect("pick_event", on_pick)
         plt.show()
