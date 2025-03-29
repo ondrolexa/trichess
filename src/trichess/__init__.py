@@ -1,14 +1,31 @@
-from trichess.engine import Board, Hex, Knight, Move, Pawn, Player, Pos, GameAPI
+from trichess.engine import (
+    Bishop,
+    Board,
+    GameAPI,
+    Hex,
+    King,
+    Knight,
+    Move,
+    Pawn,
+    Player,
+    Pos,
+    Queen,
+    Rook,
+)
 from trichess.ui import AppMPL
 
 __all__ = (
     "Pos",
     "Move",
-    "Player",
-    "Hex",
-    "Board",
     "Pawn",
     "Knight",
+    "Bishop",
+    "Rook",
+    "Queen",
+    "King",
+    "Board",
+    "Hex",
+    "Player",
     "GameAPI",
     "AppMPL",
 )

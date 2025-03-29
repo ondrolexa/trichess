@@ -1,4 +1,4 @@
-from typing import Self
+from trichess.pieces import Bishop, King, Knight, Move, Pawn, Piece, Pos, Queen, Rook
 
 STEP = {
     0: {
@@ -28,204 +28,26 @@ STEP = {
 }
 
 
-class Pos:
-    def __init__(self, q, r, code="s"):
-        self.value = complex(q, r)
-        self.code = code
-
-    def __eq__(self, another):
-        return hasattr(another, "value") and self.value == another.value
-
-    def __hash__(self):
-        return hash((self.value, abs(self.value)))
-
-    def __repr__(self) -> str:
-        return f"Pos({self.q:g},{self.r:g})"
-
-    @property
-    def q(self) -> float:
-        return self.value.real
-
-    @property
-    def r(self) -> float:
-        return self.value.imag
-
-    def from_deltas(self, deltas, code="s") -> Self:
-        res = self.value + sum(deltas)
-        return Pos(res.real, res.imag, code=code)
-
-
-class Move:
-    def __init__(self, *args, code="s"):
-        self.steps = args
-        self.code = code
-
-
-class Piece:
-    def __init__(self, symbol, label, player, **kwargs):
-        self.symbol = symbol
-        self.label = label
-        self.player = player
-        self.used = kwargs.get("used", False)
-        self.hex = kwargs.get("hex", None)
-        self.special_attack = False
-
-    def __repr__(self) -> str:
-        if self.hex is None:
-            return f"{self.label}{self.player} (not placed)"
-        else:
-            return f"{self.label}{self.player} {self.hex.pos}"
-
-    @property
-    def pos(self) -> Pos:
-        if self.hex is not None:
-            return self.hex.pos
-
-    def reachable(self) -> list[Pos]:
-        if self.hex is not None:
-            res = []
-            for move in self._moves:
-                if move.code != "n":
-                    res.append(self.player.pos_from_move(self.pos, move))
-                else:
-                    pos = self.pos
-                    for i in range(1, 15):
-                        pos = self.player.pos_from_move(pos, move)
-                        if pos in self.hex.board:
-                            if self.hex.board[pos].has_piece:
-                                if self.player is not self.hex.board[pos].piece.player:
-                                    res.append(pos)
-                                break
-                            res.append(pos)
-                        else:
-                            break
-            return res
-
-
-class Pawn(Piece):
-    def __init__(self, player, **kwargs):
-        super().__init__("♟", "P", player, **kwargs)
-        self.special_attack = True
-
-    @property
-    def _moves(self) -> list[Move]:
-        moves = [
-            Move("FL"),
-            Move("FR"),
-            Move("DL", code="a"),
-            Move("DF", code="a"),
-            Move("DR", code="a"),
-        ]
-        if not self.used:
-            moves.extend(
-                [
-                    Move("FL", "FL"),
-                    Move("FR", "FR"),
-                ]
-            )
-        return moves
-
-
-class Knight(Piece):
-    def __init__(self, player, **kwargs):
-        super().__init__("♞", "N", player, **kwargs)
-
-    @property
-    def _moves(self) -> list[Move]:
-        return [
-            Move("SL", "SL", "FRr"),
-            Move("SL", "SL", "FL"),
-            Move("FL", "FL", "SL"),
-            Move("FL", "FL", "FR"),
-            Move("FR", "FR", "FL"),
-            Move("FR", "FR", "SLr"),
-            Move("SLr", "SLr", "FR"),
-            Move("SLr", "SLr", "FLr"),
-            Move("FLr", "FLr", "SLr"),
-            Move("FLr", "FLr", "FRr"),
-            Move("FRr", "FRr", "FLr"),
-            Move("FRr", "FRr", "SL"),
-        ]
-
-
-class Bishop(Piece):
-    def __init__(self, player, **kwargs):
-        super().__init__("♝", "B", player, **kwargs)
-
-    @property
-    def _moves(self) -> list[Move]:
-        return [
-            Move("DL", code="n"),
-            Move("DF", code="n"),
-            Move("DR", code="n"),
-            Move("DLr", code="n"),
-            Move("DFr", code="n"),
-            Move("DRr", code="n"),
-        ]
-
-
-class Rook(Piece):
-    def __init__(self, player, **kwargs):
-        super().__init__("♜", "R", player, **kwargs)
-
-    @property
-    def _moves(self) -> list[Move]:
-        return [
-            Move("SL", code="n"),
-            Move("FL", code="n"),
-            Move("FR", code="n"),
-            Move("SLr", code="n"),
-            Move("FLr", code="n"),
-            Move("FRr", code="n"),
-        ]
-
-
-class Queen(Piece):
-    def __init__(self, player, **kwargs):
-        super().__init__("♛", "Q", player, **kwargs)
-
-    @property
-    def _moves(self) -> list[Move]:
-        return [
-            Move("SL", code="n"),
-            Move("FL", code="n"),
-            Move("FR", code="n"),
-            Move("SLr", code="n"),
-            Move("FLr", code="n"),
-            Move("FRr", code="n"),
-            Move("DL", code="n"),
-            Move("DF", code="n"),
-            Move("DR", code="n"),
-            Move("DLr", code="n"),
-            Move("DFr", code="n"),
-            Move("DRr", code="n"),
-        ]
-
-
-class King(Piece):
-    def __init__(self, player, **kwargs):
-        super().__init__("♚", "K", player, **kwargs)
-
-    @property
-    def _moves(self) -> list[Move]:
-        return [
-            Move("SL"),
-            Move("FL"),
-            Move("FR"),
-            Move("SLr"),
-            Move("FLr"),
-            Move("FRr"),
-            Move("DL"),
-            Move("DF"),
-            Move("DR"),
-            Move("DLr"),
-            Move("DFr"),
-            Move("DRr"),
-        ]
-
-
 class Player:
-    def __init__(self, pid, **kwargs):
+    """A class to represent a trichess player.
+
+    Note:
+        Player has defined position on trichessboard.
+        0-bottom, 1-left, 2-right
+
+    Args:
+        pid (int): Player ID. Must be 0, 1 or 2 according to position
+
+    Keyword Args:
+        name (str, optional): Player name
+
+    Attributes:
+        pid (int): Player ID. Must be 0, 1 or 2 according to position
+        name (str): Player name
+
+    """
+
+    def __init__(self, pid: int, **kwargs):
         self.pid = pid
         self.name = kwargs.get("name", f"Player {pid}")
 
@@ -233,58 +55,54 @@ class Player:
         return f"[{self.name}]"
 
     def step(self, step) -> complex:
-        match step:
-            case "FL":
-                return STEP[self.pid]["FL"]
-            case "FLr":
-                return -STEP[self.pid]["FL"]
-            case "FR":
-                return STEP[self.pid]["FR"]
-            case "FRr":
-                return -STEP[self.pid]["FR"]
-            case "SL":
-                return STEP[self.pid]["SL"]
-            case "SLr":
-                return -STEP[self.pid]["SL"]
-            case "DF":
-                return STEP[self.pid]["DF"]
-            case "DFr":
-                return -STEP[self.pid]["DF"]
-            case "DL":
-                return STEP[self.pid]["DL"]
-            case "DLr":
-                return -STEP[self.pid]["DL"]
-            case "DR":
-                return STEP[self.pid]["DR"]
-            case "DRr":
-                return -STEP[self.pid]["DR"]
-            case "_":
-                raise ValueError(f"Step code {step} not recognized")
+        """Return step code converted to complex number."""
+        if step.endswith("r"):
+            return -STEP[self.pid][step[:-1]]
+        else:
+            return STEP[self.pid][step]
 
-    def pos_from_move(self, pos, move) -> Pos:
+    def pos_from_move(self, pos: Pos, move: Move) -> Pos:
+        """Return new position calculated from current one and move."""
         return pos.from_deltas([self.step(step) for step in move.steps], code=move.code)
 
     def pawn(self, **kwargs) -> Pawn:
+        """Create Player's instance of pawn piece."""
         return Pawn(self, **kwargs)
 
     def knight(self, **kwargs) -> Knight:
+        """Create Player's instance of knight piece."""
         return Knight(self, **kwargs)
 
     def bishop(self, **kwargs) -> Bishop:
+        """Create Player's instance of bishop piece."""
         return Bishop(self, **kwargs)
 
     def rook(self, **kwargs) -> Rook:
+        """Create Player's instance of rook piece."""
         return Rook(self, **kwargs)
 
     def queen(self, **kwargs) -> Queen:
+        """Create Player's instance of queen piece."""
         return Queen(self, **kwargs)
 
     def king(self, **kwargs) -> King:
+        """Create Player's instance of king piece."""
         return King(self, **kwargs)
 
 
 class Hex:
-    """Trichess board cell"""
+    """A class to represent a trichess board cell.
+
+    Args:
+        pos (Pos): Position of cell
+        board (Board): Board instance containing the cell
+
+    Attributes:
+        piece (Piece, None): Piece instance on this cell or None
+        has_piece (bool): True when contains piece, otherwise False
+        color (int): Color of the cell. Returns 0, 1 or 2
+
+    """
 
     def __init__(self, pos, board):
         self.pos = pos
@@ -304,13 +122,22 @@ class Hex:
 
 
 class Board:
-    """Class to store current trichess board"""
+    """A class to represent a trichess board.
+
+    Keyword Args:
+        players (dict): A dictionary with three players. Keys must be 0, 1 and 2
+        log (list, optional): Chess game log
+
+    Attributes:
+        players (dict): A dictionary with three players. Keys are 0, 1 and 2
+
+    """
 
     def __init__(self, **kwargs):
         # board dict
-        self.board = {}
+        self._board = {}
         # setup players
-        self.players = kwargs.get("players", [Player(0), Player(1), Player(2)])
+        self.players = kwargs.get("players", {0: Player(0), 1: Player(1), 2: Player(2)})
         # generate all cells
         for q in range(-7, 8):
             for r in range(-7, 8):
@@ -318,13 +145,17 @@ class Board:
                 s = -q - r
                 if -7 <= s <= 7:
                     pos = Pos(q, r)
-                    self.board[pos] = Hex(pos, self.board)
+                    self._board[pos] = Hex(pos, self)
         self.init_pieces()
         log = kwargs.get("log", [])
         for pos_from, pos_to in log:
             self.move_piece(pos_from, pos_to)
 
     def init_pieces(self):
+        """Initialize trichess board pieces to starting positions"""
+
+        for hex in self:
+            hex.piece = None
         # place pawns
         for i in range(-7, -3):
             self.place_piece(Pos(i, 6), self.players[0].pawn)
@@ -368,40 +199,53 @@ class Board:
         self.place_piece(Pos(7, -3), self.players[2].king)
 
     def __iter__(self) -> iter:
-        return iter(self.board.values())
+        return iter(self._board.values())
 
     def __getitem__(self, pos: Pos | int) -> Hex:
-        return self.board.get(pos, None)
+        return self._board.get(pos, None)
 
     def __contains__(self, pos: Pos) -> bool:
-        return pos in self.board
+        return pos in self._board
 
-    def place_piece(self, pos: Pos, create_piece_fn) -> Piece:
-        self.board[pos].piece = create_piece_fn(hex=self.board[pos])
+    def place_piece(self, pos: Pos, create_piece_fn):
+        """Place piece on cell with given position.
+
+        Note:
+            Piece is passed as creator function. See Player methods.
+
+        """
+        self._board[pos].piece = create_piece_fn(hex=self._board[pos])
 
     def move_piece(self, pos_from, pos_to):
-        piece = self.board[pos_from].piece
-        piece.used = True
-        piece.hex = self.board[pos_to]
-        self.board[pos_to].piece = piece
-        self.board[pos_from].piece = None
+        """Move piece from one position to other.
 
-    def all_moves(self, piece) -> list[Pos]:
+        Note:
+            When there is no piece on position, error is raised
+
+        """
+        piece = self._board[pos_from].piece
+        piece.used = True
+        piece.hex = self._board[pos_to]
+        self._board[pos_to].piece = piece
+        self._board[pos_from].piece = None
+
+    def possible_moves(self, piece: Piece) -> list[Pos]:
+        """Return list of all posiible moves for given piece."""
         all = []
-        for dest in piece.reachable():
-            if dest in self.board:
-                if dest.code == "a" and self.board[dest].has_piece:
-                    if self.board[dest].piece.player is not piece.player:
+        for dest in piece.pos_candidates():
+            if dest in self._board:
+                if dest.code == "a" and self._board[dest].has_piece:
+                    if self._board[dest].piece.player is not piece.player:
                         all.append(dest)
                 elif dest.code == "s":
-                    if self.board[dest].has_piece:
-                        if self.board[dest].piece.player is not piece.player:
+                    if self._board[dest].has_piece:
+                        if self._board[dest].piece.player is not piece.player:
                             all.append(dest)
                     else:
                         all.append(dest)
                 elif dest.code == "n":
-                    if self.board[dest].has_piece:
-                        if self.board[dest].piece.player is not piece.player:
+                    if self._board[dest].has_piece:
+                        if self._board[dest].piece.player is not piece.player:
                             all.append(dest)
                     else:
                         all.append(dest)
@@ -411,17 +255,38 @@ class Board:
 
 
 class GameAPI:
+    """A class to represent trichess game.
+
+    All interaction between front-end and engine must use GameAPI.
+
+    Attributes:
+        ready (bool): True when game is ready, otherwise False.
+        move_number (int): Number of moves played in game.
+        players (dict): A dictionary with three players. Keys are 0, 1 and 2
+        board (Board): Instance of trichess board.
+        log (list): List of played moves. Each move is represented by tuple
+            of two positions `(pos_from, pos_to)`.
+        on_move (int): ID of player on move
+
+    """
+
     def __init__(self):
         self.ready = False
         self.log = []
         self.move_number = 0
+        self.players = {0: None, 1: None, 2: None}
 
     def new_game(self, **kwargs):
-        self.players = [
-            kwargs.get("player0", Player(0)),
-            kwargs.get("player1", Player(1)),
-            kwargs.get("player2", Player(2)),
-        ]
+        """Initialize new Game
+
+        Keyword Args:
+            player0 (Player, optional): Player on position 0-bottom
+            player1 (Player, optional): Player on position 1-left
+            player2 (Player, optional): Player on position 2-right
+        """
+        self.players[0] = kwargs.get("player0", Player(0))
+        self.players[1] = kwargs.get("player1", Player(1))
+        self.players[2] = kwargs.get("player2", Player(2))
         self.board = Board(players=self.players)
         self.ready = True
 
@@ -429,19 +294,17 @@ class GameAPI:
     def on_move(self):
         return self.move_number % 3
 
-    def get_moves(self, hex):
+    def get_possible_moves(self, hex: Hex) -> list:
+        """Return list of possible new positions for piece on cell."""
         if self.ready:
-            ok = False
-            moves = []
-            if self.ready:
-                if hex.has_piece:
-                    piece = hex.piece
-                    if self.players[self.on_move] is piece.player:
-                        moves = self.board.all_moves(piece)
-                        ok = True
-            return ok, moves
+            if hex.has_piece:
+                piece = hex.piece
+                if self.players[self.on_move] is piece.player:
+                    return self.board.possible_moves(piece)
+        return []
 
     def make_move(self, hex_from, hex_to):
+        """Make move from hex to other hex and record it to the log."""
         if self.ready:
             # add move to log
             self.log.append((hex_from.pos, hex_to.pos))
@@ -450,10 +313,12 @@ class GameAPI:
             self.move_number += 1
 
     def undo(self):
+        """Undo last move."""
         if self.ready and self.move_number > 0:
             self.replay_from_log(self.log[:-1])
 
-    def replay_from_log(self, log):
+    def replay_from_log(self, log: list):
+        """Initalize board and replay all moves from log."""
         self.log = log
         self.move_number = len(log)
         self.board = Board(players=self.players, log=log)

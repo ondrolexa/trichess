@@ -112,22 +112,10 @@ class AppMPL(App):
 
         def on_pick(event):
             gid = event.artist.get_gid()
-            if self.move_in_progress:
-                if gid in self.move_in_progress["targets"]:
-                    self.player_labels[self.ga.on_move].set_visible(False)
-                    self.ga.make_move(
-                        self.gid2hex[self.move_in_progress["from"]], self.gid2hex[gid]
-                    )
-                    self.update_symbol(self.move_in_progress["from"])
-                    self.update_symbol(gid)
-                self.clear_hex(self.move_in_progress["from"])
-                for tgid in self.move_in_progress["targets"]:
-                    self.clear_hex(tgid)
-                self.move_in_progress = {}
-            else:
+            if not self.move_in_progress:
                 self.set_hex_selected(gid)
-                ok, moves = self.ga.get_moves(self.gid2hex[gid])
-                if ok and moves:
+                moves = self.ga.get_possible_moves(self.gid2hex[gid])
+                if moves:
                     self.move_in_progress["from"] = gid
                     self.move_in_progress["targets"] = []
                     for pos in moves:
@@ -143,6 +131,19 @@ class AppMPL(App):
                             else:
                                 self.set_hex_attack(tgid)
                                 self.move_in_progress["targets"].append(tgid)
+            else:
+                if gid in self.move_in_progress["targets"]:
+                    self.player_labels[self.ga.on_move].set_visible(False)
+                    self.ga.make_move(
+                        self.gid2hex[self.move_in_progress["from"]], self.gid2hex[gid]
+                    )
+                    self.update_symbol(self.move_in_progress["from"])
+                    self.update_symbol(gid)
+                self.clear_hex(self.move_in_progress["from"])
+                for tgid in self.move_in_progress["targets"]:
+                    self.clear_hex(tgid)
+                self.move_in_progress = {}
+
             self.player_labels[self.ga.on_move].set_visible(True)
             self.title.set_text(f"Move: {self.ga.move_number}")
             fig.canvas.draw()
