@@ -16,12 +16,11 @@ player_lbs_prop = dict(
 
 
 class App:
-    def __init__(self, api=None):
-        if api is None:
-            self.ga = GameAPI()
-            self.ga.new_game()
-        else:
-            self.ga = api
+    def __init__(self, slog=None):
+        self.ga = GameAPI()
+        self.ga.new_game()
+        if slog is not None:
+            self.ga.replay_from_log(self.ga.string2log(slog))
         # UI gid mappings to engine hex and pos
         self.gid2hex = {}
         self.pos2gid = {}
@@ -30,10 +29,12 @@ class App:
 class AppMPL(App):
     """Run app using matplotlib"""
 
-    colors = ["#ffffffff", "#009fffff", "#ff7171ff"]
+    # hex_colors = ["#ffffffff", "#009fffff", "#ff7171ff"]
+    hex_colors = ["#f0b6a8", "#d1f0a8", "#a8baf0"]
+    piece_colors = ["#B33900", "#1D6600", "#000599"]
 
-    def __init__(self, api=None):
-        super().__init__(api=None)
+    def __init__(self, slog=None):
+        super().__init__(slog=slog)
         self.selected_hex = None
         self.patch = {}
         self.piece = {}
@@ -43,8 +44,11 @@ class AppMPL(App):
     def get_hex_xy(self, h):
         return h.pos.q + 0.5 * h.pos.r, -h.pos.r * sqrt(3) / 2
 
-    def get_hex_color(self, h):
-        return AppMPL.colors[h.color]
+    def get_hex_color(self, hex):
+        return AppMPL.hex_colors[hex.color]
+
+    def get_piece_color(self, piece):
+        return AppMPL.piece_colors[piece.player.pid]
 
     def create_hex_patch(self, h, gid="_"):
         return RegularPolygon(
@@ -87,6 +91,11 @@ class AppMPL(App):
     def update_symbol(self, gid):
         hex = self.gid2hex[gid]
         self.piece[gid].set_text(hex.piece.symbol if hex.piece is not None else "")
+        self.piece[gid].set_color(
+            self.get_piece_color(hex.piece)
+            if hex.piece is not None
+            else self.get_hex_color(hex)
+        )
 
     def show_board(self):
         """Show board with axial coordinates"""
@@ -110,6 +119,13 @@ class AppMPL(App):
     def run(self):
         """Run trichess game"""
 
+        def update_ui():
+            self.player_labels[self.ga.on_move].set_visible(True)
+            self.title = ax.set_title(
+                f"{self.ga.logtail(n=6)}\nMove {self.ga.move_number}"
+            )
+            fig.canvas.draw()
+
         def on_pick(event):
             gid = event.artist.get_gid()
             if not self.move_in_progress:
@@ -125,7 +141,7 @@ class AppMPL(App):
                             self.move_in_progress["targets"].append(tgid)
                         else:
                             if hex.piece.special_attack:
-                                if pos.code == "a":
+                                if pos.kind == "a":
                                     self.set_hex_attack(tgid)
                                     self.move_in_progress["targets"].append(tgid)
                             else:
@@ -143,20 +159,18 @@ class AppMPL(App):
                 for tgid in self.move_in_progress["targets"]:
                     self.clear_hex(tgid)
                 self.move_in_progress = {}
-
-            self.player_labels[self.ga.on_move].set_visible(True)
-            self.title.set_text(f"Move: {self.ga.move_number}")
-            fig.canvas.draw()
+            update_ui()
 
         def undo(event):
             self.player_labels[self.ga.on_move].set_visible(False)
             self.ga.undo()
-            self.player_labels[self.ga.on_move].set_visible(True)
-            self.title.set_text(f"Move: {self.ga.move_number}")
             for gid, hex in enumerate(self.ga.board):
                 self.gid2hex[gid] = hex
                 self.update_symbol(self.pos2gid[hex.pos])
-            fig.canvas.draw()
+            update_ui()
+
+        def printlog(event):
+            print(self.ga.log2string())
 
         plt.rcParams["toolbar"] = "None"
         plt.rcParams["figure.constrained_layout.use"] = True
@@ -176,17 +190,26 @@ class AppMPL(App):
                 size="xx-large",
                 zorder=5,
             )
+            self.piece[gid].set_color(
+                self.get_piece_color(hex.piece)
+                if hex.piece is not None
+                else self.get_hex_color(hex)
+            )
         # undo button
-        btnax = plt.axes([0.85, 0.9, 0.1, 0.05])
-        btn = Button(btnax, "Undo")
-        btn.on_clicked(undo)
+        undoax = plt.axes([0.87, 0.9, 0.1, 0.05])
+        undobtn = Button(undoax, "Undo")
+        undobtn.on_clicked(undo)
+        # log button
+        logax = plt.axes([0.87, 0.84, 0.1, 0.05])
+        logbtn = Button(logax, "Log")
+        logbtn.on_clicked(printlog)
         # set limits to fit
         ax.set_xlim(-8, 8)
         ax.set_ylim(-8, 8)
         ax.set_aspect(1)
         # hide axes
         ax.set_axis_off()
-        self.title = ax.set_title(f"Move: {self.ga.move_number}")
+        self.title = ax.set_title(f"{self.ga.logtail(n=6)}\nMove {self.ga.move_number}")
         self.player_labels = [
             ax.text(0, -7.2, self.ga.players[0].name, **player_lbs_prop),
             ax.text(-7, 3.46, self.ga.players[1].name, rotation=60, **player_lbs_prop),

@@ -63,7 +63,7 @@ class Player:
 
     def pos_from_move(self, pos: Pos, move: Move) -> Pos:
         """Return new position calculated from current one and move."""
-        return pos.from_deltas([self.step(step) for step in move.steps], code=move.code)
+        return pos.from_deltas([self.step(step) for step in move.steps], kind=move.kind)
 
     def pawn(self, **kwargs) -> Pawn:
         """Create Player's instance of pawn piece."""
@@ -110,7 +110,7 @@ class Hex:
         self.piece = None
 
     def __repr__(self) -> str:
-        return f"Hex({self.pos.q:g},{self.pos.r:g})"
+        return f"Hex({self.pos.q},{self.pos.r})"
 
     @property
     def has_piece(self) -> bool:
@@ -118,7 +118,7 @@ class Hex:
 
     @property
     def color(self) -> int:
-        return int(2 * self.pos.q + self.pos.r) % 3
+        return (2 * self.pos.q + self.pos.r) % 3
 
 
 class Board:
@@ -234,16 +234,16 @@ class Board:
         all = []
         for dest in piece.pos_candidates():
             if dest in self._board:
-                if dest.code == "a" and self._board[dest].has_piece:
+                if dest.kind == "a" and self._board[dest].has_piece:
                     if self._board[dest].piece.player is not piece.player:
                         all.append(dest)
-                elif dest.code == "s":
+                elif dest.kind == "s":
                     if self._board[dest].has_piece:
                         if self._board[dest].piece.player is not piece.player:
                             all.append(dest)
                     else:
                         all.append(dest)
-                elif dest.code == "n":
+                elif dest.kind == "n":
                     if self._board[dest].has_piece:
                         if self._board[dest].piece.player is not piece.player:
                             all.append(dest)
@@ -322,3 +322,21 @@ class GameAPI:
         self.log = log
         self.move_number = len(log)
         self.board = Board(players=self.players, log=log)
+
+    def log2string(self):
+        """Returns game log as string."""
+        if self.ready and self.move_number > 0:
+            return "".join([f"{p1.code}{p2.code}" for p1, p2 in self.log])
+
+    def string2log(self, s):
+        """Returns game log from string."""
+        log = []
+        for q1, r1, q2, r2 in zip(s[::4], s[1::4], s[2::4], s[3::4]):
+            log.append(
+                (Pos(ord(q1) - 72, ord(r1) - 72), Pos(ord(q2) - 72, ord(r2) - 72))
+            )
+        return log
+
+    def logtail(self, n=5):
+        nlog = [(ix + 1, p1, p2) for ix, (p1, p2) in enumerate(self.log)]
+        return " ".join([f"{ix}:{p1.code}-{p2.code}" for ix, p1, p2 in nlog[-n:]])

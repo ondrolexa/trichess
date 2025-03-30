@@ -15,6 +15,13 @@ def run():
     app.run()
 
 
+@click.command(help="run game from log.")
+@click.argument("slog")
+def log(slog: str):
+    app = AppMPL(slog=slog)
+    app.run()
+
+
 @click.group()
 def cli():
     pass
@@ -22,3 +29,4 @@ def cli():
 
 cli.add_command(show)
 cli.add_command(run)
+cli.add_command(log)

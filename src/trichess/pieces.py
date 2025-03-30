@@ -7,41 +7,46 @@ class Pos:
     Args:
         q (int): first coordinate
         r (int): second coordinate
-        code (str): Attribute used by piece move to classify positions
+        kind (str): Attribute used by piece move to classify positions
 
     Attributes:
         value (complex): A complex number representing position
-        code (str): Attribute used by piece move to classify positions
-        q (float): first coordinate
-        r (float): second coordinate
+        kind (str): Attribute used by piece move to classify positions
+        code (str): Position encoded as two alphabet characters
+        q (int): first coordinate
+        r (int): second coordinate
 
     """
 
-    def __init__(self, q, r, code="s"):
+    def __init__(self, q, r, kind="s"):
         self.value = complex(q, r)
-        self.code = code
+        self.kind = kind
 
     def __eq__(self, another):
         return hasattr(another, "value") and self.value == another.value
 
     def __hash__(self):
-        return hash((self.value, abs(self.value)))
+        return hash(self.code)
 
     def __repr__(self) -> str:
-        return f"Pos({self.q:g},{self.r:g})"
+        return f"Pos({self.q},{self.r})"
 
     @property
-    def q(self) -> float:
-        return self.value.real
+    def code(self) -> str:
+        return chr(72 + self.q) + chr(72 + self.r)
 
     @property
-    def r(self) -> float:
-        return self.value.imag
+    def q(self) -> int:
+        return int(self.value.real)
 
-    def from_deltas(self, deltas: list, code="s") -> Self:
+    @property
+    def r(self) -> int:
+        return int(self.value.imag)
+
+    def from_deltas(self, deltas: list, kind="s") -> Self:
         """Return new position calculated from current one and list of deltas."""
         res = self.value + sum(deltas)
-        return Pos(res.real, res.imag, code=code)
+        return Pos(res.real, res.imag, kind=kind)
 
 
 class Move:
@@ -49,17 +54,17 @@ class Move:
 
     Args:
         *args (str): any number of step codes.
-        code (str): Type of move. One of s, a or n
+        kind (str): Type of move. One of s, a or n
 
     Attributes:
-        steos (tuple): tuple of step codes.
-        code (str): Type of move. One of s, a or n
+        steps (tuple): tuple of step codes.
+        kind (str): Type of move. One of s, a or n
 
     """
 
-    def __init__(self, *args, code="s"):
+    def __init__(self, *args, kind="s"):
         self.steps = args
-        self.code = code
+        self.kind = kind
 
 
 class Piece:
@@ -107,7 +112,7 @@ class Piece:
         if self.hex is not None:
             res = []
             for move in self._moves:
-                if move.code != "n":
+                if move.kind != "n":
                     res.append(self.player.pos_from_move(self.pos, move))
                 else:
                     pos = self.pos
@@ -134,9 +139,9 @@ class Pawn(Piece):
         moves = [
             Move("FL"),
             Move("FR"),
-            Move("DL", code="a"),
-            Move("DF", code="a"),
-            Move("DR", code="a"),
+            Move("DL", kind="a"),
+            Move("DF", kind="a"),
+            Move("DR", kind="a"),
         ]
         if not self.used:
             moves.extend(
@@ -177,12 +182,12 @@ class Bishop(Piece):
     @property
     def _moves(self) -> list[Move]:
         return [
-            Move("DL", code="n"),
-            Move("DF", code="n"),
-            Move("DR", code="n"),
-            Move("DLr", code="n"),
-            Move("DFr", code="n"),
-            Move("DRr", code="n"),
+            Move("DL", kind="n"),
+            Move("DF", kind="n"),
+            Move("DR", kind="n"),
+            Move("DLr", kind="n"),
+            Move("DFr", kind="n"),
+            Move("DRr", kind="n"),
         ]
 
 
@@ -193,12 +198,12 @@ class Rook(Piece):
     @property
     def _moves(self) -> list[Move]:
         return [
-            Move("SL", code="n"),
-            Move("FL", code="n"),
-            Move("FR", code="n"),
-            Move("SLr", code="n"),
-            Move("FLr", code="n"),
-            Move("FRr", code="n"),
+            Move("SL", kind="n"),
+            Move("FL", kind="n"),
+            Move("FR", kind="n"),
+            Move("SLr", kind="n"),
+            Move("FLr", kind="n"),
+            Move("FRr", kind="n"),
         ]
 
 
@@ -209,18 +214,18 @@ class Queen(Piece):
     @property
     def _moves(self) -> list[Move]:
         return [
-            Move("SL", code="n"),
-            Move("FL", code="n"),
-            Move("FR", code="n"),
-            Move("SLr", code="n"),
-            Move("FLr", code="n"),
-            Move("FRr", code="n"),
-            Move("DL", code="n"),
-            Move("DF", code="n"),
-            Move("DR", code="n"),
-            Move("DLr", code="n"),
-            Move("DFr", code="n"),
-            Move("DRr", code="n"),
+            Move("SL", kind="n"),
+            Move("FL", kind="n"),
+            Move("FR", kind="n"),
+            Move("SLr", kind="n"),
+            Move("FLr", kind="n"),
+            Move("FRr", kind="n"),
+            Move("DL", kind="n"),
+            Move("DF", kind="n"),
+            Move("DR", kind="n"),
+            Move("DLr", kind="n"),
+            Move("DFr", kind="n"),
+            Move("DRr", kind="n"),
         ]
 
 
