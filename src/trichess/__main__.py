@@ -4,9 +4,10 @@ from trichess import AppMPL
 
 
 @click.command(help="show board coords.")
-def show():
+@click.argument("gid", required=False)
+def show(gid=False):
     app = AppMPL()
-    app.show_board()
+    app.show_board(gid=gid)
 
 
 @click.command(help="run board interactive.")

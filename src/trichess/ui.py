@@ -24,14 +24,17 @@ class App:
         # UI gid mappings to engine hex and pos
         self.gid2hex = {}
         self.pos2gid = {}
+        for gid, hex in enumerate(self.ga.board):
+            self.gid2hex[gid] = hex
+            self.pos2gid[hex.pos] = gid
 
 
 class AppMPL(App):
     """Run app using matplotlib"""
 
     # hex_colors = ["#ffffffff", "#009fffff", "#ff7171ff"]
-    hex_colors = ["#f0b6a8", "#d1f0a8", "#a8baf0"]
-    piece_colors = ["#B33900", "#1D6600", "#000599"]
+    hex_colors = ["#a8baf0", "#f0b6a8", "#d1f0a8"]
+    piece_colors = ["#000599", "#B33900", "#1D6600"]
 
     def __init__(self, slog=None):
         super().__init__(slog=slog)
@@ -97,7 +100,7 @@ class AppMPL(App):
             else self.get_hex_color(hex)
         )
 
-    def show_board(self):
+    def show_board(self, gid=False):
         """Show board with axial coordinates"""
         plt.rcParams["toolbar"] = "None"
         fig, ax = plt.subplots(num="TriChess coordinates", figsize=(8, 7))
@@ -105,7 +108,10 @@ class AppMPL(App):
             patch = self.create_hex_patch(h)
             ax.add_patch(patch)
             x, y = self.get_hex_xy(h)
-            ax.text(x, y, f"{h.pos.q:g},{h.pos.r:g}", ha="center", va="center")
+            if gid:
+                ax.text(x, y, self.pos2gid[h.pos], ha="center", va="center")
+            else:
+                ax.text(x, y, f"{h.pos.q:g},{h.pos.r:g}", ha="center", va="center")
 
         # set limits to fit
         ax.set_xlim(-8, 8)
@@ -176,8 +182,6 @@ class AppMPL(App):
         plt.rcParams["figure.constrained_layout.use"] = True
         fig, ax = plt.subplots(num="TriChess")
         for gid, hex in enumerate(self.ga.board):
-            self.gid2hex[gid] = hex
-            self.pos2gid[hex.pos] = gid
             patch = self.create_hex_patch(hex, gid=gid)
             patch.set_picker(2)
             ax.add_patch(patch)

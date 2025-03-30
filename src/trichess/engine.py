@@ -139,8 +139,8 @@ class Board:
         # setup players
         self.players = kwargs.get("players", {0: Player(0), 1: Player(1), 2: Player(2)})
         # generate all cells
-        for q in range(-7, 8):
-            for r in range(-7, 8):
+        for r in range(-7, 8):
+            for q in range(-7, 8):
                 # check whether on board
                 s = -q - r
                 if -7 <= s <= 7:
