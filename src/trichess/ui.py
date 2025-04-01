@@ -156,11 +156,14 @@ class AppMPL(App):
             else:
                 if gid in self.move_in_progress["targets"]:
                     self.player_labels[self.ga.on_move].set_visible(False)
+                    active_player = self.ga.players[self.ga.on_move]
                     self.ga.make_move(
                         self.gid2hex[self.move_in_progress["from"]], self.gid2hex[gid]
                     )
                     self.update_symbol(self.move_in_progress["from"])
                     self.update_symbol(gid)
+                    if self.ga.in_chess(active_player):
+                        undo(None)
                 self.clear_hex(self.move_in_progress["from"])
                 for tgid in self.move_in_progress["targets"]:
                     self.clear_hex(tgid)

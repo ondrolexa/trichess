@@ -50,6 +50,7 @@ class Player:
     def __init__(self, pid: int, **kwargs):
         self.pid = pid
         self.name = kwargs.get("name", f"Player {pid}")
+        self.king_piece = None
 
     def __repr__(self) -> str:
         return f"[{self.name}]"
@@ -87,7 +88,9 @@ class Player:
 
     def king(self, **kwargs) -> King:
         """Create Player's instance of king piece."""
-        return King(self, **kwargs)
+        # keep reference for king
+        self.king_piece = King(self, **kwargs)
+        return self.king_piece
 
 
 class Hex:
@@ -316,6 +319,18 @@ class GameAPI:
         """Undo last move."""
         if self.ready and self.move_number > 0:
             self.replay_from_log(self.log[:-1])
+
+    def in_chess(self, player: Player) -> bool:
+        """Check if players king is under attack"""
+        if self.ready:
+            for hex in self.board:
+                if hex.has_piece:
+                    piece = hex.piece
+                    if piece.player is not player:
+                        targets = self.board.possible_moves(piece)
+                        if player.king_piece.hex.pos in targets:
+                            return True
+        return False
 
     def replay_from_log(self, log: list):
         """Initalize board and replay all moves from log."""
