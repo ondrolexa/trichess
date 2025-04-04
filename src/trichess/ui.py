@@ -134,7 +134,12 @@ class AppMPL(App):
 
         def on_pick(event):
             gid = event.artist.get_gid()
+            active_player = self.ga.players[self.ga.on_move]
             if not self.move_in_progress:
+                tga = self.ga.copy()
+                tgid2hex = {}
+                for tgid, thex in enumerate(tga.board):
+                    tgid2hex[tgid] = thex
                 self.set_hex_selected(gid)
                 moves = self.ga.get_possible_moves(self.gid2hex[gid])
                 if moves:
@@ -143,8 +148,11 @@ class AppMPL(App):
                     for pos in moves:
                         tgid = self.pos2gid[pos]
                         if not self.ga.board[pos].has_piece:
-                            self.set_hex_safe(tgid)
-                            self.move_in_progress["targets"].append(tgid)
+                            tga.make_move(tgid2hex[gid], tgid2hex[tgid])
+                            if not tga.in_chess(active_player):
+                                self.set_hex_safe(tgid)
+                                self.move_in_progress["targets"].append(tgid)
+                            tga.undo()
                         else:
                             if hex.piece.special_attack:
                                 if pos.kind == "a":
@@ -156,12 +164,12 @@ class AppMPL(App):
             else:
                 if gid in self.move_in_progress["targets"]:
                     self.player_labels[self.ga.on_move].set_visible(False)
-                    active_player = self.ga.players[self.ga.on_move]
                     self.ga.make_move(
                         self.gid2hex[self.move_in_progress["from"]], self.gid2hex[gid]
                     )
                     self.update_symbol(self.move_in_progress["from"])
                     self.update_symbol(gid)
+                    # likely nect check not needed
                     if self.ga.in_chess(active_player):
                         undo(None)
                 self.clear_hex(self.move_in_progress["from"])

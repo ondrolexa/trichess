@@ -293,6 +293,14 @@ class GameAPI:
         self.board = Board(players=self.players)
         self.ready = True
 
+    def copy(self):
+        ga = GameAPI()
+        ga.new_game(
+            player0=self.players[0], player1=self.players[1], player2=self.players[2]
+        )
+        ga.replay_from_log(log=self.log.copy())
+        return ga
+
     @property
     def on_move(self):
         return self.move_number % 3
