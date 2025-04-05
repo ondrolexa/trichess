@@ -6,7 +6,6 @@ from trichess import Board, GameAPI, Player
 @pytest.fixture
 def api():
     ga = GameAPI()
-    ga.new_game()
     return ga
 
 

@@ -262,6 +262,11 @@ class GameAPI:
 
     All interaction between front-end and engine must use GameAPI.
 
+    Keyword Args:
+        player0 (Player, optional): Player on position 0-bottom
+        player1 (Player, optional): Player on position 1-left
+        player2 (Player, optional): Player on position 2-right
+
     Attributes:
         ready (bool): True when game is ready, otherwise False.
         move_number (int): Number of moves played in game.
@@ -273,31 +278,31 @@ class GameAPI:
 
     """
 
-    def __init__(self):
-        self.ready = False
+    def __init__(self, **kwargs):
         self.log = []
         self.move_number = 0
-        self.players = {0: None, 1: None, 2: None}
-
-    def new_game(self, **kwargs):
-        """Initialize new Game
-
-        Keyword Args:
-            player0 (Player, optional): Player on position 0-bottom
-            player1 (Player, optional): Player on position 1-left
-            player2 (Player, optional): Player on position 2-right
-        """
-        self.players[0] = kwargs.get("player0", Player(0))
-        self.players[1] = kwargs.get("player1", Player(1))
-        self.players[2] = kwargs.get("player2", Player(2))
+        self.players = {
+            0: kwargs.get("player0", Player(0)),
+            1: kwargs.get("player1", Player(1)),
+            2: kwargs.get("player2", Player(2)),
+        }
         self.board = Board(players=self.players)
-        self.ready = True
+        self.update_ui_mappings()
+        self.state = {"inmove": False, "lastmove": []}
+
+    def update_ui_mappings(self):
+        # UI gid mappings to engine hex and pos
+        self.gid2hex = {}
+        self.pos2gid = {}
+        for gid, hex in enumerate(self.board):
+            self.gid2hex[gid] = hex
+            self.pos2gid[hex.pos] = gid
 
     def copy(self):
-        ga = GameAPI()
-        ga.new_game(
+        ga = GameAPI(
             player0=self.players[0], player1=self.players[1], player2=self.players[2]
         )
+
         ga.replay_from_log(log=self.log.copy())
         return ga
 
@@ -305,39 +310,40 @@ class GameAPI:
     def on_move(self):
         return self.move_number % 3
 
+    @property
+    def on_move_previous(self):
+        return (self.move_number - 1) % 3
+
     def get_possible_moves(self, hex: Hex) -> list:
         """Return list of possible new positions for piece on cell."""
-        if self.ready:
-            if hex.has_piece:
-                piece = hex.piece
-                if self.players[self.on_move] is piece.player:
-                    return self.board.possible_moves(piece)
+        if hex.has_piece:
+            piece = hex.piece
+            if self.players[self.on_move] is piece.player:
+                return self.board.possible_moves(piece)
         return []
 
     def make_move(self, hex_from, hex_to):
         """Make move from hex to other hex and record it to the log."""
-        if self.ready:
-            # add move to log
-            self.log.append((hex_from.pos, hex_to.pos))
-            # make move
-            self.board.move_piece(hex_from.pos, hex_to.pos)
-            self.move_number += 1
+        # add move to log
+        self.log.append((hex_from.pos, hex_to.pos))
+        # make move
+        self.board.move_piece(hex_from.pos, hex_to.pos)
+        self.move_number += 1
 
     def undo(self):
         """Undo last move."""
-        if self.ready and self.move_number > 0:
+        if self.move_number > 0:
             self.replay_from_log(self.log[:-1])
 
     def in_chess(self, player: Player) -> bool:
         """Check if players king is under attack"""
-        if self.ready:
-            for hex in self.board:
-                if hex.has_piece:
-                    piece = hex.piece
-                    if piece.player is not player:
-                        targets = self.board.possible_moves(piece)
-                        if player.king_piece.hex.pos in targets:
-                            return True
+        for hex in self.board:
+            if hex.has_piece:
+                piece = hex.piece
+                if piece.player is not player:
+                    targets = self.board.possible_moves(piece)
+                    if player.king_piece.hex.pos in targets:
+                        return True
         return False
 
     def replay_from_log(self, log: list):
@@ -345,13 +351,15 @@ class GameAPI:
         self.log = log
         self.move_number = len(log)
         self.board = Board(players=self.players, log=log)
+        self.update_ui_mappings()
 
     def log2string(self):
         """Returns game log as string."""
-        if self.ready and self.move_number > 0:
+        if self.move_number > 0:
             return "".join([f"{p1.code}{p2.code}" for p1, p2 in self.log])
 
-    def string2log(self, s):
+    @staticmethod
+    def string2log(s):
         """Returns game log from string."""
         log = []
         for q1, r1, q2, r2 in zip(s[::4], s[1::4], s[2::4], s[3::4]):
@@ -363,3 +371,39 @@ class GameAPI:
     def logtail(self, n=5):
         nlog = [(ix + 1, p1, p2) for ix, (p1, p2) in enumerate(self.log)]
         return " ".join([f"{ix}:{p1.code}-{p2.code}" for ix, p1, p2 in nlog[-n:]])
+
+    def gid_selected(self, gid):
+        active_player = self.players[self.on_move]
+        if not self.state["inmove"]:
+            moves = self.get_possible_moves(self.gid2hex[gid])
+            if moves:
+                self.state["from"] = gid
+                self.state["targets"] = []
+                self.state["colors"] = []
+                for pos in moves:
+                    tgid = self.pos2gid[pos]
+                    if not self.board[pos].has_piece:
+                        self.make_move(self.gid2hex[gid], self.gid2hex[tgid])
+                        if not self.in_chess(active_player):
+                            self.state["targets"].append(tgid)
+                            self.state["colors"].append("safe")
+                        self.undo()
+                    else:
+                        if hex.piece.special_attack:
+                            if pos.kind == "a":
+                                self.state["targets"].append(tgid)
+                                self.state["colors"].append("attack")
+                        else:
+                            self.state["targets"].append(tgid)
+                            self.state["colors"].append("safe")
+                if self.state["targets"]:
+                    self.state["inmove"] = True
+        else:
+            if gid in self.state["targets"]:
+                self.make_move(self.gid2hex[self.state["from"]], self.gid2hex[gid])
+                self.state["lastmove"] = (self.state["from"], gid)
+                # likely nect check not needed
+                if self.in_chess(active_player):
+                    self.undo(None)
+            self.state["inmove"] = False
+        return self.state

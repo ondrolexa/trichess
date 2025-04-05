@@ -18,7 +18,6 @@ player_lbs_prop = dict(
 class App:
     def __init__(self, slog=None):
         self.ga = GameAPI()
-        self.ga.new_game()
         if slog is not None:
             self.ga.replay_from_log(self.ga.string2log(slog))
         # UI gid mappings to engine hex and pos
@@ -92,7 +91,7 @@ class AppMPL(App):
         self.patch[gid].set_zorder(4)
 
     def update_symbol(self, gid):
-        hex = self.gid2hex[gid]
+        hex = self.ga.gid2hex[gid]
         self.piece[gid].set_text(hex.piece.symbol if hex.piece is not None else "")
         self.piece[gid].set_color(
             self.get_piece_color(hex.piece)
@@ -125,58 +124,33 @@ class AppMPL(App):
     def run(self):
         """Run trichess game"""
 
-        def update_ui():
+        def update_ui(state={}):
+            self.player_labels[self.ga.on_move_previous].set_visible(False)
             self.player_labels[self.ga.on_move].set_visible(True)
             self.title = ax.set_title(
                 f"{self.ga.logtail(n=6)}\nMove {self.ga.move_number}"
             )
+            if state:
+                self.set_hex_selected(state["from"])
+                if state["inmove"]:
+                    for gid, color in zip(state["targets"], state["colors"]):
+                        match color:
+                            case "safe":
+                                self.set_hex_safe(gid)
+                            case "attack":
+                                self.set_hex_attack(gid)
+                else:
+                    for gid in state["lastmove"]:
+                        self.update_symbol(gid)
+                    self.clear_hex(state["from"])
+                    for gid in state["targets"]:
+                        self.clear_hex(gid)
             fig.canvas.draw()
 
         def on_pick(event):
             gid = event.artist.get_gid()
-            active_player = self.ga.players[self.ga.on_move]
-            if not self.move_in_progress:
-                tga = self.ga.copy()
-                tgid2hex = {}
-                for tgid, thex in enumerate(tga.board):
-                    tgid2hex[tgid] = thex
-                self.set_hex_selected(gid)
-                moves = self.ga.get_possible_moves(self.gid2hex[gid])
-                if moves:
-                    self.move_in_progress["from"] = gid
-                    self.move_in_progress["targets"] = []
-                    for pos in moves:
-                        tgid = self.pos2gid[pos]
-                        if not self.ga.board[pos].has_piece:
-                            tga.make_move(tgid2hex[gid], tgid2hex[tgid])
-                            if not tga.in_chess(active_player):
-                                self.set_hex_safe(tgid)
-                                self.move_in_progress["targets"].append(tgid)
-                            tga.undo()
-                        else:
-                            if hex.piece.special_attack:
-                                if pos.kind == "a":
-                                    self.set_hex_attack(tgid)
-                                    self.move_in_progress["targets"].append(tgid)
-                            else:
-                                self.set_hex_attack(tgid)
-                                self.move_in_progress["targets"].append(tgid)
-            else:
-                if gid in self.move_in_progress["targets"]:
-                    self.player_labels[self.ga.on_move].set_visible(False)
-                    self.ga.make_move(
-                        self.gid2hex[self.move_in_progress["from"]], self.gid2hex[gid]
-                    )
-                    self.update_symbol(self.move_in_progress["from"])
-                    self.update_symbol(gid)
-                    # likely nect check not needed
-                    if self.ga.in_chess(active_player):
-                        undo(None)
-                self.clear_hex(self.move_in_progress["from"])
-                for tgid in self.move_in_progress["targets"]:
-                    self.clear_hex(tgid)
-                self.move_in_progress = {}
-            update_ui()
+            state = self.ga.gid_selected(gid)
+            update_ui(state)
 
         def undo(event):
             self.player_labels[self.ga.on_move].set_visible(False)
