@@ -354,15 +354,14 @@ class GameAPI:
         if self.move_number > 0:
             return "".join([f"{p1.code}{p2.code}" for p1, p2 in self.log])
 
-    @staticmethod
-    def string2log(s):
-        """Returns game log from string."""
+    def replay_from_string(self, s: str):
+        """Initalize board and replay all moves from string log."""
         log = []
         for q1, r1, q2, r2 in zip(s[::4], s[1::4], s[2::4], s[3::4]):
             log.append(
                 (Pos(ord(q1) - 72, ord(r1) - 72), Pos(ord(q2) - 72, ord(r2) - 72))
             )
-        return log
+        self.replay_from_log(log)
 
     def logtail(self, n=5):
         nlog = [(ix + 1, p1, p2) for ix, (p1, p2) in enumerate(self.log)]

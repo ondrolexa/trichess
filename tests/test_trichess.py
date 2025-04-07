@@ -34,7 +34,7 @@ class Test_Board:
 class Test_GameAPI:
     def test_game_play(self, api):
         p1, p2 = Pos(-5, 6), Pos(-5, 5)
-        api.make_move(api.board[p1], api.board[p2])
+        api.make_move(api.pos2gid[p1], api.pos2gid[p2])
         p1, p2 = Pos(-1, -5), Pos(-1, -4)
-        api.make_move(api.board[p1], api.board[p2])
+        api.make_move(api.pos2gid[p1], api.pos2gid[p2])
         assert api.move_number == 2

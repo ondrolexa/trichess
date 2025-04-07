@@ -12,7 +12,6 @@ from trichess.engine import (
     Queen,
     Rook,
 )
-from trichess.ui import AppMPL
 
 __all__ = (
     "Pos",
@@ -27,5 +26,4 @@ __all__ = (
     "Hex",
     "Player",
     "GameAPI",
-    "AppMPL",
 )

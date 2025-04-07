@@ -19,13 +19,7 @@ class App:
     def __init__(self, name0, name1, name2, slog):
         self.ga = GameAPI(name0=name0, name1=name1, name2=name2)
         if slog is not None:
-            self.ga.replay_from_log(self.ga.string2log(slog))
-        # UI gid mappings to engine hex and pos
-        self.gid2hex = {}
-        self.pos2gid = {}
-        for gid, hex in enumerate(self.ga.board):
-            self.gid2hex[gid] = hex
-            self.pos2gid[hex.pos] = gid
+            self.ga.replay_from_string(slog)
 
 
 class AppMPL(App):
@@ -108,7 +102,7 @@ class AppMPL(App):
             ax.add_patch(patch)
             x, y = self.get_hex_xy(h)
             if gid:
-                ax.text(x, y, self.pos2gid[h.pos], ha="center", va="center")
+                ax.text(x, y, self.ga.pos2gid[h.pos], ha="center", va="center")
             else:
                 ax.text(x, y, f"{h.pos.q:g},{h.pos.r:g}", ha="center", va="center")
 
@@ -157,8 +151,8 @@ class AppMPL(App):
         def undo(event):
             self.ga.undo()
             for gid, hex in enumerate(self.ga.board):
-                self.gid2hex[gid] = hex
-                self.update_symbol(self.pos2gid[hex.pos])
+                self.ga.gid2hex[gid] = hex
+                self.update_symbol(self.ga.pos2gid[hex.pos])
             update_ui()
 
         def printlog(event):
