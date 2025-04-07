@@ -121,9 +121,14 @@ class AppMPL(App):
         def update_ui(state={}):
             self.player_labels[self.ga.on_move_previous].set_visible(False)
             self.player_labels[self.ga.on_move].set_visible(True)
-            self.title = ax.set_title(
-                f"{self.ga.logtail(n=6)}\nMove {self.ga.move_number}"
-            )
+            if self.ga.move_possible():
+                self.title = ax.set_title(
+                    f"{self.ga.logtail(n=6)}\nMove {self.ga.move_number}"
+                )
+            else:
+                self.title = ax.set_title(
+                    f"{self.ga.players[self.ga.on_move].name} lost the game\nMove {self.ga.move_number}"
+                )
             if state:
                 self.set_hex_selected(state["from"])
                 if state["inmove"]:
@@ -149,6 +154,7 @@ class AppMPL(App):
             update_ui(state)
 
         def undo(event):
+            self.player_labels[self.ga.on_move].set_visible(False)
             self.ga.undo()
             for gid, hex in enumerate(self.ga.board):
                 self.ga.gid2hex[gid] = hex
@@ -202,4 +208,5 @@ class AppMPL(App):
         self.player_labels[self.ga.on_move].set_visible(True)
         # connect pick event
         fig.canvas.mpl_connect("pick_event", on_pick)
+        update_ui()
         plt.show()

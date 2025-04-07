@@ -271,6 +271,12 @@ class Board:
                                 all.append(dest)
                         else:
                             all.append(dest)
+                    case "d":
+                        if self._board[dest].has_piece:
+                            if self._board[dest].piece.player is not piece.player:
+                                all.append(dest)
+                        else:
+                            all.append(dest)
                     case "n":
                         if self._board[dest].has_piece:
                             if self._board[dest].piece.player is not piece.player:
@@ -379,15 +385,15 @@ class GameAPI:
         hex = self.gid2hex[gid]
         if not self.state["inmove"]:
             moves = []
+            self.state["from"] = gid
+            self.state["targets"] = []
+            self.state["colors"] = []
+            self.state["valid_move"] = False
             if hex.has_piece:
                 piece = hex.piece
                 if self.players[self.on_move] is piece.player:
                     moves = self.board.possible_moves(piece)
             if moves:
-                self.state["from"] = gid
-                self.state["targets"] = []
-                self.state["colors"] = []
-                self.state["valid_move"] = False
                 for pos in moves:
                     tgid = self.pos2gid[pos]
                     if not self.board[pos].has_piece:
@@ -425,3 +431,17 @@ class GameAPI:
         # make move
         self.board.move_piece(from_pos, to_pos)
         self.move_number += 1
+
+    def move_possible(self):
+        """Return True if there is any move possible"""
+        for hex in self.board:
+            if hex.has_piece:
+                piece = hex.piece
+                if self.players[self.on_move] is piece.player:
+                    moves = self.board.possible_moves(piece)
+                    tested = [
+                        self.board.test_move_piece(piece.pos, pos) for pos in moves
+                    ]
+                    if any(tested):
+                        return True
+        return False

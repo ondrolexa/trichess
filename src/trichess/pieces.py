@@ -112,19 +112,26 @@ class Piece:
         if self.hex is not None:
             res = []
             for move in self._moves:
-                if move.kind != "n":
-                    res.append(self.player.pos_from_move(self.pos, move))
-                else:
-                    pos = self.pos
-                    for i in range(1, 15):
-                        pos = self.player.pos_from_move(pos, move)
-                        if pos in self.hex.board:
-                            if self.hex.board[pos].has_piece:
+                match move.kind:
+                    case "s":
+                        res.append(self.player.pos_from_move(self.pos, move))
+                    case "a":
+                        res.append(self.player.pos_from_move(self.pos, move))
+                    case "d":
+                        partial_move = Move(move.steps[0])
+                        pos = self.player.pos_from_move(self.pos, partial_move)
+                        if not self.hex.board[pos].has_piece:
+                            res.append(self.player.pos_from_move(self.pos, move))
+                    case "n":
+                        for i in range(1, 15):
+                            pos = self.player.pos_from_move(self.pos, move)
+                            if pos in self.hex.board:
+                                if self.hex.board[pos].has_piece:
+                                    res.append(pos)
+                                    break
                                 res.append(pos)
+                            else:
                                 break
-                            res.append(pos)
-                        else:
-                            break
             return res
 
 
@@ -145,8 +152,8 @@ class Pawn(Piece):
         if not self.used:
             moves.extend(
                 [
-                    Move("FL", "FL"),
-                    Move("FR", "FR"),
+                    Move("FL", "FL", kind="d"),
+                    Move("FR", "FR", kind="d"),
                 ]
             )
         return moves
