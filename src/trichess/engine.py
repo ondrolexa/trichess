@@ -232,28 +232,51 @@ class Board:
         self._board[pos_to].piece = piece
         self._board[pos_from].piece = None
 
+    def test_move_piece(self, pos_from, pos_to):
+        piece = self._board[pos_from].piece
+        piece.hex = self._board[pos_to]
+        to_piece = self._board[pos_to].piece if self._board[pos_to].has_piece else None
+        self._board[pos_to].piece = piece
+        self._board[pos_from].piece = None
+        res = not self.in_chess(piece.player)
+        piece.hex = self._board[pos_from]
+        self._board[pos_from].piece = piece
+        self._board[pos_to].piece = to_piece
+        return res
+
+    def in_chess(self, player: Player) -> bool:
+        """Check if players king is under attack"""
+        for hex in self:
+            if hex.has_piece:
+                piece = hex.piece
+                if piece.player is not player:
+                    targets = self.possible_moves(piece)
+                    if player.king_piece.hex.pos in targets:
+                        return True
+        return False
+
     def possible_moves(self, piece: Piece) -> list[Pos]:
         """Return list of all posiible moves for given piece."""
         all = []
         for dest in piece.pos_candidates():
             if dest in self._board:
-                if dest.kind == "a" and self._board[dest].has_piece:
-                    if self._board[dest].piece.player is not piece.player:
-                        all.append(dest)
-                elif dest.kind == "s":
-                    if self._board[dest].has_piece:
-                        if self._board[dest].piece.player is not piece.player:
+                match dest.kind:
+                    case "a":
+                        if self._board[dest].has_piece:
+                            if self._board[dest].piece.player is not piece.player:
+                                all.append(dest)
+                    case "s":
+                        if self._board[dest].has_piece:
+                            if self._board[dest].piece.player is not piece.player:
+                                all.append(dest)
+                        else:
                             all.append(dest)
-                    else:
-                        all.append(dest)
-                elif dest.kind == "n":
-                    if self._board[dest].has_piece:
-                        if self._board[dest].piece.player is not piece.player:
+                    case "n":
+                        if self._board[dest].has_piece:
+                            if self._board[dest].piece.player is not piece.player:
+                                all.append(dest)
+                        else:
                             all.append(dest)
-                    else:
-                        all.append(dest)
-                else:
-                    pass
         return all
 
 
@@ -314,14 +337,6 @@ class GameAPI:
     def on_move_previous(self):
         return (self.move_number - 1) % 3
 
-    def get_possible_moves(self, hex: Hex) -> list:
-        """Return list of possible new positions for piece on cell."""
-        if hex.has_piece:
-            piece = hex.piece
-            if self.players[self.on_move] is piece.player:
-                return self.board.possible_moves(piece)
-        return []
-
     def make_move(self, hex_from, hex_to):
         """Make move from hex to other hex and record it to the log."""
         # add move to log
@@ -334,17 +349,6 @@ class GameAPI:
         """Undo last move."""
         if self.move_number > 0:
             self.replay_from_log(self.log[:-1])
-
-    def in_chess(self, player: Player) -> bool:
-        """Check if players king is under attack"""
-        for hex in self.board:
-            if hex.has_piece:
-                piece = hex.piece
-                if piece.player is not player:
-                    targets = self.board.possible_moves(piece)
-                    if player.king_piece.hex.pos in targets:
-                        return True
-        return False
 
     def replay_from_log(self, log: list):
         """Initalize board and replay all moves from log."""
@@ -374,8 +378,13 @@ class GameAPI:
 
     def gid_selected(self, gid):
         active_player = self.players[self.on_move]
+        hex = self.gid2hex[gid]
         if not self.state["inmove"]:
-            moves = self.get_possible_moves(self.gid2hex[gid])
+            moves = []
+            if hex.has_piece:
+                piece = hex.piece
+                if self.players[self.on_move] is piece.player:
+                    moves = self.board.possible_moves(piece)
             if moves:
                 self.state["from"] = gid
                 self.state["targets"] = []
@@ -383,27 +392,28 @@ class GameAPI:
                 for pos in moves:
                     tgid = self.pos2gid[pos]
                     if not self.board[pos].has_piece:
-                        self.make_move(self.gid2hex[gid], self.gid2hex[tgid])
-                        if not self.in_chess(active_player):
+                        if self.board.test_move_piece(hex.pos, self.gid2hex[tgid].pos):
                             self.state["targets"].append(tgid)
                             self.state["colors"].append("safe")
-                        self.undo()
                     else:
-                        if hex.piece.special_attack:
+                        if self.board[pos].piece.special_attack:
                             if pos.kind == "a":
-                                self.state["targets"].append(tgid)
-                                self.state["colors"].append("attack")
+                                if self.board.test_move_piece(
+                                    hex.pos, self.gid2hex[tgid].pos
+                                ):
+                                    self.state["targets"].append(tgid)  # todo check
+                                    self.state["colors"].append("attack")
                         else:
-                            self.state["targets"].append(tgid)
-                            self.state["colors"].append("safe")
+                            if self.board.test_move_piece(
+                                hex.pos, self.gid2hex[tgid].pos
+                            ):
+                                self.state["targets"].append(tgid)  # todo check
+                                self.state["colors"].append("attack")
                 if self.state["targets"]:
                     self.state["inmove"] = True
         else:
             if gid in self.state["targets"]:
                 self.make_move(self.gid2hex[self.state["from"]], self.gid2hex[gid])
-                self.state["lastmove"] = (self.state["from"], gid)
-                # likely nect check not needed
-                if self.in_chess(active_player):
-                    self.undo(None)
+                self.state["lastmove"] = [self.state["from"], gid]
             self.state["inmove"] = False
         return self.state

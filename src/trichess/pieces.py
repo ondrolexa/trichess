@@ -120,8 +120,7 @@ class Piece:
                         pos = self.player.pos_from_move(pos, move)
                         if pos in self.hex.board:
                             if self.hex.board[pos].has_piece:
-                                if self.player is not self.hex.board[pos].piece.player:
-                                    res.append(pos)
+                                res.append(pos)
                                 break
                             res.append(pos)
                         else:
