@@ -16,8 +16,8 @@ player_lbs_prop = dict(
 
 
 class App:
-    def __init__(self, slog=None):
-        self.ga = GameAPI()
+    def __init__(self, name0, name1, name2, slog):
+        self.ga = GameAPI(name0=name0, name1=name1, name2=name2)
         if slog is not None:
             self.ga.replay_from_log(self.ga.string2log(slog))
         # UI gid mappings to engine hex and pos
@@ -35,8 +35,8 @@ class AppMPL(App):
     hex_colors = ["#a8baf0", "#f0b6a8", "#d1f0a8"]
     piece_colors = ["#000599", "#B33900", "#1D6600"]
 
-    def __init__(self, slog=None):
-        super().__init__(slog=slog)
+    def __init__(self, slog=None, name0="Player 0", name1="Player 1", name2="Player 2"):
+        super().__init__(name0, name1, name2, slog)
         self.selected_hex = None
         self.patch = {}
         self.piece = {}
@@ -150,10 +150,11 @@ class AppMPL(App):
         def on_pick(event):
             gid = event.artist.get_gid()
             state = self.ga.gid_selected(gid)
+            if state["valid_move"]:
+                self.ga.make_move(*state["lastmove"])
             update_ui(state)
 
         def undo(event):
-            self.player_labels[self.ga.on_move].set_visible(False)
             self.ga.undo()
             for gid, hex in enumerate(self.ga.board):
                 self.gid2hex[gid] = hex

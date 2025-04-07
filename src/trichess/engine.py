@@ -286,9 +286,9 @@ class GameAPI:
     All interaction between front-end and engine must use GameAPI.
 
     Keyword Args:
-        player0 (Player, optional): Player on position 0-bottom
-        player1 (Player, optional): Player on position 1-left
-        player2 (Player, optional): Player on position 2-right
+        name0 (str, optional): Name of player on position 0-bottom
+        name1 (str, optional): Name of player on position 1-left
+        name2 (str, optional): Name of player on position 2-right
 
     Attributes:
         ready (bool): True when game is ready, otherwise False.
@@ -305,13 +305,13 @@ class GameAPI:
         self.log = []
         self.move_number = 0
         self.players = {
-            0: kwargs.get("player0", Player(0)),
-            1: kwargs.get("player1", Player(1)),
-            2: kwargs.get("player2", Player(2)),
+            0: Player(0, name=kwargs.get("name0", "Player 0")),
+            1: Player(1, name=kwargs.get("name1", "Player 1")),
+            2: Player(2, name=kwargs.get("name2", "Player 2")),
         }
         self.board = Board(players=self.players)
         self.update_ui_mappings()
-        self.state = {"inmove": False, "lastmove": []}
+        self.state = {"inmove": False, "lastmove": ()}
 
     def update_ui_mappings(self):
         # UI gid mappings to engine hex and pos
@@ -336,14 +336,6 @@ class GameAPI:
     @property
     def on_move_previous(self):
         return (self.move_number - 1) % 3
-
-    def make_move(self, hex_from, hex_to):
-        """Make move from hex to other hex and record it to the log."""
-        # add move to log
-        self.log.append((hex_from.pos, hex_to.pos))
-        # make move
-        self.board.move_piece(hex_from.pos, hex_to.pos)
-        self.move_number += 1
 
     def undo(self):
         """Undo last move."""
@@ -377,7 +369,14 @@ class GameAPI:
         return " ".join([f"{ix}:{p1.code}-{p2.code}" for ix, p1, p2 in nlog[-n:]])
 
     def gid_selected(self, gid):
-        active_player = self.players[self.on_move]
+        """Manage and validate move
+
+        Should be called from UI two time to select piece to move and
+        select destination. If Valid move is chosen, returned state
+        dictionary should contain "valid_move" key with value True
+        and "lastmove" key with tuple of gids from and to.
+
+        """
         hex = self.gid2hex[gid]
         if not self.state["inmove"]:
             moves = []
@@ -389,6 +388,7 @@ class GameAPI:
                 self.state["from"] = gid
                 self.state["targets"] = []
                 self.state["colors"] = []
+                self.state["valid_move"] = False
                 for pos in moves:
                     tgid = self.pos2gid[pos]
                     if not self.board[pos].has_piece:
@@ -413,7 +413,16 @@ class GameAPI:
                     self.state["inmove"] = True
         else:
             if gid in self.state["targets"]:
-                self.make_move(self.gid2hex[self.state["from"]], self.gid2hex[gid])
-                self.state["lastmove"] = [self.state["from"], gid]
+                self.state["lastmove"] = (self.state["from"], gid)
+                self.state["valid_move"] = True
             self.state["inmove"] = False
         return self.state
+
+    def make_move(self, from_gid, to_gid):
+        """Make move from from_gid to to_gid and record it to the log."""
+        # add move to log
+        from_pos, to_pos = self.gid2hex[from_gid].pos, self.gid2hex[to_gid].pos
+        self.log.append((from_pos, to_pos))
+        # make move
+        self.board.move_piece(from_pos, to_pos)
+        self.move_number += 1

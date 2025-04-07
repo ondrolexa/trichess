@@ -16,15 +16,21 @@ def show(gid=False):
 
 
 @click.command(help="run board interactive.")
-def run():
-    app = AppMPL()
+@click.argument("name0", default="James")
+@click.argument("name1", default="Mary")
+@click.argument("name2", default="Michael")
+def run(name0: str, name1: str, name2: str):
+    app = AppMPL(name0=name0, name1=name1, name2=name2)
     app.run()
 
 
 @click.command(help="run game from log.")
 @click.argument("slog")
-def log(slog: str):
-    app = AppMPL(slog=slog)
+@click.argument("name0", default="James")
+@click.argument("name1", default="Mary")
+@click.argument("name2", default="Michael")
+def log(slog: str, name0: str, name1: str, name2: str):
+    app = AppMPL(slog=slog, name0=name0, name1=name1, name2=name2)
     app.run()
 
 
