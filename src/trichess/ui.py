@@ -16,10 +16,22 @@ player_lbs_prop = dict(
 
 
 class App:
-    def __init__(self, name0, name1, name2, slog):
-        self.ga = GameAPI(name0=name0, name1=name1, name2=name2)
+    def __init__(self, name0, name1, name2, view_player, slog):
+        self.ga = GameAPI(
+            name0=name0, name1=name1, name2=name2, view_player=view_player
+        )
         if slog is not None:
             self.ga.replay_from_string(slog)
+        # gid coordinates
+        self.gid2xy = {}
+        gid = 0
+        for r in range(-7, 8):
+            for q in range(-7, 8):
+                # check whether on board
+                s = -q - r
+                if -7 <= s <= 7:
+                    self.gid2xy[gid] = q + 0.5 * r, -r * sqrt(3) / 2
+                    gid += 1
 
 
 class AppMPL(App):
@@ -29,16 +41,19 @@ class AppMPL(App):
     hex_colors = ["#a8baf0", "#f0b6a8", "#d1f0a8"]
     piece_colors = ["#000599", "#B33900", "#1D6600"]
 
-    def __init__(self, slog=None, name0="Player 0", name1="Player 1", name2="Player 2"):
-        super().__init__(name0, name1, name2, slog)
+    def __init__(
+        self,
+        slog=None,
+        name0="Player 0",
+        name1="Player 1",
+        name2="Player 2",
+        view_player=0,
+    ):
+        super().__init__(name0, name1, name2, view_player, slog)
         self.selected_hex = None
         self.patch = {}
         self.piece = {}
-        self.move_in_progress = {}
         self.title = None
-
-    def get_hex_xy(self, h):
-        return h.pos.q + 0.5 * h.pos.r, -h.pos.r * sqrt(3) / 2
 
     def get_hex_color(self, hex):
         return AppMPL.hex_colors[hex.color]
@@ -46,12 +61,12 @@ class AppMPL(App):
     def get_piece_color(self, piece):
         return AppMPL.piece_colors[piece.player.pid]
 
-    def create_hex_patch(self, h, gid="_"):
+    def create_hex_patch(self, gid, hex):
         return RegularPolygon(
-            self.get_hex_xy(h),
+            self.gid2xy[gid],
             numVertices=6,
             radius=sqrt(1 / 3),
-            fc=self.get_hex_color(h),
+            fc=self.get_hex_color(hex),
             ec="k",
             zorder=1,
             gid=gid,
@@ -93,18 +108,18 @@ class AppMPL(App):
             else self.get_hex_color(hex)
         )
 
-    def show_board(self, gid=False):
+    def show_board(self, show_gid=False):
         """Show board with axial coordinates"""
         plt.rcParams["toolbar"] = "None"
         fig, ax = plt.subplots(num="TriChess coordinates", figsize=(8, 7))
-        for h in self.ga.board:
-            patch = self.create_hex_patch(h)
+        for gid, hex in self.ga.gid2hex.items():
+            patch = self.create_hex_patch(gid, hex)
             ax.add_patch(patch)
-            x, y = self.get_hex_xy(h)
-            if gid:
-                ax.text(x, y, self.ga.pos2gid[h.pos], ha="center", va="center")
+            x, y = self.gid2xy[gid]
+            if show_gid:
+                ax.text(x, y, f"{gid}", ha="center", va="center")
             else:
-                ax.text(x, y, f"{h.pos.q:g},{h.pos.r:g}", ha="center", va="center")
+                ax.text(x, y, f"{hex.pos.q:g},{hex.pos.r:g}", ha="center", va="center")
 
         # set limits to fit
         ax.set_xlim(-8, 8)
@@ -156,8 +171,7 @@ class AppMPL(App):
         def undo(event):
             self.player_labels[self.ga.on_move].set_visible(False)
             self.ga.undo()
-            for gid, hex in enumerate(self.ga.board):
-                self.ga.gid2hex[gid] = hex
+            for hex in self.ga.gid2hex.values():
                 self.update_symbol(self.ga.pos2gid[hex.pos])
             update_ui()
 
@@ -167,13 +181,13 @@ class AppMPL(App):
         plt.rcParams["toolbar"] = "None"
         plt.rcParams["figure.constrained_layout.use"] = True
         fig, ax = plt.subplots(num="TriChess")
-        for gid, hex in enumerate(self.ga.board):
-            patch = self.create_hex_patch(hex, gid=gid)
+        for gid, hex in self.ga.gid2hex.items():
+            patch = self.create_hex_patch(gid, hex)
             patch.set_picker(2)
             ax.add_patch(patch)
             self.patch[gid] = patch
             self.piece[gid] = ax.text(
-                *self.get_hex_xy(hex),
+                *self.gid2xy[gid],
                 hex.piece.symbol if hex.piece is not None else "",
                 ha="center",
                 va="center",
@@ -200,11 +214,16 @@ class AppMPL(App):
         # hide axes
         ax.set_axis_off()
         self.title = ax.set_title(f"{self.ga.logtail(n=6)}\nMove {self.ga.move_number}")
-        self.player_labels = [
-            ax.text(0, -7.2, self.ga.players[0].name, **player_lbs_prop),
-            ax.text(-7, 3.46, self.ga.players[1].name, rotation=60, **player_lbs_prop),
-            ax.text(7, 3.46, self.ga.players[2].name, rotation=-60, **player_lbs_prop),
-        ]
+        self.player_labels = {}
+        self.player_labels[self.ga.seat(0).pid] = ax.text(
+            0, -7.2, self.ga.seat(0).name, **player_lbs_prop
+        )
+        self.player_labels[self.ga.seat(1).pid] = ax.text(
+            -7, 3.46, self.ga.seat(1).name, rotation=60, **player_lbs_prop
+        )
+        self.player_labels[self.ga.seat(2).pid] = ax.text(
+            7, 3.46, self.ga.seat(2).name, rotation=-60, **player_lbs_prop
+        )
         self.player_labels[self.ga.on_move].set_visible(True)
         # connect pick event
         fig.canvas.mpl_connect("pick_event", on_pick)

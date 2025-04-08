@@ -287,7 +287,7 @@ class Board:
 
 
 class GameAPI:
-    """A class to represent trichess game.
+    """A trichess game API.
 
     All interaction between front-end and engine must use GameAPI.
 
@@ -295,15 +295,19 @@ class GameAPI:
         name0 (str, optional): Name of player on position 0-bottom
         name1 (str, optional): Name of player on position 1-left
         name2 (str, optional): Name of player on position 2-right
+        view_player (int, optional): Which player is on bottom of the board
+            Default 0
 
     Attributes:
         ready (bool): True when game is ready, otherwise False.
         move_number (int): Number of moves played in game.
         players (dict): A dictionary with three players. Keys are 0, 1 and 2
+        view_player (int): Which player is on bottom of the board
         board (Board): Instance of trichess board.
         log (list): List of played moves. Each move is represented by tuple
             of two positions `(pos_from, pos_to)`.
         on_move (int): ID of player on move
+        on_move_previous(int): ID of player from last move
 
     """
 
@@ -315,6 +319,7 @@ class GameAPI:
             1: Player(1, name=kwargs.get("name1", "Player 1")),
             2: Player(2, name=kwargs.get("name2", "Player 2")),
         }
+        self.view_player = kwargs.get("view_player", 0)
         self.board = Board(players=self.players)
         self.update_ui_mappings()
         self.state = {"inmove": False, "lastmove": ()}
@@ -323,9 +328,41 @@ class GameAPI:
         # UI gid mappings to engine hex and pos
         self.gid2hex = {}
         self.pos2gid = {}
-        for gid, hex in enumerate(self.board):
-            self.gid2hex[gid] = hex
-            self.pos2gid[hex.pos] = gid
+
+        match self.view_player:
+            case 0:
+                gid = 0
+                for r in range(-7, 8):
+                    for q in range(-7, 8):
+                        # check whether on board
+                        s = -q - r
+                        if -7 <= s <= 7:
+                            pos = Pos(q, r)
+                            self.gid2hex[gid] = self.board[pos]
+                            self.pos2gid[pos] = gid
+                            gid += 1
+            case 1:
+                gid = 0
+                for s in range(-7, 8):
+                    for r in range(-7, 8):
+                        # check whether on board
+                        q = -r - s
+                        if -7 <= q <= 7:
+                            pos = Pos(q, r)
+                            self.gid2hex[gid] = self.board[pos]
+                            self.pos2gid[pos] = gid
+                            gid += 1
+            case 2:
+                gid = 0
+                for q in range(-7, 8):
+                    for r in range(7, -8, -1):
+                        # check whether on board
+                        s = -q - r
+                        if -7 <= s <= 7:
+                            pos = Pos(q, r)
+                            self.gid2hex[gid] = self.board[pos]
+                            self.pos2gid[pos] = gid
+                            gid += 1
 
     def copy(self):
         ga = GameAPI(
@@ -342,6 +379,10 @@ class GameAPI:
     @property
     def on_move_previous(self):
         return (self.move_number - 1) % 3
+
+    def seat(self, seat: int):
+        """Return player on seat 0, 1 or 2"""
+        return self.players[(self.view_player + seat) % 3]
 
     def undo(self):
         """Undo last move."""
@@ -377,8 +418,8 @@ class GameAPI:
         """Manage and validate move
 
         Should be called from UI two time to select piece to move and
-        select destination. If Valid move is chosen, returned state
-        dictionary should contain "valid_move" key with value True
+        select destination. If valid move is chosen, returned state
+        dictionary contains "valid_move" key with value True
         and "lastmove" key with tuple of gids from and to.
 
         """
