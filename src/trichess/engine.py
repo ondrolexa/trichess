@@ -150,6 +150,7 @@ class Board:
                     pos = Pos(q, r)
                     self._board[pos] = Hex(pos, self)
         self.init_pieces()
+        self.eliminated = []
         log = kwargs.get("log", [])
         for pos_from, pos_to in log:
             self.move_piece(pos_from, pos_to)
@@ -228,8 +229,11 @@ class Board:
         """
         piece = self._board[pos_from].piece
         piece.used = True
-        piece.hex = self._board[pos_to]
-        self._board[pos_to].piece = piece
+        thex = self._board[pos_to]
+        if thex.has_piece:
+            self.eliminated.append(thex.piece)
+        piece.hex = thex
+        thex.piece = piece
         self._board[pos_from].piece = None
 
     def test_move_piece(self, pos_from, pos_to):
@@ -322,7 +326,6 @@ class GameAPI:
         self.view_player = kwargs.get("view_player", 0)
         self.board = Board(players=self.players)
         self.update_ui_mappings()
-        self.state = {"inmove": False, "lastmove": ()}
 
     def update_ui_mappings(self):
         # UI gid mappings to engine hex and pos
@@ -380,6 +383,25 @@ class GameAPI:
     def on_move_previous(self):
         return (self.move_number - 1) % 3
 
+    @property
+    def eliminated(self):
+        """Return eliminated pieces for player pid"""
+        res = {0: [], 1: [], 2: []}
+        for p in self.board.eliminated:
+            res[p.player.pid].append(p.label)
+        return res
+
+    @property
+    def pieces(self):
+        res = {0: [], 1: [], 2: []}
+        for hex in self.board:
+            if hex.has_piece:
+                p = hex.piece
+                res[p.player.pid].append(
+                    {"gid": self.pos2gid[hex.pos], "piece": p.label}
+                )
+        return res
+
     def seat(self, seat: int):
         """Return player on seat 0, 1 or 2"""
         return self.players[(self.view_player + seat) % 3]
@@ -396,7 +418,8 @@ class GameAPI:
         self.board = Board(players=self.players, log=log)
         self.update_ui_mappings()
 
-    def log2string(self):
+    @property
+    def slog(self):
         """Returns game log as string."""
         if self.move_number > 0:
             return "".join([f"{p1.code}{p2.code}" for p1, p2 in self.log])
@@ -414,55 +437,35 @@ class GameAPI:
         nlog = [(ix + 1, p1, p2) for ix, (p1, p2) in enumerate(self.log)]
         return " ".join([f"{ix}:{p1.code}-{p2.code}" for ix, p1, p2 in nlog[-n:]])
 
-    def gid_selected(self, gid):
-        """Manage and validate move
+    def valid_moves(self, gid):
+        """Return all valid moves from gid for player on move
 
-        Should be called from UI two time to select piece to move and
-        select destination. If valid move is chosen, returned state
-        dictionary contains "valid_move" key with value True
-        and "lastmove" key with tuple of gids from and to.
+        Returns list of dictionaries.
 
         """
         hex = self.gid2hex[gid]
-        if not self.state["inmove"]:
-            moves = []
-            self.state["from"] = gid
-            self.state["targets"] = []
-            self.state["colors"] = []
-            self.state["valid_move"] = False
-            if hex.has_piece:
-                piece = hex.piece
-                if self.players[self.on_move] is piece.player:
-                    moves = self.board.possible_moves(piece)
-            if moves:
-                for pos in moves:
-                    tgid = self.pos2gid[pos]
-                    if not self.board[pos].has_piece:
-                        if self.board.test_move_piece(hex.pos, self.gid2hex[tgid].pos):
-                            self.state["targets"].append(tgid)
-                            self.state["colors"].append("safe")
+        moves = []
+        targets = []
+        if hex.has_piece:
+            piece = hex.piece
+            if self.players[self.on_move] is piece.player:
+                moves = self.board.possible_moves(piece)
+        if moves:
+            for pos in moves:
+                tgid = self.pos2gid[pos]
+                testok = self.board.test_move_piece(hex.pos, self.gid2hex[tgid].pos)
+                if not self.board[pos].has_piece:
+                    if testok:
+                        targets.append({"tgid": tgid, "kind": "safe"})
+                else:
+                    if self.board[pos].piece.special_attack:
+                        if pos.kind == "a":
+                            if testok:
+                                targets.append({"tgid": tgid, "kind": "attack"})
                     else:
-                        if self.board[pos].piece.special_attack:
-                            if pos.kind == "a":
-                                if self.board.test_move_piece(
-                                    hex.pos, self.gid2hex[tgid].pos
-                                ):
-                                    self.state["targets"].append(tgid)  # todo check
-                                    self.state["colors"].append("attack")
-                        else:
-                            if self.board.test_move_piece(
-                                hex.pos, self.gid2hex[tgid].pos
-                            ):
-                                self.state["targets"].append(tgid)  # todo check
-                                self.state["colors"].append("attack")
-                if self.state["targets"]:
-                    self.state["inmove"] = True
-        else:
-            if gid in self.state["targets"]:
-                self.state["lastmove"] = (self.state["from"], gid)
-                self.state["valid_move"] = True
-            self.state["inmove"] = False
-        return self.state
+                        if testok:
+                            targets.append({"tgid": tgid, "kind": "attack"})
+        return targets
 
     def make_move(self, from_gid, to_gid):
         """Make move from from_gid to to_gid and record it to the log."""

@@ -147,23 +147,33 @@ class AppMPL(App):
             if state:
                 self.set_hex_selected(state["from"])
                 if state["inmove"]:
-                    for gid, color in zip(state["targets"], state["colors"]):
-                        match color:
+                    for target in state["targets"]:
+                        match target["kind"]:
                             case "safe":
-                                self.set_hex_safe(gid)
+                                self.set_hex_safe(target["tgid"])
                             case "attack":
-                                self.set_hex_attack(gid)
+                                self.set_hex_attack(target["tgid"])
                 else:
                     for gid in state["lastmove"]:
                         self.update_symbol(gid)
                     self.clear_hex(state["from"])
-                    for gid in state["targets"]:
-                        self.clear_hex(gid)
+                    for target in state["targets"]:
+                        self.clear_hex(target["tgid"])
             fig.canvas.draw()
 
         def on_pick(event):
             gid = event.artist.get_gid()
-            state = self.ga.gid_selected(gid)
+            if not state["inmove"]:
+                state["from"] = gid
+                state["targets"] = self.ga.valid_moves(gid)
+                state["valid_move"] = False
+                if state["targets"]:
+                    state["inmove"] = True
+            else:
+                if gid in [target["tgid"] for target in state["targets"]]:
+                    state["lastmove"] = (state["from"], gid)
+                    state["valid_move"] = True
+                state["inmove"] = False
             if state["valid_move"]:
                 self.ga.make_move(*state["lastmove"])
             update_ui(state)
@@ -176,10 +186,13 @@ class AppMPL(App):
             update_ui()
 
         def printlog(event):
-            print(self.ga.log2string())
+            print(self.ga.slog)
+            print(self.ga.eliminated)
+            print(self.ga.pieces)
 
         plt.rcParams["toolbar"] = "None"
         plt.rcParams["figure.constrained_layout.use"] = True
+        state = {"inmove": False, "lastmove": ()}
         fig, ax = plt.subplots(num="TriChess")
         for gid, hex in self.ga.gid2hex.items():
             patch = self.create_hex_patch(gid, hex)
