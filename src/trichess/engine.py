@@ -421,8 +421,7 @@ class GameAPI:
     @property
     def slog(self):
         """Returns game log as string."""
-        if self.move_number > 0:
-            return "".join([f"{p1.code}{p2.code}" for p1, p2 in self.log])
+        return "".join([f"{p1.code}{p2.code}" for p1, p2 in self.log])
 
     def replay_from_string(self, s: str):
         """Initalize board and replay all moves from string log."""
