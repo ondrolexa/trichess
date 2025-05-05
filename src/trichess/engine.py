@@ -453,17 +453,11 @@ class GameAPI:
             for pos in moves:
                 tgid = self.pos2gid[pos]
                 testok = self.board.test_move_piece(hex.pos, self.gid2hex[tgid].pos)
-                if not self.board[pos].has_piece:
-                    if testok:
+                if testok:
+                    if not self.board[pos].has_piece:
                         targets.append({"tgid": tgid, "kind": "safe"})
-                else:
-                    if self.board[pos].piece.special_attack:
-                        if pos.kind == "a":
-                            if testok:
-                                targets.append({"tgid": tgid, "kind": "attack"})
                     else:
-                        if testok:
-                            targets.append({"tgid": tgid, "kind": "attack"})
+                        targets.append({"tgid": tgid, "kind": "attack"})
         return targets
 
     def make_move(self, from_gid, to_gid):
