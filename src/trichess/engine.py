@@ -265,28 +265,24 @@ class Board:
         for dest in piece.pos_candidates():
             if dest in self._board:
                 match dest.kind:
-                    case "a":
-                        if self._board[dest].has_piece:
-                            if self._board[dest].piece.player is not piece.player:
-                                all.append(dest)
                     case "s":
                         if self._board[dest].has_piece:
                             if self._board[dest].piece.player is not piece.player:
                                 all.append(dest)
                         else:
                             all.append(dest)
-                    case "d":
+                    case "a":
                         if self._board[dest].has_piece:
                             if self._board[dest].piece.player is not piece.player:
                                 all.append(dest)
-                        else:
-                            all.append(dest)
                     case "n":
                         if self._board[dest].has_piece:
                             if self._board[dest].piece.player is not piece.player:
                                 all.append(dest)
                         else:
                             all.append(dest)
+                    case _:
+                        all.append(dest)
         return all
 
 

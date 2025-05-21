@@ -115,13 +115,25 @@ class Piece:
                 match move.kind:
                     case "s":
                         res.append(self.player.pos_from_move(self.pos, move))
+                    case "f":
+                        pos = self.player.pos_from_move(self.pos, move)
+                        if pos in self.hex.board:
+                            if not self.hex.board[pos].has_piece:
+                                res.append(pos)
                     case "a":
-                        res.append(self.player.pos_from_move(self.pos, move))
+                        pos = self.player.pos_from_move(self.pos, move)
+                        if pos in self.hex.board:
+                            if self.hex.board[pos].has_piece:
+                                res.append(pos)
                     case "d":
                         partial_move = Move(move.steps[0])
                         pos = self.player.pos_from_move(self.pos, partial_move)
-                        if not self.hex.board[pos].has_piece:
-                            res.append(self.player.pos_from_move(self.pos, move))
+                        if pos in self.hex.board:
+                            if not self.hex.board[pos].has_piece:
+                                pos = self.player.pos_from_move(self.pos, move)
+                                if pos in self.hex.board:
+                                    if not self.hex.board[pos].has_piece:
+                                        res.append(pos)
                     case "n":
                         pos = self.pos
                         for i in range(1, 15):
@@ -144,8 +156,8 @@ class Pawn(Piece):
     @property
     def _moves(self) -> list[Move]:
         moves = [
-            Move("FL"),
-            Move("FR"),
+            Move("FL", kind="f"),
+            Move("FR", kind="f"),
             Move("DL", kind="a"),
             Move("DF", kind="a"),
             Move("DR", kind="a"),
