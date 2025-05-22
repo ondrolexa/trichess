@@ -242,11 +242,11 @@ class Board:
         to_piece = self._board[pos_to].piece if self._board[pos_to].has_piece else None
         self._board[pos_to].piece = piece
         self._board[pos_from].piece = None
-        res = not self.in_chess(piece.player)
+        res, _ = self.in_chess(piece.player)
         piece.hex = self._board[pos_from]
         self._board[pos_from].piece = piece
         self._board[pos_to].piece = to_piece
-        return res
+        return not res
 
     def in_chess(self, player: Player) -> bool:
         """Check if players king is under attack"""
@@ -256,8 +256,8 @@ class Board:
                 if piece.player is not player:
                     targets = self.possible_moves(piece)
                     if player.king_piece.hex.pos in targets:
-                        return True
-        return False
+                        return True, piece
+        return False, None
 
     def possible_moves(self, piece: Piece) -> list[Pos]:
         """Return list of all posiible moves for given piece."""
