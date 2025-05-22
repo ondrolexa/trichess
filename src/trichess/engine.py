@@ -248,16 +248,19 @@ class Board:
         self._board[pos_to].piece = to_piece
         return not res
 
-    def in_chess(self, player: Player) -> bool:
-        """Check if players king is under attack"""
+    def in_chess(self, player: Player) -> tuple[bool, list]:
+        """Check if players king is under attack and returns list of attacking pieces"""
+        pieces = []
+        inchess = False
         for hex in self:
             if hex.has_piece:
                 piece = hex.piece
                 if piece.player is not player:
                     targets = self.possible_moves(piece)
                     if player.king_piece.hex.pos in targets:
-                        return True, piece
-        return False, None
+                        pieces.append(piece)
+                        inchess = True
+        return inchess, pieces
 
     def possible_moves(self, piece: Piece) -> list[Pos]:
         """Return list of all posiible moves for given piece."""
@@ -378,6 +381,15 @@ class GameAPI:
     @property
     def on_move_previous(self):
         return (self.move_number - 1) % 3
+
+    @property
+    def in_chess(self):
+        """Check if player on move has chess"""
+        res = {0: [], 1: [], 2: []}
+        inchess, pieces = self.board.in_chess(self.players[self.on_move])
+        for p in pieces:
+            res[p.player.pid].append({"gid": self.pos2gid[p.pos], "piece": p.label})
+        return inchess, res
 
     @property
     def eliminated(self):
