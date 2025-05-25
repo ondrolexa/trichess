@@ -242,7 +242,7 @@ class Board:
         to_piece = self._board[pos_to].piece if self._board[pos_to].has_piece else None
         self._board[pos_to].piece = piece
         self._board[pos_from].piece = None
-        res, _ = self.in_chess(piece.player)
+        res, _, _ = self.in_chess(piece.player)
         piece.hex = self._board[pos_from]
         self._board[pos_from].piece = piece
         self._board[pos_to].piece = to_piece
@@ -252,15 +252,16 @@ class Board:
         """Check if players king is under attack and returns list of attacking pieces"""
         pieces = []
         inchess = False
+        kingpos = player.king_piece.hex.pos
         for hex in self:
             if hex.has_piece:
                 piece = hex.piece
                 if piece.player is not player:
                     targets = self.possible_moves(piece)
-                    if player.king_piece.hex.pos in targets:
+                    if kingpos in targets:
                         pieces.append(piece)
                         inchess = True
-        return inchess, pieces
+        return inchess, kingpos, pieces
 
     def possible_moves(self, piece: Piece) -> list[Pos]:
         """Return list of all posiible moves for given piece."""
@@ -383,13 +384,21 @@ class GameAPI:
         return (self.move_number - 1) % 3
 
     @property
+    def last_move(self):
+        if self.log:
+            return {
+                "from": self.pos2gid[self.log[-1][0]],
+                "to": self.pos2gid[self.log[-1][1]],
+            }
+
+    @property
     def in_chess(self):
         """Check if player on move has chess"""
         res = {0: [], 1: [], 2: []}
-        inchess, pieces = self.board.in_chess(self.players[self.on_move])
+        inchess, kingpos, pieces = self.board.in_chess(self.players[self.on_move])
         for p in pieces:
             res[p.player.pid].append({"gid": self.pos2gid[p.pos], "piece": p.label})
-        return inchess, res
+        return inchess, self.pos2gid[kingpos], res
 
     @property
     def eliminated(self):
