@@ -7,7 +7,6 @@
     align-items: center;
     justify-content: center;
     min-height: calc(100vh - 56px);
-    padding: 20px;
 }
 
 #mainCanvas {
@@ -27,7 +26,7 @@
 }
 
 .sidebar-btn {
-    width: 100%;
+    width: 70%;
     margin-bottom: 15px;
     padding: 12px;
     font-weight: 500;
@@ -56,7 +55,7 @@
     }
 
     .canvas-container {
-        min-height: 60vh;
+        min-height: 35vh;
     }
 
     #mainCanvas {

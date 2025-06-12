@@ -116,11 +116,11 @@ var p2el = new Konva.Text({
 
 // responsive canvas
 function fitStageIntoDiv() {
-  const container = document.querySelector("#canvas-parent");
+  const container = document.querySelector("#canvas");
   const containerWidth = container.offsetWidth;
   const scale = containerWidth / stageWidth;
-  stage.width(stageWidth * scale - 20);
-  stage.height(stageHeight * scale);
+  stage.width(stageWidth * scale);
+  stage.height((3 * stageWidth * scale) / 4);
   stage.scale({ x: scale, y: scale });
   stage.position({ x: 0, y: 0 });
   stage.draw();
@@ -187,6 +187,22 @@ function manageMove(gid) {
         }
       }
     }
+  }
+}
+
+function backMove() {
+  slog = slog.slice(0, -4);
+  movestage = -1;
+  gameInfo(true);
+  ready = true;
+}
+
+function forwardMove() {
+  if (slog.length < server_slog.length) {
+    slog = server_slog.slice(0, slog.length + 4);
+    movestage = -1;
+    gameInfo(true);
+    ready = true;
   }
 }
 
@@ -313,8 +329,10 @@ function makeMove(gid, tgid) {
       cleanMove();
       if (slog.slice(0, -4) == server_slog && on_move) {
         submit.disabled = false;
+        submit.className = "btn btn-danger";
       } else {
         submit.disabled = true;
+        submit.className = "btn btn-outline-secondary";
       }
     })
     .catch((error) => {
@@ -478,6 +496,5 @@ function boardSubmit() {
 }
 
 window.addEventListener("resize", fitStageIntoDiv);
-document.getElementById("fitBoard").onclick = fitStageIntoDiv;
 
 boardInfo();
