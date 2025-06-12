@@ -1,54 +1,10 @@
 {% extends "base.html" %}
 
-{%block content%}
-<style>
-.button {
-  background-color: #919595;
-  border: 2;
-  color: black;
-  padding: 15px 32px;
-  text-align: center;
-  font-size: 16px;
-  margin: 15px 15px;
-  cursor: pointer;
-  border-radius: 8px;
-  vertical-align:40px;
-  width: 200px;
-  height: 60px;
-  }
+{%block styles%}
+<link rel="stylesheet" href="{{ url_for('static', filename='board.css') }}">
+{%endblock%}
 
-.divbutt {
-  width: 20%;
-  background-color: #b2b2b2;
-  border-style: single;
-  padding: 15px 32px;
-  flex: 10%;
-  display: flex;
-  flex-flow: row wrap;
-  justify-content: center;
-  min-width: 200px;
- }
-#canvas {
-  width: 80%;
-  flex: 80%;
-  background-color: #b2b2b2;
-  padding: 0px 0px;
-  justify-content: center;
-}
-.divmain {
-  display: flex;
-  flex-wrap: wrap;
-  background-color: #b2b2b2"
-}
-.divmess {
-  padding: 60px 10px;
-  flex: 90%;
-  display: flex;
-  flex-flow: row wrap;
-  justify-content: left;
-  min-width: 200px;
-}
-</style>
+{%block content%}
 <div class="divmain">
   <div class="row">
       <canvas id="canvas" width="1100" height="690"  onclick="Click_Board(event)"></canvas>
@@ -65,12 +21,12 @@
   </div>
 </div>
 {%endblock%}
+
 {% block scripts %}
 <script type="text/javascript">
 var TOKEN = "Bearer {{ access_token }}";
 var ID = "{{ id }}";
 var VIEW_PID = "{{ view_pid }}";
 </script>
-
 <script type="text/javascript" src="{{ url_for('static', filename='board.js') }}"></script>
 {% endblock %}

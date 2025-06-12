@@ -2,18 +2,12 @@
 <!doctype html>
 <html lang="en">
     <head>
-        {% block head %}
-        <!-- Required meta tags -->
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-        {% block styles %}
-            <!-- Bootstrap CSS -->
-            {{ bootstrap.load_css() }}
-        {% endblock %}
+        {{ bootstrap.load_css() }}
         <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+        {% block styles %}{% endblock %}
         <title>Trichess</title>
-        {% endblock %}
     </head>
     <body>
         {% from 'bootstrap5/nav.html' import render_nav_item %}
