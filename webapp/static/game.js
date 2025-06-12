@@ -191,10 +191,12 @@ function manageMove(gid) {
 }
 
 function backMove() {
-  slog = slog.slice(0, -4);
-  movestage = -1;
-  gameInfo(true);
-  ready = true;
+  if (slog.length > 0) {
+    slog = slog.slice(0, -4);
+    movestage = -1;
+    gameInfo(true);
+    ready = true;
+  }
 }
 
 function forwardMove() {
