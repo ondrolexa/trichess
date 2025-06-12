@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% from 'bootstrap5/form.html' import render_form %}
+
+{%block content%}
+  	<h2>Register new user</h2>
+    {{ render_form(form, form_type='horizontal', horizontal_columns=('lg', 1, 2)) }}
+{%endblock%}

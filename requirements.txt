@@ -1,0 +1,11 @@
+Flask
+flask-restx
+Flask-Login
+Flask-SQLAlchemy
+flask-cors
+Bootstrap-Flask
+Flask-WTF
+WTForms-SQLAlchemy
+flask-jwt-extended
+gunicorn
+pytest

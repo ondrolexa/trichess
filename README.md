@@ -26,26 +26,14 @@ for Windows use Command Prompt or PowerShell:
 > Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 > ```
 
-Great! You have a fresh virtual environment within your project’s folder. To install the application in there,
-you’ll use the -e option of pip install. This option allows you to install packages, libraries, and tools in editable mode.
-
-Editable mode lets you work on the source code while being able to try the latest modifications as you implement them.
-This mode is quite useful in the development stage.
+Great! You have a fresh virtual environment within your project’s folder. Now you need to install all requirements.
 
 Here’s the command that you need to run to install trichess:
 
-    pip install -e .[dev]
+    pip install -r requirements.txt
 
 ## :rocket: How to run
 
 In the moment you can use command line to test engine. To show board coords:
 
-    trichess coords
-
-To run testing app use:
-
-    trichess run
-
-## License
-
-Trichess is free software: you can redistribute it and/or modify it under the terms of the MIT License. A copy of this license is provided in ``LICENSE`` file.
+    python run.py

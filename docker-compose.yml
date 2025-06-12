@@ -1,0 +1,25 @@
+services:
+
+  trichess:
+    build: .
+    image: ondrolexa/trichess
+    container_name: trichess
+    restart: unless-stopped
+    user: "1000:1000"
+    volumes:
+      - '${PWD}/instance:/code/instance'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.trichess.entrypoints=https"
+      - "traefik.http.routers.trichess.rule=Host(`trichess.mykuna.eu`)"
+      - "traefik.http.routers.trichess.tls=true"
+      - "traefik.http.routers.trichess.tls.certresolver=http"
+      - "traefik.http.services.trichess.loadbalancer.server.port=80"
+      - "traefik.http.routers.trichess.service=trichess"
+    networks:
+      - frontend
+
+networks:
+  frontend:
+    name: reverse-proxy
+    external: true
