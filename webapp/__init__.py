@@ -7,7 +7,6 @@ from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
-from webapp import models, views
 from webapp.api import blueprint as api
 
 app = Flask(__name__)
@@ -30,3 +29,5 @@ lm.setup_app(app)
 lm.login_view = "login"
 
 app.register_blueprint(api, url_prefix="/api/v1")
+
+from webapp import models, views
