@@ -7,8 +7,6 @@ from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
-from webapp.api import blueprint as api
-
 app = Flask(__name__)
 CORS(app)
 
@@ -27,6 +25,8 @@ jwt = JWTManager(app)  # JWT
 lm = LoginManager()
 lm.setup_app(app)
 lm.login_view = "login"
+
+from webapp.api import blueprint as api
 
 app.register_blueprint(api, url_prefix="/api/v1")
 
