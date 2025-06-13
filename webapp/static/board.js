@@ -20,7 +20,7 @@ const Control_panel = {
       "stroke_flag": false,
       "show_flag": true,
       "pos": {
-        "x": 1100,
+        "x": 1050,
         "y": 675,
         "rotate": 0,
         "align": "right"
@@ -46,7 +46,7 @@ const Control_panel = {
       "stroke_flag": false,
       "show_flag": true,
       "pos": {
-        "x": 1100,
+        "x": 1050,
         "y": 47,
         "rotate": 0,
         "align": "right"
@@ -102,9 +102,9 @@ const r = 30; // radius
 const text_color = '#000000'
 const button_color = '#919595';
 const hex_color_gray = '#bcbcbc';
-const hex_color =   ['#cc0000', '#ffffff', "#737373"];
+const hex_color =   ['#cc0000', '#000000', "#737373"];
 const piece_color_red = '#f8c471';
-const piece_color = ['#ffd11a', '#00e6e6','#e6e6ff'];//#d4ac6e #cc000f
+const piece_color = ['#ffd11a', '#00ffff','#ffffff'];//#d4ac6e #cc000f
 const Color_Lumi = [4,212,16, -0.4]
 const Color_Lumi1 = [18,13,246, -0.4]
 const pcs_map = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
@@ -228,16 +228,17 @@ hex.prototype.draw_piece = function () {
         ctx.strokeStyle = "black"
         //draw_piece(this.piece.piece, this.piece.player_id, this.x, this.y)
         //ctx.lineWidth = 1
-        //ctx.stroke();
+        
 
 }
 hex.prototype.draw_mark = function (i_kind) {
     this.show_flag = true;
-    if (this.hex_color == '#000000' )  {
-        ctx.strokeStyle = '#ffffff';
+    ctx.save();
+    if (this.hex_color == '#ffffff' )  {
+        ctx.strokeStyle = '#000000';
     }
     else {
-        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = '#ffffff';
     }
     ctx.lineWidth = 3
     if (i_kind == 'safe') {
@@ -250,14 +251,15 @@ hex.prototype.draw_mark = function (i_kind) {
        ctx.stroke();
     } else if (i_kind == 'attack') {
         ctx.beginPath();
-        ctx.moveTo(this.x-r/2, this.y-r/2);
-        ctx.lineTo(this.x+r/2, this.y+r/2);
-        ctx.moveTo(this.x+r/2, this.y-r/2);
-        ctx.lineTo(this.x-r/2, this.y+r/2);
+        ctx.moveTo(this.x-r/1.6, this.y-r/1.6);
+        ctx.lineTo(this.x+r/1.6, this.y+r/1.6);
+        ctx.moveTo(this.x+r/1.6, this.y-r/1.6);
+        ctx.lineTo(this.x-r/1.6, this.y+r/1.6);
        ctx.stroke();
     } else {
         const a = 0;
     }
+    ctx.restore();
 }
 
 // board /////////////////////////////////////////////////

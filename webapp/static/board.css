@@ -15,21 +15,24 @@
 
 .divbutt {
     width: 20%;
-    background-color: #b2b2b2;
+    background-color: #ffffff;
     border-style: single;
     padding: 15px 32px;
-    flex: 10%;
+    flex: 20%;
     display: flex;
     flex-flow: row wrap;
-    justify-content: center;
     min-width: 200px;
+    justify-content: center;
 }
 #canvas {
     width: 80%;
     flex: 80%;
-    background-color: #b2b2b2;
+    background-color: #ffffff;
     padding: 0px 0px;
     justify-content: center;
+    min-width: 100px;
+    max-width: 1600px;
+
 }
 .divmain {
     display: flex;
@@ -43,5 +46,5 @@
     display: flex;
     flex-flow: row wrap;
     justify-content: left;
-    min-width: 200px;
+    min-width: 100px;
 }
