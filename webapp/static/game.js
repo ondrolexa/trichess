@@ -369,9 +369,9 @@ function gameInfo(init = false) {
       p0name.fontStyle("normal");
       p1name.fontStyle("normal");
       p2name.fontStyle("normal");
-      if ((data.onmove + view_pid) % 3 == 0) {
+      if ((data.onmove + 3 - view_pid) % 3 == 0) {
         p0name.fontStyle("bold");
-      } else if ((data.onmove + view_pid) % 3 == 1) {
+      } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
         p1name.fontStyle("bold");
       } else {
         p2name.fontStyle("bold");
