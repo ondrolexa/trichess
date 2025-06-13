@@ -191,10 +191,12 @@ function manageMove(gid) {
 }
 
 function backMove() {
-  slog = slog.slice(0, -4);
-  movestage = -1;
-  gameInfo(true);
-  ready = true;
+  if (slog.length > 0) {
+    slog = slog.slice(0, -4);
+    movestage = -1;
+    gameInfo(true);
+    ready = true;
+  }
 }
 
 function forwardMove() {
@@ -363,6 +365,16 @@ function gameInfo(init = false) {
       if (init) {
         drawPieces(data.pieces);
         on_move = data.onmove == view_pid;
+      }
+      p0name.fontStyle("normal");
+      p1name.fontStyle("normal");
+      p2name.fontStyle("normal");
+      if ((data.onmove + 3 - view_pid) % 3 == 0) {
+        p0name.fontStyle("bold");
+      } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
+        p1name.fontStyle("bold");
+      } else {
+        p2name.fontStyle("bold");
       }
       updateStats(data.eliminated, data.move_number);
 
