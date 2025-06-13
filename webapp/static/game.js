@@ -366,6 +366,16 @@ function gameInfo(init = false) {
         drawPieces(data.pieces);
         on_move = data.onmove == view_pid;
       }
+      p0name.fontStyle("normal");
+      p1name.fontStyle("normal");
+      p2name.fontStyle("normal");
+      if ((data.onmove + view_pid) % 3 == 0) {
+        p0name.fontStyle("bold");
+      } else if ((data.onmove + view_pid) % 3 == 1) {
+        p1name.fontStyle("bold");
+      } else {
+        p2name.fontStyle("bold");
+      }
       updateStats(data.eliminated, data.move_number);
 
       if (data.last_move != null) {
