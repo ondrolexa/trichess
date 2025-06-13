@@ -32,6 +32,11 @@ Here’s the command that you need to run to install trichess:
 
     pip install -r requirements.txt
 
+For developemenmt setup, use:
+
+    pip install -r requirements_dev.txt
+
+
 ## :rocket: How to run
 
 In the moment you can use command line to test engine. To show board coords:
