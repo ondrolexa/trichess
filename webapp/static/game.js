@@ -37,9 +37,8 @@ var stage = new Konva.Stage({
   },
 });
 
-stage.on("wheel", function (evt) {
-  var nativeEvent = evt.evt;
-  nativeEvent.preventDefault();
+stage.on("wheel", function (e) {
+  e.evt.preventDefault();
   var oldScale = stage.scaleX();
 
   var mousePointTo = {
@@ -47,7 +46,7 @@ stage.on("wheel", function (evt) {
     y: stage.getPointerPosition().y / oldScale - stage.y() / oldScale,
   };
 
-  var newScale = nativeEvent.deltaY > 0 ? oldScale * 0.95 : oldScale / 0.95;
+  var newScale = e.evt.deltaY > 0 ? oldScale * 0.95 : oldScale / 0.95;
   stage.scale({ x: newScale, y: newScale });
 
   var newPos = {
@@ -234,7 +233,9 @@ function boardReset() {
 
 function cleanMove() {
   gid2high[movestage].visible(false);
-  cleanHigh();
+  for (let tgid of targets) {
+    gid2high[tgid].visible(false);
+  }
   if (target != -1) {
     gid2piece[target].text(gid2piece[movestage].text());
     gid2piece[target].fill(gid2piece[movestage].fill());
@@ -355,6 +356,7 @@ function makeMove(gid, tgid, new_piece = "") {
         game_slog = slog;
       }
       target = tgid;
+      cleanHigh();
       cleanMove();
       if (slog.slice(0, -4) == server_slog && on_move) {
         submit.disabled = false;
