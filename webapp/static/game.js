@@ -227,6 +227,11 @@ function forwardMove() {
   }
 }
 
+function boardReset() {
+  stage.destroyChildren();
+  boardInfo();
+}
+
 function cleanMove() {
   gid2high[movestage].visible(false);
   cleanHigh();
