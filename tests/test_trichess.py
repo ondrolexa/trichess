@@ -26,7 +26,7 @@ class Test_Player_Steps:
 class Test_Board:
     def test_move_piece(self, board):
         p1, p2 = Pos(-5, 6), Pos(-5, 5)
-        board.move_piece(p1, p2)
+        board.move_piece(p1, p2, "")
         assert not board[p1].has_piece
         assert board[p2].has_piece
 

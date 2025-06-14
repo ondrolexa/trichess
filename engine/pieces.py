@@ -36,6 +36,10 @@ class Pos:
         return chr(72 + self.q) + chr(72 + self.r)
 
     @property
+    def promcode(self) -> str:
+        return chr(104 + self.q) + chr(104 + self.r)
+
+    @property
     def q(self) -> int:
         return int(self.value.real)
 

@@ -40,6 +40,7 @@ valid_target = api.model(
     {
         "tgid": fields.Integer(example=167),
         "kind": fields.String(example="safe"),
+        "promotion": fields.Boolean,
     },
 )
 
@@ -68,7 +69,7 @@ class ValidMoves(Resource):
         gid = state.get("gid")
         try:
             if slog:
-                ga.replay_from_string(slog)
+                ga.replay_from_slog(slog)
         except Exception:
             moveapi.abort(400, message="slog parsing error")
         else:
@@ -92,6 +93,7 @@ move_payload = api.model(
         "view_pid": fields.Integer(example=0),
         "gid": fields.Integer(example=167),
         "tgid": fields.Integer(example=72),
+        "new_piece": fields.String(example=""),
     },
 )
 
@@ -119,14 +121,15 @@ class MakeMove(Resource):
         slog = state.get("slog")
         from_gid = state.get("gid")
         to_gid = state.get("tgid")
+        new_piece = state.get("new_piece")
         try:
             if slog:
-                ga.replay_from_string(slog)
+                ga.replay_from_slog(slog)
         except Exception:
             moveapi.abort(400, message="slog parsing error")
         else:
             try:
-                ga.make_move(from_gid, to_gid)
+                ga.make_move(from_gid, to_gid, new_piece=new_piece)
                 return {"slog": ga.slog}
             except KeyError:
                 moveapi.abort(404, message="gid not found")
@@ -220,7 +223,7 @@ class GameInfo(Resource):
         slog = state.get("slog")
         try:
             if slog:
-                ga.replay_from_string(slog)
+                ga.replay_from_slog(slog)
         except Exception:
             gameapi.abort(400, message="slog parsing error")
         else:
@@ -343,9 +346,9 @@ class GameBoard(Resource):
             if tb:
                 try:
                     ga1 = GameAPI()
-                    ga1.replay_from_string(tb.slog)
+                    ga1.replay_from_slog(tb.slog)
                     ga2 = GameAPI()
-                    ga2.replay_from_string(state.slog)
+                    ga2.replay_from_slog(state.slog)
                     pid = {
                         tb.player_0.username: 0,
                         tb.player_1.username: 1,
@@ -420,7 +423,7 @@ class ActiveGames(Resource):
                 dt = []
                 for tb in own:
                     ga = GameAPI()
-                    ga.replay_from_string(tb.slog)
+                    ga.replay_from_slog(tb.slog)
                     seats = {
                         tb.player_0.username: 0,
                         tb.player_1.username: 1,
@@ -439,7 +442,7 @@ class ActiveGames(Resource):
                 dt = []
                 for tb in joined:
                     ga = GameAPI()
-                    ga.replay_from_string(tb.slog)
+                    ga.replay_from_slog(tb.slog)
                     seats = {
                         tb.player_0.username: 0,
                         tb.player_1.username: 1,

@@ -1,5 +1,9 @@
-from engine.pieces import Piece, Pos
+from engine.pieces import Pawn, Piece, Pos
 from engine.player import Player
+
+base0 = [Pos(i, 7) for i in range(-7, 1)]
+base1 = [Pos(i, -7 - i) for i in range(-7, 1)]
+base2 = [Pos(7, i) for i in range(-7, 1)]
 
 
 class Hex:
@@ -59,10 +63,15 @@ class Board:
                     pos = Pos(q, r)
                     self._board[pos] = Hex(pos, self)
         self.init_pieces()
+        self.opposite = {
+            0: base1 + base2,
+            1: base0 + base2,
+            2: base0 + base1,
+        }
         self.eliminated = []
         log = kwargs.get("log", [])
-        for pos_from, pos_to in log:
-            self.move_piece(pos_from, pos_to)
+        for pos_from, pos_to, label in log:
+            self.move_piece(pos_from, pos_to, label)
 
     def init_pieces(self):
         """Initialize trichess board pieces to starting positions"""
@@ -129,18 +138,23 @@ class Board:
         """
         self._board[pos].piece = create_piece_fn(hex=self._board[pos])
 
-    def move_piece(self, pos_from, pos_to):
+    def move_piece(self, pos_from: Pos, pos_to: Pos, label: str):
         """Move piece from one position to other.
 
         Note:
             When there is no piece on position, error is raised
+            When label is not empty string, piece is promoted
 
         """
-        piece = self._board[pos_from].piece
-        piece.used = True
         thex = self._board[pos_to]
         if thex.has_piece:
             self.eliminated.append(thex.piece)
+        if label:
+            piece = self._board[pos_from].piece.player.promotion(label)
+            piece.used = True
+        else:
+            piece = self._board[pos_from].piece
+            piece.used = True
         piece.hex = thex
         thex.piece = piece
         self._board[pos_from].piece = None
@@ -156,6 +170,10 @@ class Board:
         self._board[pos_from].piece = piece
         self._board[pos_to].piece = to_piece
         return not res
+
+    def promotion(self, piece: Piece, pos: Pos) -> bool:
+        """Return turn when pos in opposite base"""
+        return (pos in self.opposite[piece.player.pid]) and isinstance(piece, Pawn)
 
     def in_chess(self, player: Player) -> tuple[bool, list]:
         """Check if players king is under attack and returns list of attacking pieces"""

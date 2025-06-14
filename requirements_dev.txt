@@ -9,3 +9,5 @@ WTForms-SQLAlchemy
 flask-jwt-extended
 gunicorn
 pytest
+black
+ruff

@@ -150,20 +150,52 @@ class GameAPI:
     @property
     def slog(self):
         """Returns game log as string."""
-        return "".join([f"{p1.code}{p2.code}" for p1, p2 in self.log])
+        nlog = []
+        for p1, p2, label in self.log:
+            q1, r1 = p1.q, p1.r
+            q2, r2 = p2.q, p2.r
+            match label:
+                case "Q":
+                    q1 += 32
+                case "R":
+                    r1 += 32
+                case "B":
+                    q2 += 32
+                case "N":
+                    r2 += 32
+            nlog.append(chr(72 + q1) + chr(72 + r1) + chr(72 + q2) + chr(72 + r2))
+        return "".join(nlog)
 
-    def replay_from_string(self, s: str):
+    def replay_from_slog(self, s: str):
         """Initalize board and replay all moves from string log."""
         log = []
         for q1, r1, q2, r2 in zip(s[::4], s[1::4], s[2::4], s[3::4]):
+            # check promotion
+            if q1 > "O":
+                q1 = chr(ord(q1) - 32)
+                new_label = "Q"
+            elif r1 > "O":
+                r1 = chr(ord(r1) - 32)
+                new_label = "R"
+            elif q2 > "O":
+                q2 = chr(ord(q2) - 32)
+                new_label = "B"
+            elif r2 > "O":
+                r2 = chr(ord(r2) - 32)
+                new_label = "N"
+            else:
+                new_label = ""
             log.append(
-                (Pos(ord(q1) - 72, ord(r1) - 72), Pos(ord(q2) - 72, ord(r2) - 72))
+                (
+                    Pos(ord(q1) - 72, ord(r1) - 72),
+                    Pos(ord(q2) - 72, ord(r2) - 72),
+                    new_label,
+                )
             )
         self.replay_from_log(log)
 
     def logtail(self, n=5):
-        nlog = [(ix + 1, p1, p2) for ix, (p1, p2) in enumerate(self.log)]
-        return " ".join([f"{ix}:{p1.code}-{p2.code}" for ix, p1, p2 in nlog[-n:]])
+        return self.slog[-4 * n :]
 
     def valid_moves(self, gid):
         """Return all valid moves from gid for player on move
@@ -178,24 +210,36 @@ class GameAPI:
             piece = hex.piece
             if self.players[self.on_move] is piece.player:
                 moves = self.board.possible_moves(piece)
-        if moves:
-            for pos in moves:
-                tgid = self.pos2gid[pos]
-                testok = self.board.test_move_piece(hex.pos, self.gid2hex[tgid].pos)
-                if testok:
-                    if not self.board[pos].has_piece:
-                        targets.append({"tgid": tgid, "kind": "safe"})
-                    else:
-                        targets.append({"tgid": tgid, "kind": "attack"})
+            if moves:
+                for pos in moves:
+                    tgid = self.pos2gid[pos]
+                    testok = self.board.test_move_piece(hex.pos, self.gid2hex[tgid].pos)
+                    if testok:
+                        if not self.board[pos].has_piece:
+                            targets.append(
+                                {
+                                    "tgid": tgid,
+                                    "kind": "safe",
+                                    "promotion": self.board.promotion(piece, pos),
+                                }
+                            )
+                        else:
+                            targets.append(
+                                {
+                                    "tgid": tgid,
+                                    "kind": "attack",
+                                    "promotion": self.board.promotion(piece, pos),
+                                }
+                            )
         return targets
 
-    def make_move(self, from_gid, to_gid):
+    def make_move(self, from_gid, to_gid, new_piece=""):
         """Make move from from_gid to to_gid and record it to the log."""
         # add move to log
         from_pos, to_pos = self.gid2hex[from_gid].pos, self.gid2hex[to_gid].pos
-        self.log.append((from_pos, to_pos))
+        self.log.append((from_pos, to_pos, new_piece))
         # make move
-        self.board.move_piece(from_pos, to_pos)
+        self.board.move_piece(from_pos, to_pos, new_piece)
         self.move_number += 1
 
     def move_possible(self):

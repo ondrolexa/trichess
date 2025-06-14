@@ -91,3 +91,14 @@ class Player:
         # keep reference for king
         self.king_piece = King(self, **kwargs)
         return self.king_piece
+
+    def promotion(self, label, **kwargs) -> Piece:
+        match label:
+            case "Q":
+                return Queen(self, **kwargs)
+            case "R":
+                return Rook(self, **kwargs)
+            case "B":
+                return Bishop(self, **kwargs)
+            case "N":
+                return Knight(self, **kwargs)
