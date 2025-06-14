@@ -4,7 +4,7 @@ from flask import Blueprint
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
 
-from trichess import GameAPI
+from engine import GameAPI
 from webapp import db
 from webapp.models import TriBoard, User
 
@@ -63,7 +63,7 @@ class ValidMoves(Resource):
     @moveapi.response(200, "Success", valid_response)
     def post(self):
         state = ValidMovesParser.parse_args()
-        ga = GameAPI(view_player=state.get("view_pid"))
+        ga = GameAPI(state.get("view_pid"))
         slog = state.get("slog")
         gid = state.get("gid")
         try:
@@ -115,7 +115,7 @@ class MakeMove(Resource):
     @moveapi.response(200, "Success", move_response)
     def post(self):
         state = MakeMoveParser.parse_args()
-        ga = GameAPI(view_player=state.get("view_pid"))
+        ga = GameAPI(state.get("view_pid"))
         slog = state.get("slog")
         from_gid = state.get("gid")
         to_gid = state.get("tgid")
@@ -216,7 +216,7 @@ class GameInfo(Resource):
     @gameapi.response(200, "Success", game_response)
     def post(self):
         state = GameInfoParser.parse_args()
-        ga = GameAPI(view_player=state.get("view_pid"))
+        ga = GameAPI(state.get("view_pid"))
         slog = state.get("slog")
         try:
             if slog:

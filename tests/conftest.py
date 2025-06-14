@@ -1,11 +1,11 @@
 import pytest
 
-from trichess import Board, GameAPI, Player
+from engine import Board, GameAPI, Player
 
 
 @pytest.fixture
 def api():
-    ga = GameAPI()
+    ga = GameAPI(0)
     return ga
 
 

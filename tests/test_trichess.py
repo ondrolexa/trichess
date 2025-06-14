@@ -1,6 +1,6 @@
 import pytest
 
-from trichess import Move, Pos
+from engine import Move, Pos
 
 
 class Test_Player_Steps:
