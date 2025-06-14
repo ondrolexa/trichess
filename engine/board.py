@@ -149,12 +149,11 @@ class Board:
         thex = self._board[pos_to]
         if thex.has_piece:
             self.eliminated.append(thex.piece)
-        if label:
+        if label and self.promotion(self._board[pos_from].piece, pos_to):
             piece = self._board[pos_from].piece.player.promotion(label)
-            piece.used = True
         else:
             piece = self._board[pos_from].piece
-            piece.used = True
+        piece.used = True
         piece.hex = thex
         thex.piece = piece
         self._board[pos_from].piece = None
@@ -172,7 +171,7 @@ class Board:
         return not res
 
     def promotion(self, piece: Piece, pos: Pos) -> bool:
-        """Return turn when pos in opposite base"""
+        """Return true when pos in opposite base"""
         return (pos in self.opposite[piece.player.pid]) and isinstance(piece, Pawn)
 
     def in_chess(self, player: Player) -> tuple[bool, list]:
