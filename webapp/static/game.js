@@ -30,7 +30,6 @@ var stage = new Konva.Stage({
   container: "canvas",
   width: stageWidth,
   height: stageHeight,
-  draggable: true,
   offset: {
     x: -stageWidth / 2 + 1,
     y: -7,
