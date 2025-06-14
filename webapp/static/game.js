@@ -22,6 +22,7 @@ var seat_1 = "";
 var seat_2 = "";
 var slog = "";
 var server_slog = "";
+var game_slog = "";
 var on_move = false;
 var view_pid = 0;
 
@@ -29,6 +30,7 @@ var stage = new Konva.Stage({
   container: "canvas",
   width: stageWidth,
   height: stageHeight,
+  draggable: true,
   offset: {
     x: -stageWidth / 2 + 1,
     y: -7,
@@ -56,6 +58,15 @@ stage.on("wheel", function (evt) {
   stage.batchDraw();
 });
 
+var movelabel = new Konva.Text({
+  x: -12,
+  y: 5.75,
+  text: "",
+  fontSize: 0.6,
+  align: "right",
+  width: 6,
+  listening: false,
+});
 var p0name = new Konva.Text({
   x: 4.5,
   y: 5.75,
@@ -140,13 +151,12 @@ function createHexPatch(gid, xy, color) {
   return hex;
 }
 
-function createHexHigh(gid, xy) {
+function createHexHigh(xy) {
   let hex = new Konva.RegularPolygon({
-    id: gid,
     x: xy[0],
     y: xy[1],
     sides: 6,
-    radius: 0.47,
+    radius: 0.45,
     fillEnabled: false,
     stroke: "black",
     strokeWidth: 0.07,
@@ -167,6 +177,7 @@ function createHexLabel(gid, xy, color, text) {
     fill: color,
     align: "center",
     verticalAlign: "middle",
+    name: "piece",
   });
   return label;
 }
@@ -200,8 +211,8 @@ function backMove() {
 }
 
 function forwardMove() {
-  if (slog.length < server_slog.length) {
-    slog = server_slog.slice(0, slog.length + 4);
+  if (slog.length < game_slog.length) {
+    slog = game_slog.slice(0, slog.length + 4);
     movestage = -1;
     gameInfo(true);
     ready = true;
@@ -259,6 +270,7 @@ function updateStats(eliminated, move_number) {
   }
   p2el.text(pp2.join(""));
   slogtext.innerHTML = slog;
+  movelabel.text(`${move_number}/${game_slog.length / 4}`);
 }
 
 function validMoves(gid) {
@@ -301,7 +313,7 @@ function validMoves(gid) {
     });
 }
 
-function makeMove(gid, tgid) {
+function makeMove(gid, tgid, new_piece = "") {
   const url = "https://trichess.mykuna.eu/api/v1/move/make";
   const headers = new Headers();
   headers.append("Accept", "application/json");
@@ -317,6 +329,7 @@ function makeMove(gid, tgid) {
       view_pid: view_pid,
       gid: gid,
       tgid: tgid,
+      new_piece: new_piece,
     }),
   })
     .then((response) => {
@@ -327,6 +340,9 @@ function makeMove(gid, tgid) {
     })
     .then((data) => {
       slog = data.slog;
+      if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
+        game_slog = slog;
+      }
       target = tgid;
       cleanMove();
       if (slog.slice(0, -4) == server_slog && on_move) {
@@ -366,15 +382,60 @@ function gameInfo(init = false) {
         drawPieces(data.pieces);
         on_move = data.onmove == view_pid;
       }
+      for (let gid = 0; gid < 169; gid++) {
+        gid2high[gid].visible(false);
+      }
       p0name.fontStyle("normal");
+      p0name.fill("black");
       p1name.fontStyle("normal");
+      p1name.fill("black");
       p2name.fontStyle("normal");
+      p2name.fill("black");
       if ((data.onmove + 3 - view_pid) % 3 == 0) {
         p0name.fontStyle("bold");
+        if (data.in_chess) {
+          p0name.fill("red");
+          gid2high[data.king_pos].visible(true);
+          gid2high[data.king_pos].stroke("red");
+          for (let xby in data.chess_by[1]) {
+            gid2high[data.chess_by[1][xby]["gid"]].visible(true);
+            gid2high[data.chess_by[1][xby]["gid"]].stroke("green");
+          }
+          for (let xby in data.chess_by[2]) {
+            gid2high[data.chess_by[2][xby]["gid"]].visible(true);
+            gid2high[data.chess_by[2][xby]["gid"]].stroke("green");
+          }
+        }
       } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
         p1name.fontStyle("bold");
+        if (data.in_chess) {
+          p1name.fill("red");
+          gid2high[data.king_pos].visible(true);
+          gid2high[data.king_pos].stroke("red");
+          for (let xby in data.chess_by[0]) {
+            gid2high[data.chess_by[0][xby]["gid"]].visible(true);
+            gid2high[data.chess_by[0][xby]["gid"]].stroke("green");
+          }
+          for (let xby in data.chess_by[2]) {
+            gid2high[data.chess_by[2][xby]["gid"]].visible(true);
+            gid2high[data.chess_by[2][xby]["gid"]].stroke("green");
+          }
+        }
       } else {
         p2name.fontStyle("bold");
+        if (data.in_chess) {
+          p2name.fill("red");
+          gid2high[data.king_pos].visible(true);
+          gid2high[data.king_pos].stroke("red");
+          for (let xby in data.chess_by[0]) {
+            gid2high[data.chess_by[0][xby]["gid"]].visible(true);
+            gid2high[data.chess_by[0][xby]["gid"]].stroke("green");
+          }
+          for (let xby in data.chess_by[1]) {
+            gid2high[data.chess_by[1][xby]["gid"]].visible(true);
+            gid2high[data.chess_by[1][xby]["gid"]].stroke("green");
+          }
+        }
       }
       updateStats(data.eliminated, data.move_number);
 
@@ -423,6 +484,7 @@ function boardInfo() {
       seat_2 = seats[(2 + view_pid) % 3];
       slog = data.slog;
       server_slog = data.slog;
+      game_slog = data.slog;
       gameInfo(true);
       var layer = new Konva.Layer();
       stage.add(layer);
@@ -438,7 +500,7 @@ function boardInfo() {
             gid2xy[gid] = [x, y];
             const colorid = (((2 * q + r) % 3) + 3) % 3;
             gid2hex[gid] = createHexPatch(gid, [x, y], HEX_COLORS[colorid]);
-            gid2high[gid] = createHexHigh(gid, [x, y]);
+            gid2high[gid] = createHexHigh([x, y]);
             gid2piece[gid] = createHexLabel(gid, [x, y], "#ffffff", "");
             gid++;
           }
@@ -454,6 +516,7 @@ function boardInfo() {
       p0name.text(seat_0);
       p1name.text(seat_1);
       p2name.text(seat_2);
+      layer.add(movelabel);
       layer.add(p0name);
       layer.add(p0el);
       layer.add(p1name);

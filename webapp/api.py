@@ -198,7 +198,7 @@ game_response = api.model(
         "onmove": fields.Integer,
         "last_move": fields.Nested(last_move),
         "finished": fields.Boolean,
-        "in_chess": fields.Integer,
+        "in_chess": fields.Boolean,
         "king_pos": fields.Integer,
         "chess_by": fields.Nested(game_pieces),
         "pieces": fields.Nested(game_pieces),
