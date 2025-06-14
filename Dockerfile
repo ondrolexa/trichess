@@ -8,7 +8,7 @@ COPY ./initdb.py /code/initdb.py
 
 RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
-COPY ./trichess /code/trichess
+COPY ./engine /code/engine
 COPY ./webapp /code/webapp
 
 EXPOSE 80
