@@ -30,6 +30,7 @@ var stage = new Konva.Stage({
   container: "canvas",
   width: stageWidth,
   height: stageHeight,
+  draggable: true,
   offset: {
     x: -stageWidth / 2 + 1,
     y: -7,
@@ -200,10 +201,17 @@ function manageMove(gid) {
   }
 }
 
+function cleanHigh() {
+  for (let gid = 0; gid < 169; gid++) {
+    gid2high[gid].visible(false);
+  }
+}
+
 function backMove() {
   if (slog.length > 0) {
     slog = slog.slice(0, -4);
     movestage = -1;
+    cleanHigh();
     gameInfo(true);
     ready = true;
   }
@@ -213,6 +221,7 @@ function forwardMove() {
   if (slog.length < game_slog.length) {
     slog = game_slog.slice(0, slog.length + 4);
     movestage = -1;
+    cleanHigh();
     gameInfo(true);
     ready = true;
   }
@@ -220,9 +229,7 @@ function forwardMove() {
 
 function cleanMove() {
   gid2high[movestage].visible(false);
-  for (let tgid of targets) {
-    gid2high[tgid].visible(false);
-  }
+  cleanHigh();
   if (target != -1) {
     gid2piece[target].text(gid2piece[movestage].text());
     gid2piece[target].fill(gid2piece[movestage].fill());
@@ -380,9 +387,6 @@ function gameInfo(init = false) {
       if (init) {
         drawPieces(data.pieces);
         on_move = data.onmove == view_pid;
-      }
-      for (let gid = 0; gid < 169; gid++) {
-        gid2high[gid].visible(false);
       }
       p0name.fontStyle("normal");
       p0name.fill("black");
