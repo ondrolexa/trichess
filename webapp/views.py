@@ -137,12 +137,24 @@ def available():
         db.session.commit()
         return redirect(url_for("active"))
     else:
-        user_not_in = db.or_(
-            TriBoard.player_0_id != g.user.id,
-            TriBoard.player_1_id != g.user.id,
-            TriBoard.player_2_id != g.user.id,
+        user_not_in = db.and_(
+            db.or_(
+                TriBoard.player_0_id != g.user.id, TriBoard.player_0_id == db.null()
+            ),
+            db.or_(
+                TriBoard.player_1_id != g.user.id, TriBoard.player_1_id == db.null()
+            ),
+            db.or_(
+                TriBoard.player_2_id != g.user.id, TriBoard.player_2_id == db.null()
+            ),
         )
-        available = TriBoard.query.filter_by(status=0).filter(user_not_in).all()
+        print(user_not_in)
+        available = (
+            TriBoard.query.filter_by(status=0)
+            .filter(TriBoard.owner_id != g.user.id)
+            .filter(user_not_in)
+            .all()
+        )
     return render_template("available.html", games=available)
 
 
