@@ -44,8 +44,8 @@
         <!-- Your page content -->
         <div class="container my-4">
         {% block content %}{% endblock %}
-         </div>
-        {% block scripts %}{% endblock %}
+        </div>
         {{ bootstrap.load_js() }}
+        {% block scripts %}{% endblock %}
     </body>
 </html>

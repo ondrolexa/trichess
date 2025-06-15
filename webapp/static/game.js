@@ -13,9 +13,11 @@ var movestage = -1;
 var target = -1;
 var ready = false;
 var targets = new Set();
+var promotions = new Set();
 var lastmove = { from: -1, to: -1 };
 var slogtext = document.getElementById("log");
 var submit = document.getElementById("submitGame");
+var modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
 const hostname = "trichess.mykuna.eu"; //new URL(window.location.href).hostname;
 const protocol = "https:"; //window.location.protocol;
 
@@ -189,7 +191,12 @@ function manageMove(gid) {
       validMoves(gid);
     } else {
       if (targets.has(gid)) {
-        makeMove(movestage, gid);
+        if (promotions.has(gid)) {
+          target = gid;
+          modalPiece.toggle();
+        } else {
+          makeMove(movestage, gid);
+        }
       } else {
         if (gid == movestage) {
           cleanMove();
@@ -200,6 +207,12 @@ function manageMove(gid) {
       }
     }
   }
+}
+
+function promotePiece(label) {
+  console.log(label);
+  modalPiece.toggle();
+  makeMove(movestage, target, label);
 }
 
 function cleanHigh() {
@@ -245,6 +258,7 @@ function cleanMove() {
     gid2piece[movestage].fill("#ffffff");
   }
   targets.clear();
+  promotions.clear();
   target = -1;
   movestage = -1;
   gameInfo();
@@ -318,6 +332,9 @@ function validMoves(gid) {
         } else {
           gid2high[tgid].stroke("green");
         }
+        if (data.targets[i].promotion) {
+          promotions.add(tgid);
+        }
       }
       movestage = gid;
       ready = true;
@@ -334,7 +351,7 @@ function makeMove(gid, tgid, new_piece = "") {
   headers.append("Content-Type", "application/json");
   headers.append("Authorization", access_token);
   ready = false;
-
+  console.log(slog, view_pid, gid, tgid, new_piece);
   fetch(url, {
     method: "POST",
     headers: headers,
@@ -353,6 +370,7 @@ function makeMove(gid, tgid, new_piece = "") {
       return response.json();
     })
     .then((data) => {
+      console.log(data.slog);
       slog = data.slog;
       if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
         game_slog = slog;
@@ -410,12 +428,12 @@ function gameInfo(init = false) {
           gid2high[data.king_pos].visible(true);
           gid2high[data.king_pos].stroke("red");
           for (let xby in data.chess_by[1]) {
-            gid2high[data.chess_by[1][xby]["gid"]].visible(true);
-            gid2high[data.chess_by[1][xby]["gid"]].stroke("green");
+            gid2high[data.chess_by[1][xby].gid].visible(true);
+            gid2high[data.chess_by[1][xby].gid].stroke("green");
           }
           for (let xby in data.chess_by[2]) {
-            gid2high[data.chess_by[2][xby]["gid"]].visible(true);
-            gid2high[data.chess_by[2][xby]["gid"]].stroke("green");
+            gid2high[data.chess_by[2][xby].gid].visible(true);
+            gid2high[data.chess_by[2][xby].gid].stroke("green");
           }
         }
       } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
@@ -425,12 +443,12 @@ function gameInfo(init = false) {
           gid2high[data.king_pos].visible(true);
           gid2high[data.king_pos].stroke("red");
           for (let xby in data.chess_by[0]) {
-            gid2high[data.chess_by[0][xby]["gid"]].visible(true);
-            gid2high[data.chess_by[0][xby]["gid"]].stroke("green");
+            gid2high[data.chess_by[0][xby].gid].visible(true);
+            gid2high[data.chess_by[0][xby].gid].stroke("green");
           }
           for (let xby in data.chess_by[2]) {
-            gid2high[data.chess_by[2][xby]["gid"]].visible(true);
-            gid2high[data.chess_by[2][xby]["gid"]].stroke("green");
+            gid2high[data.chess_by[2][xby].gid].visible(true);
+            gid2high[data.chess_by[2][xby].gid].stroke("green");
           }
         }
       } else {
@@ -440,12 +458,12 @@ function gameInfo(init = false) {
           gid2high[data.king_pos].visible(true);
           gid2high[data.king_pos].stroke("red");
           for (let xby in data.chess_by[0]) {
-            gid2high[data.chess_by[0][xby]["gid"]].visible(true);
-            gid2high[data.chess_by[0][xby]["gid"]].stroke("green");
+            gid2high[data.chess_by[0][xby].gid].visible(true);
+            gid2high[data.chess_by[0][xby].gid].stroke("green");
           }
           for (let xby in data.chess_by[1]) {
-            gid2high[data.chess_by[1][xby]["gid"]].visible(true);
-            gid2high[data.chess_by[1][xby]["gid"]].stroke("green");
+            gid2high[data.chess_by[1][xby].gid].visible(true);
+            gid2high[data.chess_by[1][xby].gid].stroke("green");
           }
         }
       }

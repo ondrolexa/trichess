@@ -24,7 +24,7 @@
 {% else %}{{game.player_1.username}}{% endif %}</td>
         <td>{% if game.player_2 is none %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="2">Join</button>
 {% else %}{{game.player_2.username}}{% endif %}</td>
-        <td>{{game.created_at}}</td>
+        <td>{{game.created_at|strftime}}</td>
         </tr>
         {% endfor %}
         </form>

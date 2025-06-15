@@ -23,7 +23,7 @@
         <td>{{game.player_0.username}}</td>
         <td>{{game.player_1.username}}</td>
         <td>{{game.player_2.username}}</td>
-        <td>{{game.created_at}}</td>
+        <td>{{game.created_at|strftime}}</td>
         <td><button type="submit" class="btn btn-danger btn-sm" name="board" value="{{game.id}}">Delete</button></td>
         </tr>
         {% endfor %}
@@ -50,7 +50,7 @@
         <td>{{game.player_0.username}}</td>
         <td>{{game.player_1.username}}</td>
         <td>{{game.player_2.username}}</td>
-        <td>{{game.created_at}}</td>
+        <td>{{game.created_at|strftime}}</td>
         </tr>
         {% endfor %}
     </tbody>

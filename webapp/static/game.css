@@ -47,6 +47,10 @@
     display: inline;
 }
 
+.btn-piece {
+    font-size: 28px;
+}
+
 @media (max-width: 768px) {
     .sidebar {
         min-height: auto;

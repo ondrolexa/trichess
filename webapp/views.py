@@ -1,3 +1,4 @@
+from dateutil.parser import parse
 from flask import abort, flash, g, jsonify, redirect, render_template, request, url_for
 from flask_jwt_extended import (
     create_access_token,
@@ -11,6 +12,13 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from webapp import app, db, lm
 from webapp.forms import LoginForm, NewGameForm, RegistrationForm
 from webapp.models import TriBoard, User
+
+
+@app.template_filter("strftime")
+def _jinja2_filter_datetime(date, fmt=None):
+    native = date.replace(tzinfo=None)
+    format = "%b %d, %Y %H:%M:%S"
+    return native.strftime(format)
 
 
 @app.route("/", methods=["GET", "POST"])

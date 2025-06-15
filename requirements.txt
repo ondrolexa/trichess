@@ -8,3 +8,4 @@ Flask-WTF
 WTForms-SQLAlchemy
 flask-jwt-extended
 gunicorn
+python-dateutil

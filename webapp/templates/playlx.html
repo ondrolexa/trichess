@@ -56,6 +56,22 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="selectPiece" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Select piece</h5>
+      </div>
+      <div class="modal-body text-center">
+        <button type="button" class="btn btn-secondary btn-lg btn-piece" onclick="promotePiece('Q')">♛</button>
+        <button type="button" class="btn btn-secondary btn-lg btn-piece" onclick="promotePiece('R')">♜</button>
+        <button type="button" class="btn btn-secondary btn-lg btn-piece" onclick="promotePiece('B')">♝</button>
+        <button type="button" class="btn btn-secondary btn-lg btn-piece" onclick="promotePiece('N')">♞</button>
+      </div>
+    </div>
+  </div>
+</div>
 {%endblock%}
 {% block scripts %}
 <script type="text/javascript">

@@ -86,6 +86,7 @@ MakeMoveParser.add_argument(name="slog", type=str, required=True, nullable=False
 MakeMoveParser.add_argument(name="view_pid", type=int, required=True, nullable=False)
 MakeMoveParser.add_argument(name="gid", type=int, required=True, nullable=False)
 MakeMoveParser.add_argument(name="tgid", type=int, required=True, nullable=False)
+MakeMoveParser.add_argument(name="new_piece", type=str, required=True, nullable=False)
 move_payload = api.model(
     "Move payload",
     {
@@ -129,6 +130,7 @@ class MakeMove(Resource):
             moveapi.abort(400, message="slog parsing error")
         else:
             try:
+                print("LOG: ", from_gid, to_gid, new_piece)
                 ga.make_move(from_gid, to_gid, new_piece=new_piece)
                 return {"slog": ga.slog}
             except KeyError:
