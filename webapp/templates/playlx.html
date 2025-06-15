@@ -39,7 +39,7 @@
 {% block scripts %}
 <script type="text/javascript">
 var access_token = "Bearer {{ access_token }}";
-var id = "{{ id }}";
+var id = {{ id }};
 </script>
 <script src="https://unpkg.com/konva@9/konva.min.js"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='game.js') }}"></script>
