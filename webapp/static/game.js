@@ -381,10 +381,10 @@ function makeMove(gid, tgid, new_piece = "") {
       cleanMove();
       if (slog.slice(0, -4) == server_slog && on_move) {
         submit.disabled = false;
-        submit.className = "btn btn-danger";
+        submit.className = "btn btn-danger mb-2 col-12";
       } else {
         submit.disabled = true;
-        submit.className = "btn btn-outline-secondary";
+        submit.className = "btn btn-secondary mb-2 col-12";
       }
     })
     .catch((error) => {
