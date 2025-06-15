@@ -345,9 +345,9 @@ class GameBoard(Resource):
         else:
             if tb:
                 try:
-                    ga1 = GameAPI()
+                    ga1 = GameAPI(0)
                     ga1.replay_from_slog(tb.slog)
-                    ga2 = GameAPI()
+                    ga2 = GameAPI(0)
                     ga2.replay_from_slog(state.slog)
                     pid = {
                         tb.player_0.username: 0,
@@ -422,7 +422,7 @@ class ActiveGames(Resource):
             try:
                 dt = []
                 for tb in own:
-                    ga = GameAPI()
+                    ga = GameAPI(0)
                     ga.replay_from_slog(tb.slog)
                     seats = {
                         tb.player_0.username: 0,
@@ -441,7 +441,7 @@ class ActiveGames(Resource):
                 res["own"] = dt
                 dt = []
                 for tb in joined:
-                    ga = GameAPI()
+                    ga = GameAPI(0)
                     ga.replay_from_slog(tb.slog)
                     seats = {
                         tb.player_0.username: 0,
