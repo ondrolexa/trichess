@@ -16,6 +16,8 @@ var targets = new Set();
 var lastmove = { from: -1, to: -1 };
 var slogtext = document.getElementById("log");
 var submit = document.getElementById("submitGame");
+const hostname = "trichess.mykuna.eu"; //new URL(window.location.href).hostname;
+const protocol = "https:"; //window.location.protocol;
 
 var seat_0 = "";
 var seat_1 = "";
@@ -286,7 +288,7 @@ function updateStats(eliminated, move_number) {
 }
 
 function validMoves(gid) {
-  const url = "https://trichess.mykuna.eu/api/v1/move/valid";
+  const url = `${protocol}//${hostname}/api/v1/move/valid`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
@@ -326,7 +328,7 @@ function validMoves(gid) {
 }
 
 function makeMove(gid, tgid, new_piece = "") {
-  const url = "https://trichess.mykuna.eu/api/v1/move/make";
+  const url = `${protocol}//${hostname}/api/v1/move/make`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
@@ -372,7 +374,7 @@ function makeMove(gid, tgid, new_piece = "") {
 }
 
 function gameInfo(init = false) {
-  const url = "https://trichess.mykuna.eu/api/v1/game/info";
+  const url = `${protocol}//${hostname}/api/v1/game/info`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
@@ -469,7 +471,7 @@ function gameInfo(init = false) {
 
 function boardInfo() {
   const url =
-    "https://trichess.mykuna.eu/api/v1/manager/board?id=" + id.toString();
+    `${protocol}//${hostname}/api/v1/manager/board?id=` + id.toString();
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
@@ -551,7 +553,7 @@ function boardInfo() {
 }
 
 function boardSubmit() {
-  const url = "https://trichess.mykuna.eu/api/v1/manager/board";
+  const url = `${protocol}//${hostname}/api/v1/manager/board`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
