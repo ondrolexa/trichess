@@ -210,7 +210,6 @@ function manageMove(gid) {
 }
 
 function promotePiece(label) {
-  console.log(label);
   modalPiece.toggle();
   makeMove(movestage, target, label);
 }
@@ -351,7 +350,7 @@ function makeMove(gid, tgid, new_piece = "") {
   headers.append("Content-Type", "application/json");
   headers.append("Authorization", access_token);
   ready = false;
-  console.log(slog, view_pid, gid, tgid, new_piece);
+
   fetch(url, {
     method: "POST",
     headers: headers,
@@ -370,7 +369,9 @@ function makeMove(gid, tgid, new_piece = "") {
       return response.json();
     })
     .then((data) => {
-      console.log(data.slog);
+      if (new_piece != "") {
+        gid2piece[gid].text(PIECES[new_piece]);
+      }
       slog = data.slog;
       if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
         game_slog = slog;

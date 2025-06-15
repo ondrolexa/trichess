@@ -130,7 +130,6 @@ class MakeMove(Resource):
             moveapi.abort(400, message="slog parsing error")
         else:
             try:
-                print("LOG: ", from_gid, to_gid, new_piece)
                 ga.make_move(from_gid, to_gid, new_piece=new_piece)
                 return {"slog": ga.slog}
             except KeyError:
