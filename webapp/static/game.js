@@ -84,7 +84,6 @@ var p0el = new Konva.Text({
   y: 1.5,
   text: "",
   fontSize: 0.7,
-  fill: PIECES_COLOR[(0 + view_pid) % 3],
   width: 2.5,
   align: "center",
   listening: false,
@@ -103,7 +102,6 @@ var p1el = new Konva.Text({
   y: -6.5,
   text: "",
   fontSize: 0.7,
-  fill: PIECES_COLOR[(1 + view_pid) % 3],
   width: 2.5,
   align: "center",
   listening: false,
@@ -122,7 +120,6 @@ var p2el = new Konva.Text({
   y: -6.5,
   text: "",
   fontSize: 0.7,
-  fill: PIECES_COLOR[(2 + view_pid) % 3],
   width: 2.5,
   align: "center",
   listening: false,
@@ -544,6 +541,11 @@ function boardInfo() {
         layer.add(gid2piece[gid]);
         layer.add(gid2high[gid]);
       }
+      // set colors eliminated
+      p0el.fill(PIECES_COLOR[(0 + view_pid) % 3]);
+      p1el.fill(PIECES_COLOR[(1 + view_pid) % 3]);
+      p2el.fill(PIECES_COLOR[(2 + view_pid) % 3]);
+      // set names
       p0name.text(seat_0);
       p1name.text(seat_1);
       p2name.text(seat_2);
