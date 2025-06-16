@@ -1,4 +1,3 @@
-from dateutil.parser import parse
 from flask import abort, flash, g, jsonify, redirect, render_template, request, url_for
 from flask_jwt_extended import (
     create_access_token,
@@ -39,54 +38,13 @@ def active():
         TriBoard.player_1_id == g.user.id,
         TriBoard.player_2_id == g.user.id,
     )
-    active = TriBoard.query.filter_by(status=1, owner_id=g.user.id).all()
-    active_joined = (
+    active = (
         TriBoard.query.filter_by(status=1)
-        .filter(TriBoard.owner_id != g.user.id)
         .filter(user_in)
+        .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    return render_template(
-        "games.html", games=active, joined=active_joined, viewer=g.user.id
-    )
-
-
-@app.route("/play/<id>")
-@login_required
-def play(id):
-    access_token = create_access_token(identity=g.user.username)
-    tb = TriBoard.query.filter_by(id=id).first()
-    pid = {
-        tb.player_0.username: 0,
-        tb.player_1.username: 1,
-        tb.player_2.username: 2,
-    }
-    view_pid = pid[g.user.username]
-    return render_template(
-        "play.html",
-        id=id,
-        view_pid=view_pid,
-        access_token=access_token,
-    )
-
-
-@app.route("/playlx/<id>")
-@login_required
-def playlx(id):
-    access_token = create_access_token(identity=g.user.username)
-    tb = TriBoard.query.filter_by(id=id).first()
-    pid = {
-        tb.player_0.username: 0,
-        tb.player_1.username: 1,
-        tb.player_2.username: 2,
-    }
-    view_pid = pid[g.user.username]
-    return render_template(
-        "playlx.html",
-        id=id,
-        view_pid=view_pid,
-        access_token=access_token,
-    )
+    return render_template("games.html", games=active, viewer=g.user.id)
 
 
 @app.route("/created", methods=["GET", "POST"])
@@ -103,14 +61,13 @@ def created():
             TriBoard.player_1_id == g.user.id,
             TriBoard.player_2_id == g.user.id,
         )
-        waiting = TriBoard.query.filter_by(status=0, owner_id=g.user.id).all()
-        waiting_joined = (
+        waiting = (
             TriBoard.query.filter_by(status=0)
-            .filter(TriBoard.owner_id != g.user.id)
             .filter(user_in)
+            .order_by(TriBoard.created_at.desc())
             .all()
         )
-    return render_template("created.html", games=waiting, joined=waiting_joined)
+    return render_template("created.html", games=waiting)
 
 
 @app.route("/join", methods=["GET", "POST"])
@@ -148,7 +105,6 @@ def available():
                 TriBoard.player_2_id != g.user.id, TriBoard.player_2_id == db.null()
             ),
         )
-        print(user_not_in)
         available = (
             TriBoard.query.filter_by(status=0)
             .filter(TriBoard.owner_id != g.user.id)
@@ -192,9 +148,42 @@ def new():
     return render_template("new.html", form=form)
 
 
-@app.route("/view/<id>")
-def view(id):
-    return render_template("view.html")
+@app.route("/play/<id>")
+@login_required
+def play(id):
+    access_token = create_access_token(identity=g.user.username)
+    tb = TriBoard.query.filter_by(id=id).first()
+    pid = {
+        tb.player_0.username: 0,
+        tb.player_1.username: 1,
+        tb.player_2.username: 2,
+    }
+    view_pid = pid[g.user.username]
+    return render_template(
+        "play.html",
+        id=id,
+        view_pid=view_pid,
+        access_token=access_token,
+    )
+
+
+@app.route("/playlx/<id>")
+@login_required
+def playlx(id):
+    access_token = create_access_token(identity=g.user.username)
+    tb = TriBoard.query.filter_by(id=id).first()
+    pid = {
+        tb.player_0.username: 0,
+        tb.player_1.username: 1,
+        tb.player_2.username: 2,
+    }
+    view_pid = pid[g.user.username]
+    return render_template(
+        "playlx.html",
+        id=id,
+        view_pid=view_pid,
+        access_token=access_token,
+    )
 
 
 # === User login methods ===
