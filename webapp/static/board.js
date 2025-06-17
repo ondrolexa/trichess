@@ -666,7 +666,7 @@ function Click_Board(event) {
     if (SemaforGreen) {
         SemaforGreen = false;
         const bounds = canvas.getBoundingClientRect()
-        let x = pos.x 
+        let x = pos.x
         let y = pos.y
         //if select pieces window is open
         if (B.hexs[B.gid_new].promo_flag && CP.elems[8].e.show_flag) {
