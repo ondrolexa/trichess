@@ -20,7 +20,7 @@ const Control_panel = {
       "stroke_flag": false,
       "show_flag": true,
       "pos": {
-        "x": 1050,
+        "x": 1100,
         "y": 675,
         "rotate": 0,
         "align": "right"
@@ -46,7 +46,7 @@ const Control_panel = {
       "stroke_flag": false,
       "show_flag": true,
       "pos": {
-        "x": 1050,
+        "x": 1100,
         "y": 47,
         "rotate": 0,
         "align": "right"
@@ -90,7 +90,34 @@ const Control_panel = {
         "rotate": 0,
         "align": "right"
       }
+    },
+    {
+      "id": "1_message",
+      "text": " Select piece: ",
+      "font": "30px Arial",
+      "stroke_flag": false,
+      "show_flag": false,
+      "pos": {
+        "x": 550,
+        "y": 350,
+        "rotate": 0,
+        "align": "center"
+      }
+    },
+    {
+      "id": "promotion",
+      "text": " ♛  ♜  ♝  ♞ ",
+      "font": "38px Arial",
+      "stroke_flag": true,
+      "show_flag": false,
+      "pos": {
+        "x": 550,
+        "y": 403,
+        "rotate": 0,
+        "align": "center"
+      }
     }
+
   ]
 }
 const canvas = document.getElementById('canvas');
@@ -181,11 +208,12 @@ function hex(a, b, id) {
     this.x =  (a +b*(0.5 ))*(r * Math.sqrt(3));
     this.y =  (1 + b * 1.5) * r;
     this.id = id;
-    this.piece = {"piece:":"" , "player_id":-1};
+    this.piece = {"piece":"" , "player_id":-1};
     this.hex_color = hex_color[(a+2*b)%3];
     this.lumi = [0,0,0,0]  // R,G,B, luminiscence
     this.show_flag = true; // true means to redraw the hex
     this.valid_flag = false;
+    this.promo_flag = false;
 }
 hex.prototype.set = function (ipiece) {
     if (ipiece.piece !=  this.piece.piece || ipiece.player_id !=  this.piece.player_id) {
@@ -265,8 +293,8 @@ hex.prototype.draw_mark = function (i_kind) {
 // board /////////////////////////////////////////////////
 function board() {
     this.hexs    = [];
-    this.gid_old = -1;
-    this.gid_new = -1;
+    this.gid_old = 85;
+    this.gid_new = 85;
     this.slog = "";
     this.view_player =  0;
     this.move_number =  -1;
@@ -362,7 +390,7 @@ board.prototype.moveValid = async function() {
     }
     F.fetchPOST(url+'/api/v1/move/valid', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_new}, Step_valid_moves);
 }
-board.prototype.moveMake = async function() {
+board.prototype.moveMake = async function(inew_piece = "") {
     if (this.gid_old == -1 || this.gid_old == this.gid_new)  {return}
     if (!(this.hexs[this.gid_old].piece.piece != undefined && this.hexs[this.gid_old].piece.player_id == this.onmove)) {
         return;
@@ -370,7 +398,7 @@ board.prototype.moveMake = async function() {
     if (!(this.hexs[this.gid_new].valid_flag)) {
         return;
     }
-    F.fetchPOST(url+'/api/v1/move/make', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new}, Step_make_move);
+    F.fetchPOST(url+'/api/v1/move/make', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new, "new_piece": inew_piece}, Step_make_move);
 }
 
 //element/////////////////////////////////////////
@@ -381,47 +409,51 @@ function elem(init) {
 elem.prototype.clear  = function () {
             let high = Number(this.e.font.substring(0,2))
             let width = 6*high;
-            ctx.fillStyle = "black";
+            ctx.fillStyle = text_color
             ctx.fillRect(this.e.pos.x,this.e.pos.y, 2,2);//todo
-            ctx.fillStyle = "green";
+
             if (this.e.pos.align == "left"){
                 ctx.clearRect(this.e.pos.x-3,this.e.pos.y+4, width, -high);//todo
-                if (this.e.id.substring(2,6) == 'elim') {
+                if (this.e.id.substring(2,6) == 'elim' || this.e.id.substring(0,4) == 'prom') {
                     ctx.clearRect(this.e.pos.x-2,this.e.pos.y-high, 255, high*3);//todo
                 }
             }
-            else if (this.e.pos.align = "right"){
+            if (this.e.pos.align == "right"){
                 ctx.clearRect(this.e.pos.x+3,this.e.pos.y+4, -width, -high);//todo
-                if (this.e.id.substring(2,6) == 'elim') {
+                if (this.e.id.substring(2,6) == 'elim' || this.e.id.substring(0,4) == 'prom') {
                     ctx.clearRect(this.e.pos.x,this.e.pos.y-high, -255, high*3);//todo
                 }
+            }
+            if (this.e.pos.align == "center"){
+                let width = this.e.text.length*Number(this.e.font.substring(0,2))/2
+                ctx.clearRect(this.e.pos.x-width/2 ,this.e.pos.y-high-10, width, high+30);//todo
             }
 }
 elem.prototype.draw2  = function () {
     if (this.e.show_flag) {
-        let player_id = Number(this.e.id.substring(0, 1))
         ctx.save();
         ctx.beginPath();
-        this.clear();
         ctx.font = this.e.font;
         ctx.textAlign = this.e.pos.align;
-        ctx.fillStyle = piece_color[player_id];
         ctx.miterLimit = 2;
         ctx.lineWidth = 2;
-        //ctx.lineJoin = 'circle';
-        ctx.textAlign = this.e.pos.align;
-        //ctx.textAlign = "right";
-        let limit = 6 // number of eliminated pieces in one row
-        if (this.e.id.substring(2,6) == 'elim') {
-            ctx.fillStyle = piece_color[(player_id+B.view_player+2)%3];
-        }
-        else {
-            ctx.strokeStyle = 'lightgreen';
-            ctx.lineWidth = 8
+        ctx.lineJoin = 'circle';
+        if (this.e.id.substring(2,6) == 'play' || this.e.id.substring(2,6) == 'mess') {
+            this.clear();
             ctx.fillStyle = text_color
+            if (this.e.stroke_flag) {
+                ctx.lineWidth = 8
+                ctx.strokeStyle = 'lightgreen';
+                ctx.strokeText(this.e.text,this.e.pos.x, this.e.pos.y);
+            }
+            ctx.fillText(this.e.text,this.e.pos.x,this.e.pos.y);
         }
-        if (this.e.id.substring(2,6) == 'elim' && this.e.text.length > limit) {
+        if (this.e.id.substring(2,6) == 'elim') {
+            this.clear();
+            let limit = 6 // number of eliminated pieces in one row
+            let player_id = Number(this.e.id.substring(0, 1))
             let high = Number(this.e.font.substring(0,2))
+            ctx.fillStyle = piece_color[(player_id+B.view_player+2)%3];
             let line = []
             line[0] = this.e.text.substring(0,6)
             line[1] = this.e.text.substring(6,12)
@@ -431,12 +463,11 @@ elem.prototype.draw2  = function () {
                 ctx.fillText(line[i],this.e.pos.x,this.e.pos.y+i*high);
             }
         }
-        else {
-            if (this.e.stroke_flag) {
-                ctx.strokeText(this.e.text.toUpperCase(),this.e.pos.x, this.e.pos.y);
-            }
-            ctx.lineWidth = 8
-            ctx.fillText(this.e.text.toUpperCase(),this.e.pos.x,this.e.pos.y);
+        if (this.e.id.substring(0,4) == 'prom') {
+            this.clear();
+            ctx.fillStyle = piece_color[(CP.player_onmove+2)%3];
+            ctx.strokeText(this.e.text,this.e.pos.x,this.e.pos.y)
+            ctx.fillText( this.e.text,this.e.pos.x,this.e.pos.y)
         }
         ctx.restore()
         }
@@ -449,6 +480,7 @@ elem.prototype.settext  = function (itext) {
 //elementS/////////////////////////////////////////
 function elems(control_panel) {
     this.ID = 0
+    this.player_onmove = 0
     this.elems  = [];
     for (let i in control_panel.elems) {
         this.elems[i] = new elem(control_panel.elems[i]);
@@ -459,6 +491,7 @@ elems.prototype.text= function (itext) {
     this.elems[0].e.show_flag = true;
 };
 elems.prototype.onmove= function (i) {
+    //this.player_onmove = i
     for (let j = 1; j < 4; j++) {
         this.elems[j].e.show_flag = true;
         this.elems[j].e.stroke_flag = false;
@@ -473,6 +506,21 @@ elems.prototype.draw = function() {
     for (let i in this.elems) {
         this.elems[i].draw2();            }
 };
+elems.prototype.getpromo  = function (ix,iy) {
+    const possx = [466, 512, 577, 633]
+    const possy = [391, 391, 391, 391]
+    const piece = ["Q", "R", "B", "N"]
+    let d = 0;
+    let d_min = Number(this.elems[8].e.font.substring(0,2));
+    for (let i = 0; i < 4; i++) {
+        d = Math.sqrt(Math.pow((ix-possx[i]),2) + Math.pow((iy-possy[i]),2))
+        if (d<d_min) {
+            return piece[i]
+            }
+        }
+    return ""
+}
+
 //----------------------------------------------------
 function elim2pieces(idata) {
     let s = ''
@@ -494,6 +542,7 @@ function Step_make_move(idata) {
 function Step_valid_moves(idata) {
     for (let j=0; j < 169; j++ ) {
         B.hexs[j].valid_flag = false;
+        B.hexs[j].promo_flag = false;
     }
     const jsonData = idata;
     for (let i  in jsonData.targets) {
@@ -501,6 +550,7 @@ function Step_valid_moves(idata) {
         B.hexs[obj.tgid].draw_mark(obj.kind); //todo
         B.hexs[obj.tgid].valid_flag = true;
         B.hexs[obj.tgid].chang_flag = true;
+        B.hexs[obj.tgid].promo_flag = obj.promotion
     }
 }
 function Step_1_settoken(idata) {
@@ -523,6 +573,7 @@ function Step_2_setplayers(idata) {
 function Step_3_setelim_board_and_draw(idata) {
     B.set(idata);
     B.draw();
+    CP.player_onmove = idata.onmove
     CP.elems[4].settext(elim2pieces(idata.eliminated[(B.view_player+0) % 3]))
     CP.elems[5].settext(elim2pieces(idata.eliminated[(B.view_player+1) % 3]))
     CP.elems[6].settext(elim2pieces(idata.eliminated[(B.view_player+2) % 3]))
@@ -617,11 +668,31 @@ function Click_Board(event) {
         const bounds = canvas.getBoundingClientRect()
         let x = pos.x //- bounds.x
         let y = pos.y //- bounds.y
-        B.getGid(x,y);
+
+        if (!(B.hexs[B.gid_new].promo_flag)) {
+            B.getGid(x,y);
+        }
+        if (B.hexs[B.gid_new].promo_flag && CP.elems[8].e.show_flag) {
+            B.hexs[B.gid_new].promo_flag = false
+            CP.elems[7].e.show_flag = false
+            CP.elems[8].e.show_flag = false
+            a = CP.getpromo(x,y)
+            B.moveMake(a)
+            SemaforGreen = true
+            return
+        }
         B.draw();
         B.hexs[B.gid_new].draw_mark('rect'); // show cursor
-        B.moveValid();
-        B.moveMake();
+        if (B.hexs[B.gid_new].promo_flag) {
+            CP.elems[7].e.show_flag = true
+            CP.elems[8].e.show_flag = true
+            CP.elems[7].draw2()
+            CP.elems[8].draw2()
+            SemaforGreen = true
+            return
+        }
+        B.moveValid()
+        B.moveMake()
         SemaforGreen = true;
     }
 };

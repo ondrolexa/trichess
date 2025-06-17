@@ -25,7 +25,7 @@
 {% block scripts %}
 <script type="text/javascript">
 var TOKEN = "Bearer {{ access_token }}";
-var ID = "{{ id }}";
+var ID = {{ id }};
 var VIEW_PID = "{{ view_pid }}";
 </script>
 <script type="text/javascript" src="{{ url_for('static', filename='board.js') }}"></script>
