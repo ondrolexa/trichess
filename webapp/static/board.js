@@ -413,15 +413,15 @@ elem.prototype.clear  = function () {
             ctx.fillRect(this.e.pos.x,this.e.pos.y, 2,2);//todo
 
             if (this.e.pos.align == "left"){
-                ctx.clearRect(this.e.pos.x-3,this.e.pos.y+4, width, -high);//todo
+                ctx.clearRect(this.e.pos.x-4,this.e.pos.y+4, width, -high);//todo
                 if (this.e.id.substring(2,6) == 'elim' || this.e.id.substring(0,4) == 'prom') {
-                    ctx.clearRect(this.e.pos.x-2,this.e.pos.y-high, 255, high*3);//todo
+                    ctx.clearRect(this.e.pos.x-2,this.e.pos.y-high, 255, high*3+2);//todo
                 }
             }
             if (this.e.pos.align == "right"){
                 ctx.clearRect(this.e.pos.x+3,this.e.pos.y+4, -width, -high);//todo
                 if (this.e.id.substring(2,6) == 'elim' || this.e.id.substring(0,4) == 'prom') {
-                    ctx.clearRect(this.e.pos.x,this.e.pos.y-high, -255, high*3);//todo
+                    ctx.clearRect(this.e.pos.x,this.e.pos.y-high, -255, high*3+2);//todo
                 }
             }
             if (this.e.pos.align == "center"){
@@ -666,23 +666,31 @@ function Click_Board(event) {
     if (SemaforGreen) {
         SemaforGreen = false;
         const bounds = canvas.getBoundingClientRect()
-        let x = pos.x //- bounds.x
-        let y = pos.y //- bounds.y
-
-        if (!(B.hexs[B.gid_new].promo_flag)) {
-            B.getGid(x,y);
-        }
+        let x = pos.x 
+        let y = pos.y
+        //if select pieces window is open
         if (B.hexs[B.gid_new].promo_flag && CP.elems[8].e.show_flag) {
             B.hexs[B.gid_new].promo_flag = false
             CP.elems[7].e.show_flag = false
             CP.elems[8].e.show_flag = false
             a = CP.getpromo(x,y)
+            if (a == "") { // ked klikne do prdele
+                SemaforGreen = true
+                B.draw();
+                return
+            }
             B.moveMake(a)
             SemaforGreen = true
             return
         }
+        // gid_new gid_old change
+        else        {
+            B.getGid(x,y)
+
+        }
         B.draw();
         B.hexs[B.gid_new].draw_mark('rect'); // show cursor
+        //if new piece promotion
         if (B.hexs[B.gid_new].promo_flag) {
             CP.elems[7].e.show_flag = true
             CP.elems[8].e.show_flag = true
