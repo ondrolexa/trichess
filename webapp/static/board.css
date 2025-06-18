@@ -1,49 +1,34 @@
 .button {
     background-color: #919595;
-    border: 2;
+    border: 1;
     color: black;
-    padding: 15px 32px;
     text-align: center;
     font-size: 16px;
-    margin: 15px 15px;
+    margin: 2px 2px;
     cursor: pointer;
     border-radius: 8px;
-    vertical-align: 40px;
-    width: 200px;
-    height: 60px;
+    vertical-align: 10px;
+    width: 80px;
+    height: 40px;
 }
 .divbutt {
-    width: 20%;
-    background-color: #ffffff;
-    border-style: single;
-    padding: 15px 32px;
-    flex: 20%;
+    width: 10%;
     display: flex;
-    flex-flow: row wrap;
-    min-width: 200px;
-    justify-content: center;
+    flex-wrap: wrap;
+    min-width: 69px;
+    max-width: 1600px;
+    justify-content: right;
 }
 #canvas {
-    width: 80%;
-    flex: 80%;
-    background-color: #ffffff;
-    padding: 0px 0px;
-    justify-content: center;
-    min-width: 100px;
+    width: 90%;
+    justify-content: left;
+    min-width: 300px;
     max-width: 1600px;
-
 }
 .divmain {
     display: flex;
     flex-wrap: wrap;
-    background-color: #b2b2b2;
+    justify-content: center;
 }
-
 .divmess {
-    padding: 60px 10px;
-    flex: 90%;
-    display: flex;
-    flex-flow: row wrap;
-    justify-content: left;
-    min-width: 100px;
 }
