@@ -4,25 +4,26 @@
     color: black;
     text-align: center;
     font-size: 16px;
-    margin: 2px 2px;
+    margin: 10px 5px;
     cursor: pointer;
     border-radius: 8px;
     vertical-align: 10px;
-    width: 80px;
+    width: 300px;
     height: 40px;
 }
 .divbutt {
     width: 10%;
     display: flex;
     flex-wrap: wrap;
+    margin: 7% 0px;
     min-width: 69px;
     max-width: 1600px;
-    justify-content: right;
+    justify-content: left;
 }
 #canvas {
     width: 90%;
     justify-content: left;
-    min-width: 300px;
+    min-width: 420px;
     max-width: 1600px;
 }
 .divmain {
@@ -31,4 +32,12 @@
     justify-content: center;
 }
 .divmess {
+    width: 10%;
+    font-size: 9px;
+    display: flex;
+    flex-wrap: wrap;
+    min-width: 100px;
+    max-width: 1600px;
+    justify-content: left;
+    margin: 0px 20px;
 }
