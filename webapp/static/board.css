@@ -17,7 +17,7 @@
     flex-wrap: wrap;
     margin: 7% 0px;
     min-width: 69px;
-    max-width: 1600px;
+    max-width: 200px;
     justify-content: left;
 }
 #canvas {

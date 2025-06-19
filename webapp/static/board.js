@@ -116,8 +116,20 @@ const Control_panel = {
         "rotate": 0,
         "align": "center"
       }
+    },
+    {
+      "id": "theend",
+      "text": " GAME OVER !!! ",
+      "font": "80px Arial",
+      "stroke_flag": true,
+      "show_flag": false,
+      "pos": {
+        "x": 550,
+        "y": 350,
+        "rotate": 0,
+        "align": "center"
+      }
     }
-
   ]
 }
 const canvas = document.getElementById('canvas');
@@ -400,7 +412,6 @@ board.prototype.moveMake = async function(inew_piece = "") {
     }
     F.fetchPOST(url+'/api/v1/move/make', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new, "new_piece": inew_piece}, Step_make_move);
 }
-
 //element/////////////////////////////////////////
 function elem(init) {
 
@@ -468,6 +479,13 @@ elem.prototype.draw2  = function () {
             ctx.fillStyle = piece_color[(CP.player_onmove+2)%3];
             ctx.strokeText(this.e.text,this.e.pos.x,this.e.pos.y)
             ctx.fillText( this.e.text,this.e.pos.x,this.e.pos.y)
+        }
+        if (this.e.id.substring(0,4) == 'thee') {
+            this.clear();
+            ctx.fillStyle = piece_color[(CP.player_onmove+2)%3];
+            ctx.strokeText(this.e.text,this.e.pos.x,this.e.pos.y)
+            ctx.fillText( this.e.text,this.e.pos.x,this.e.pos.y)
+            CP.elems[9].e.show_flag = false;
         }
         ctx.restore()
         }
@@ -578,7 +596,10 @@ function Step_3_setelim_board_and_draw(idata) {
     CP.elems[5].settext(elim2pieces(idata.eliminated[(B.view_player+1) % 3]))
     CP.elems[6].settext(elim2pieces(idata.eliminated[(B.view_player+2) % 3]))
     CP.elems[0].e.show_flag = true;
-    CP.elems[0].e.text = B.move_number_org.toString()+"/"+B.move_number.toString()//+"-"+B.onmove.toString()+"-v:"+B.view_player.toString();
+    CP.elems[0].e.text = "#"+CP.ID.toString()+":"+B.move_number_org.toString()+"/"+B.move_number.toString()//+"-"+B.onmove.toString()+"-v:"+B.view_player.toString();
+    if (idata.finished) { //game over
+        CP.elems[9].e.show_flag = true;
+    }
     CP.draw()
     if (B.view_player ==0 ){
         CP.onmove(idata.onmove);    //todo
