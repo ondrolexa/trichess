@@ -21,9 +21,7 @@ var modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
 const hostname = "trichess.mykuna.eu"; //new URL(window.location.href).hostname;
 const protocol = "https:"; //window.location.protocol;
 
-var seat_0 = "";
-var seat_1 = "";
-var seat_2 = "";
+var seat = {};
 var slog = "";
 var server_slog = "";
 var game_slog = "";
@@ -122,6 +120,19 @@ var p2el = new Konva.Text({
   fontSize: 0.7,
   width: 2.5,
   align: "center",
+  listening: false,
+});
+
+var gameover = new Konva.Text({
+  x: -6,
+  y: -2,
+  text: "GAME OVER",
+  fontSize: 2,
+  fontStyle: "bold",
+  opacity: 0.75,
+  align: "center",
+  verticalAlign: "middle",
+  visible: false,
   listening: false,
 });
 
@@ -467,6 +478,15 @@ function gameInfo(init = false) {
       }
       updateStats(data.eliminated, data.move_number);
 
+      if (data.finished) {
+        gameover.text(
+          "GAME OVER\n" + seat[(data.onmove + view_pid) % 3] + " lost",
+        );
+        gameover.visible(true);
+      } else {
+        gameover.visible(false);
+      }
+
       if (data.last_move != null) {
         if (lastmove["from"] != -1) {
           gid2hex[lastmove["from"]].opacity(1);
@@ -507,9 +527,9 @@ function boardInfo() {
     .then((data) => {
       const seats = [data.player_0, data.player_1, data.player_2];
       view_pid = data.view_pid;
-      seat_0 = seats[(0 + view_pid) % 3];
-      seat_1 = seats[(1 + view_pid) % 3];
-      seat_2 = seats[(2 + view_pid) % 3];
+      seat[0] = seats[(0 + view_pid) % 3];
+      seat[1] = seats[(1 + view_pid) % 3];
+      seat[2] = seats[(2 + view_pid) % 3];
       slog = data.slog;
       server_slog = data.slog;
       game_slog = data.slog;
@@ -546,9 +566,9 @@ function boardInfo() {
       p1el.fill(PIECES_COLOR[(1 + view_pid) % 3]);
       p2el.fill(PIECES_COLOR[(2 + view_pid) % 3]);
       // set names
-      p0name.text(seat_0);
-      p1name.text(seat_1);
-      p2name.text(seat_2);
+      p0name.text(seat[0]);
+      p1name.text(seat[1]);
+      p2name.text(seat[2]);
       layer.add(movelabel);
       layer.add(p0name);
       layer.add(p0el);
@@ -556,6 +576,8 @@ function boardInfo() {
       layer.add(p1el);
       layer.add(p2name);
       layer.add(p2el);
+      // game over
+      layer.add(gameover);
 
       layer.on("click touchenter", function (evt) {
         const shape = evt.target;
