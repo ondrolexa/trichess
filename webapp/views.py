@@ -47,6 +47,23 @@ def active():
     return render_template("games.html", games=active, viewer=g.user.id)
 
 
+@app.route("/archive")
+@login_required
+def archive():
+    user_in = db.or_(
+        TriBoard.player_0_id == g.user.id,
+        TriBoard.player_1_id == g.user.id,
+        TriBoard.player_2_id == g.user.id,
+    )
+    archive = (
+        TriBoard.query.filter_by(status=2)
+        .filter(user_in)
+        .order_by(TriBoard.modified_at.desc())
+        .all()
+    )
+    return render_template("archive.html", games=archive, viewer=g.user.id)
+
+
 @app.route("/created", methods=["GET", "POST"])
 @login_required
 def created():

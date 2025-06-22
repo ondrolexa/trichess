@@ -24,6 +24,7 @@
                         <li class="nav-item">{{ render_nav_item('active', 'Active') }}</li>
                         <li class="nav-item">{{ render_nav_item('created', 'Awaiting') }}</li>
                         <li class="nav-item">{{ render_nav_item('available', 'Available') }}</li>
+                        <li class="nav-item">{{ render_nav_item('archive', 'Archive') }}</li>
                         <li class="nav-item">{{ render_nav_item('new', 'New game') }}</li>
                         {% else %}
                         <li class="nav-item">{{ render_nav_item('register', 'Add user') }}</li>
@@ -45,6 +46,11 @@
         <div class="container my-4">
         {% block content %}{% endblock %}
         </div>
+        <footer class="text-center text-lg-start fixed-bottom">
+            <!-- Copyright -->
+              <div class="text-center p-3"><hr>© 2025 Trichess - Ondro & Filio</div>
+            <!-- Copyright -->
+        </footer>
         {{ bootstrap.load_js() }}
         {% block scripts %}{% endblock %}
     </body>

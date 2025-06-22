@@ -360,6 +360,8 @@ class GameBoard(Resource):
                     same = ga2.slog.startswith(ga1.slog)
                     if poster & oneadded & same:
                         tb.slog = state.slog
+                        if not ga2.move_possible():
+                            tb.status = 2
                         db.session.commit()
                     else:
                         managerapi.abort(
