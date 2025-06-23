@@ -1,5 +1,3 @@
-from typing import Optional
-
 from flask import Blueprint
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
@@ -298,7 +296,16 @@ class GameBoard(Resource):
                 TriBoard.player_1_id == user.id,
                 TriBoard.player_2_id == user.id,
             )
-            tb = TriBoard.query.filter_by(status=1, id=id).filter(user_in).first()
+            active_or_archive = db.or_(
+                TriBoard.status == 1,
+                TriBoard.status == 2,
+            )
+            tb = (
+                TriBoard.query.filter_by(id=id)
+                .filter(active_or_archive)
+                .filter(user_in)
+                .first()
+            )
         except Exception as err:
             managerapi.abort(404, message=f"Unexpected error {err}")
         else:

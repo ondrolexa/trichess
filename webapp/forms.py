@@ -1,11 +1,9 @@
 from flask_wtf import FlaskForm
 from wtforms import (
-    DateTimeField,
     PasswordField,
     SelectField,
     StringField,
     SubmitField,
-    TextAreaField,
 )
 from wtforms.validators import DataRequired, Length
 from wtforms.widgets import TextArea
