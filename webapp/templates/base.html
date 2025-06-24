@@ -11,46 +11,50 @@
         <title>Trichess</title>
     </head>
     <body>
-        {% from 'bootstrap5/nav.html' import render_nav_item %}
-        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-            <div class="container">
-                <a class="navbar-brand" href="{{ url_for('index') }}">Home</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    {% if current_user.is_authenticated %}
-                        {% if current_user.id != 1 %}
-                        <li class="nav-item">{{ render_nav_item('active', 'Active') }}</li>
-                        <li class="nav-item">{{ render_nav_item('created', 'Awaiting') }}</li>
-                        <li class="nav-item">{{ render_nav_item('available', 'Available') }}</li>
-                        <li class="nav-item">{{ render_nav_item('archive', 'Archive') }}</li>
-                        <li class="nav-item">{{ render_nav_item('new', 'New game') }}</li>
-                        {% else %}
-                        <li class="nav-item">{{ render_nav_item('register', 'Add user') }}</li>
+        <header>
+            {% from 'bootstrap5/nav.html' import render_nav_item %}
+            <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+                <div class="container">
+                    <a class="navbar-brand" href="{{ url_for('index') }}">Home</a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        {% if current_user.is_authenticated %}
+                            {% if current_user.id != 1 %}
+                            <li class="nav-item">{{ render_nav_item('active', 'Active') }}</li>
+                            <li class="nav-item">{{ render_nav_item('created', 'Awaiting') }}</li>
+                            <li class="nav-item">{{ render_nav_item('available', 'Available') }}</li>
+                            <li class="nav-item">{{ render_nav_item('archive', 'Archive') }}</li>
+                            <li class="nav-item">{{ render_nav_item('new', 'New game') }}</li>
+                            {% else %}
+                            <li class="nav-item">{{ render_nav_item('register', 'Add user') }}</li>
+                            {% endif %}
                         {% endif %}
-                    {% endif %}
-                    </ul>
-                    <form action="{{ url_for('index') }}" method="post" class="d-flex" role="form">
-                    {% if current_user.is_authenticated %}
-                        <button class="btn btn-light" type="submit" name="action" value="logout">Logout</button>
-                    {% else %}
-                        <button class="btn btn-light" type="submit" name="action" value="login">Login</button>
-                    {% endif %}
-                    </form>
+                        </ul>
+                        <form action="{{ url_for('index') }}" method="post" class="d-flex" role="form">
+                        {% if current_user.is_authenticated %}
+                            <button class="btn btn-light" type="submit" name="action" value="logout">Logout</button>
+                        {% else %}
+                            <button class="btn btn-light" type="submit" name="action" value="login">Login</button>
+                        {% endif %}
+                        </form>
+                    </div>
                 </div>
+            </nav>
+        </header>
+        <main class="flex-shrink-0">
+            {{ render_messages(dismissible=True) }}
+            <!-- Your page content -->
+            <div class="container my-4">
+            {% block content %}{% endblock %}
             </div>
-        </nav>
-        {{ render_messages(dismissible=True) }}
-        <!-- Your page content -->
-        <div class="container my-4">
-        {% block content %}{% endblock %}
-        </div>
-        <footer id="footer" class="text-center text-lg-start fixed-bottom">
-            <!-- Copyright -->
-              <div class="text-center p-3"><hr>© 2025 Trichess - Ondro & Filio</div>
-            <!-- Copyright -->
+        </main>
+        <footer id="footer" class="footer bg-body-secondary">
+            <div class="container text-center">
+                <span class="text-secondary">© 2025 Trichess - Ondro & Filio</span>
+            </div>
         </footer>
         {{ bootstrap.load_js() }}
         {% block scripts %}{% endblock %}

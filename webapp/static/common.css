@@ -1,4 +1,12 @@
-@media (orientation: landscape) and (pointer: coarse) and (max-width: 980px) {
+.footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 40px;
+    line-height: 40px;
+}
+
+@media (orientation: landscape) and (max-width: 980px) {
     #footer {
         display: none !important;
     }
