@@ -588,6 +588,7 @@ function boardInfo() {
 
       fitStageIntoDiv();
       submit.disabled = true;
+      submit.className = "btn btn-secondary mb-2 col-12";
       ready = true;
     })
     .catch((error) => {
@@ -617,6 +618,7 @@ function boardSubmit() {
     .then((data) => {
       server_slog = slog;
       submit.disabled = true;
+      submit.className = "btn btn-secondary mb-2 col-12";
       on_move = false;
       ready = true;
     })
