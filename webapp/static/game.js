@@ -233,7 +233,7 @@ function backMove() {
     slog = slog.slice(0, -4);
     movestage = -1;
     cleanHigh();
-    gameInfo(true);
+    gameInfo(false, true);
     ready = true;
   }
 }
@@ -243,7 +243,7 @@ function forwardMove() {
     slog = game_slog.slice(0, slog.length + 4);
     movestage = -1;
     cleanHigh();
-    gameInfo(true);
+    gameInfo(false, true);
     ready = true;
   }
 }
@@ -387,20 +387,13 @@ function makeMove(gid, tgid, new_piece = "") {
       target = tgid;
       cleanHigh();
       cleanMove();
-      if (slog.slice(0, -4) == server_slog && on_move) {
-        submit.disabled = false;
-        submit.className = "btn btn-danger mb-2 col-12";
-      } else {
-        submit.disabled = true;
-        submit.className = "btn btn-secondary mb-2 col-12";
-      }
     })
     .catch((error) => {
       alert("makeMove Error:", error);
     });
 }
 
-function gameInfo(init = false) {
+function gameInfo(init = false, redraw = false) {
   const url = `${protocol}//${hostname}/api/v1/game/info`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
@@ -421,8 +414,10 @@ function gameInfo(init = false) {
     })
     .then((data) => {
       if (init) {
-        drawPieces(data.pieces);
         on_move = data.onmove == view_pid;
+      }
+      if (redraw) {
+        drawPieces(data.pieces);
       }
       p0name.fontStyle("normal");
       p0name.fill("black");
@@ -477,7 +472,13 @@ function gameInfo(init = false) {
         }
       }
       updateStats(data.eliminated, data.move_number);
-
+      if (slog.slice(0, -4) == server_slog && on_move) {
+        submit.disabled = false;
+        submit.className = "btn btn-danger mb-2 col-12";
+      } else {
+        submit.disabled = true;
+        submit.className = "btn btn-secondary mb-2 col-12";
+      }
       if (data.finished) {
         gameover.text(
           "GAME OVER\n" + seat[(data.onmove + view_pid) % 3] + " lost",
@@ -533,7 +534,7 @@ function boardInfo() {
       slog = data.slog;
       server_slog = data.slog;
       game_slog = data.slog;
-      gameInfo(true);
+      gameInfo(true, true);
       var layer = new Konva.Layer();
       stage.add(layer);
 
