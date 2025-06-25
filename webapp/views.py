@@ -44,7 +44,7 @@ def active():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    return render_template("games.html", games=active, viewer=g.user.id)
+    return render_template("games.html", games=active)
 
 
 @app.route("/archive")
@@ -61,7 +61,7 @@ def archive():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    return render_template("archive.html", games=archive, viewer=g.user.id)
+    return render_template("archive.html", games=archive)
 
 
 @app.route("/created", methods=["GET", "POST"])
@@ -169,38 +169,107 @@ def new():
 @login_required
 def play(id):
     access_token = create_access_token(identity=g.user.username)
-    tb = TriBoard.query.filter_by(id=id).first()
-    pid = {
-        tb.player_0.username: 0,
-        tb.player_1.username: 1,
-        tb.player_2.username: 2,
-    }
-    view_pid = pid[g.user.username]
-    return render_template(
-        "play.html",
-        id=id,
-        view_pid=view_pid,
-        access_token=access_token,
+    user_in = db.or_(
+        TriBoard.player_0_id == g.user.id,
+        TriBoard.player_1_id == g.user.id,
+        TriBoard.player_2_id == g.user.id,
     )
+    tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
+    if tb:
+        pid = {
+            tb.player_0.username: 0,
+            tb.player_1.username: 1,
+            tb.player_2.username: 2,
+        }
+        view_pid = pid[g.user.username]
+        return render_template(
+            "play.html",
+            id=id,
+            view_pid=view_pid,
+            access_token=access_token,
+        )
+    else:
+        flash("You have no access to this game", "error")
+        return redirect(url_for("active"))
 
 
 @app.route("/playlx/<id>")
 @login_required
 def playlx(id):
     access_token = create_access_token(identity=g.user.username)
-    tb = TriBoard.query.filter_by(id=id).first()
-    pid = {
-        tb.player_0.username: 0,
-        tb.player_1.username: 1,
-        tb.player_2.username: 2,
-    }
-    view_pid = pid[g.user.username]
-    return render_template(
-        "playlx.html",
-        id=id,
-        view_pid=view_pid,
-        access_token=access_token,
+    user_in = db.or_(
+        TriBoard.player_0_id == g.user.id,
+        TriBoard.player_1_id == g.user.id,
+        TriBoard.player_2_id == g.user.id,
     )
+    tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
+    if tb:
+        pid = {
+            tb.player_0.username: 0,
+            tb.player_1.username: 1,
+            tb.player_2.username: 2,
+        }
+        view_pid = pid[g.user.username]
+        return render_template(
+            "playlx.html",
+            id=id,
+            view_pid=view_pid,
+            access_token=access_token,
+        )
+    else:
+        flash("You have no access to this game", "error")
+        return redirect(url_for("active"))
+
+
+# === Admin section ===
+
+
+@app.route("/register", methods=["GET", "POST"])
+@login_required
+def register():
+    if g.user.id == 1:
+        form = RegistrationForm()
+        if form.validate_on_submit():
+            hashed_password = generate_password_hash(form.password.data)
+            new_user = User(
+                username=form.username.data,
+                password=hashed_password,
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            flash("User added successfuly!", "success")
+            return redirect(url_for("index"))
+        return render_template("register.html", form=form)
+    else:
+        flash("You are not admin.", "error")
+        return redirect(url_for("active"))
+
+
+@app.route("/admin", methods=["GET", "POST"])
+@login_required
+def admin():
+    if g.user.id == 1:
+        available = (
+            TriBoard.query.filter_by(status=0)
+            .order_by(TriBoard.modified_at.desc())
+            .all()
+        )
+        active = (
+            TriBoard.query.filter_by(status=1)
+            .order_by(TriBoard.modified_at.desc())
+            .all()
+        )
+        archive = (
+            TriBoard.query.filter_by(status=2)
+            .order_by(TriBoard.modified_at.desc())
+            .all()
+        )
+        return render_template(
+            "admin.html", available=available, active=active, archive=archive
+        )
+    else:
+        flash("You are not admin.", "error")
+        return redirect(url_for("active"))
 
 
 # === User login methods ===
@@ -214,23 +283,6 @@ def before_request():
 @lm.user_loader
 def load_user(id):
     return User.query.get(int(id))
-
-
-@app.route("/register", methods=["GET", "POST"])
-@login_required
-def register():
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        hashed_password = generate_password_hash(form.password.data)
-        new_user = User(
-            username=form.username.data,
-            password=hashed_password,
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        flash("User added successfuly!", "success")
-        return redirect(url_for("index"))
-    return render_template("register.html", form=form)
 
 
 @app.route("/login", methods=["GET", "POST"])
