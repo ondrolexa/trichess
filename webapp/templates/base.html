@@ -15,7 +15,7 @@
             {% from 'bootstrap5/nav.html' import render_nav_item %}
             <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
                 <div class="container">
-                    <a class="navbar-brand" href="{{ url_for('index') }}">Home</a>
+                    <a class="navbar-brand" href="{{ url_for('active') }}">Home</a>
                     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                         <span class="navbar-toggler-icon"></span>
                     </button>
@@ -23,7 +23,6 @@
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         {% if current_user.is_authenticated %}
                             {% if current_user.id != 1 %}
-                            <li class="nav-item">{{ render_nav_item('active', 'Active') }}</li>
                             <li class="nav-item">{{ render_nav_item('created', 'Awaiting') }}</li>
                             <li class="nav-item">{{ render_nav_item('available', 'Available') }}</li>
                             <li class="nav-item">{{ render_nav_item('archive', 'Archive') }}</li>

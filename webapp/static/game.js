@@ -502,7 +502,8 @@ function gameInfo(init = false, redraw = false) {
       }
     })
     .catch((error) => {
-      alert("gameInfo Error:", error);
+      window.location.reload(true);
+      // alert("gameInfo Error:", error);
     });
 }
 
