@@ -17,6 +17,8 @@ var promotions = new Set();
 var lastmove = { from: -1, to: -1 };
 var slogtext = document.getElementById("log");
 var submit = document.getElementById("submitGame");
+var backmove = document.getElementById("backMove");
+var forwardmove = document.getElementById("forwardMove");
 var modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
 const hostname = "trichess.mykuna.eu"; //new URL(window.location.href).hostname;
 const protocol = "https:"; //window.location.protocol;
@@ -478,6 +480,20 @@ function gameInfo(init = false, redraw = false) {
       } else {
         submit.disabled = true;
         submit.className = "btn btn-secondary mb-2 col-12";
+      }
+      if (slog.length < game_slog.length) {
+        forwardmove.disabled = false;
+        forwardmove.className = "btn btn-primary mb-2 col-12";
+      } else {
+        forwardmove.disabled = true;
+        forwardmove.className = "btn btn-secondary mb-2 col-12";
+      }
+      if (slog.length > 0) {
+        backmove.disabled = false;
+        backmove.className = "btn btn-primary mb-2 col-12";
+      } else {
+        backmove.disabled = true;
+        backmove.className = "btn btn-secondary mb-2 col-12";
       }
       if (data.finished) {
         gameover.text(
