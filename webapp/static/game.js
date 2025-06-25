@@ -329,7 +329,7 @@ function validMoves(gid) {
     })
     .then((data) => {
       gid2high[gid].visible(true);
-      gid2hex[gid].stroke("black");
+      gid2high[gid].stroke("black");
       for (let i in data.targets) {
         let tgid = data.targets[i].tgid;
         targets.add(tgid);
