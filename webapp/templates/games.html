@@ -3,7 +3,7 @@
 {%block content%}
 <h2>Active games</h2>
 <div class="table-responsive-sm">
-    <table class="table table-striped table-hover table-borderless table-sm">
+    <table class="table table-hover table-sm">
     <thead>
         <tr>
         <th scope="col">#</th>
@@ -18,7 +18,25 @@
     <tbody>
         {% for game in games %}
         {% set onmove = (game.slog|length // 4) % 3 %}
+        {% if onmove == 0 %}
+        {% if game.player_0.id == uid %}
+        <tr class="table-active">
+        {% else %}
         <tr>
+        {% endif %}
+        {% elif onmove == 1 %}
+        {% if game.player_1.id == uid %}
+        <tr class="table-active">
+        {% else %}
+        <tr>
+        {% endif %}
+        {% else %}
+        {% if game.player_2.id == uid %}
+        <tr class="table-active">
+        {% else %}
+        <tr>
+        {% endif %}
+        {% endif %}
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}

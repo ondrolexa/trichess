@@ -44,7 +44,7 @@ def active():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    return render_template("games.html", games=active)
+    return render_template("games.html", games=active, uid=g.user.id)
 
 
 @app.route("/archive")
@@ -204,16 +204,9 @@ def playlx(id):
     )
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
-        pid = {
-            tb.player_0.username: 0,
-            tb.player_1.username: 1,
-            tb.player_2.username: 2,
-        }
-        view_pid = pid[g.user.username]
         return render_template(
             "playlx.html",
             id=id,
-            view_pid=view_pid,
             access_token=access_token,
         )
     else:
