@@ -60,8 +60,8 @@
         {% endif %}
         {% endif %}
         <td>
-            <a class="btn btn-warning btn-sm mt-sm-1" href="{{ url_for('play', id=game.id) }}" role="button">View</a>
-            <a class="btn btn-success btn-sm mt-1 mt-sm-none" href="{{ url_for('playlx', id=game.id) }}" role="button">View</a>
+            <a class="btn btn-warning btn-sm mt-0" href="{{ url_for('play', id=game.id) }}" role="button">View</a>
+            <a class="btn btn-success btn-sm mt-1 mt-md-0" href="{{ url_for('playlx', id=game.id) }}" role="button">View</a>
         </td>
         <td>{{game.modified_at|strftime}}</td>
         <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
