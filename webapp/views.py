@@ -8,9 +8,10 @@ from flask_jwt_extended import (
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from webapp import app, db, lm
+from webapp.main import app, db, lm
 from webapp.forms import LoginForm, NewGameForm, RegistrationForm
 from webapp.models import TriBoard, User
+from webapp.api import blueprint as api
 
 
 @app.template_filter("strftime")
@@ -332,3 +333,7 @@ def refresh():
 def logout():
     logout_user()
     return redirect(url_for("index"))
+
+
+# register API blueprint
+app.register_blueprint(api, url_prefix="/api/v1")

@@ -3,7 +3,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
 
 from engine import GameAPI
-from webapp import db
+from webapp.main import db
 from webapp.models import TriBoard, User
 
 blueprint = Blueprint("api", __name__)

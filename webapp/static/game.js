@@ -20,8 +20,7 @@ var submit = document.getElementById("submitGame");
 var backmove = document.getElementById("backMove");
 var forwardmove = document.getElementById("forwardMove");
 var modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
-const hostname = "trichess.mykuna.eu"; //new URL(window.location.href).hostname;
-const protocol = "https:"; //window.location.protocol;
+const api_url = `${window.location.protocol}//${window.location.host}`;
 
 var seat = {};
 var slog = "";
@@ -311,7 +310,7 @@ function updateStats(eliminated, move_number) {
 }
 
 function validMoves(gid) {
-  const url = `${protocol}//${hostname}/api/v1/move/valid`;
+  const url = `${api_url}/api/v1/move/valid`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
@@ -354,7 +353,7 @@ function validMoves(gid) {
 }
 
 function makeMove(gid, tgid, new_piece = "") {
-  const url = `${protocol}//${hostname}/api/v1/move/make`;
+  const url = `${api_url}/api/v1/move/make`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
@@ -396,7 +395,7 @@ function makeMove(gid, tgid, new_piece = "") {
 }
 
 function gameInfo(init = false, redraw = false) {
-  const url = `${protocol}//${hostname}/api/v1/game/info`;
+  const url = `${api_url}/api/v1/game/info`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
@@ -524,8 +523,7 @@ function gameInfo(init = false, redraw = false) {
 }
 
 function boardInfo() {
-  const url =
-    `${protocol}//${hostname}/api/v1/manager/board?id=` + id.toString();
+  const url = `${api_url}/api/v1/manager/board?id=` + id.toString();
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
@@ -615,7 +613,7 @@ function boardInfo() {
 }
 
 function boardSubmit() {
-  const url = `${protocol}//${hostname}/api/v1/manager/board`;
+  const url = `${api_url}/api/v1/manager/board`;
   const headers = new Headers();
   headers.append("Accept", "application/json");
   headers.append("Content-Type", "application/json");
