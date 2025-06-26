@@ -28,9 +28,9 @@
         {% endif %}
         {% else %}
         {% if onmove == 0 %}
-        <td><p style="color:#FF0000";>{{game.player_0.username}}</p></td>
+        <td><span style="color:#FF0000";>{{game.player_0.username}}</span></td>
         {% else %}
-        <td><p>{{game.player_0.username}}</p></td>
+        <td><span>{{game.player_0.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_1.id == game.owner_id %}
@@ -41,9 +41,9 @@
         {% endif %}
         {% else %}
         {% if onmove == 1 %}
-        <td><p style="color:#FF0000";>{{game.player_1.username}}</p></td>
+        <td><span style="color:#FF0000";>{{game.player_1.username}}</span></td>
         {% else %}
-        <td><p>{{game.player_1.username}}</p></td>
+        <td><span>{{game.player_1.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_2.id == game.owner_id %}
@@ -54,9 +54,9 @@
         {% endif %}
         {% else %}
         {% if onmove == 2 %}
-        <td><p style="color:#FF0000";>{{game.player_2.username}}</p></td>
+        <td><span style="color:#FF0000";>{{game.player_2.username}}</span></td>
         {% else %}
-        <td><p>{{game.player_2.username}}</p></td>
+        <td><span>{{game.player_2.username}}</span></td>
         {% endif %}
         {% endif %}
         <td>

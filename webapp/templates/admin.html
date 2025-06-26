@@ -19,20 +19,44 @@
         {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
         <th scope="row">{{game.id}}</th>
+        {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}
         <td><strong style="color:#FF0000";>{{game.player_0.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_0.username}}</strong></td>
         {% endif %}
+        {% else %}
+        {% if onmove == 0 %}
+        <td><span style="color:#FF0000";>{{game.player_0.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_0.username}}</span></td>
+        {% endif %}
+        {% endif %}
+        {% if game.player_1.id == game.owner_id %}
         {% if onmove == 1 %}
         <td><strong style="color:#FF0000";>{{game.player_1.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_1.username}}</strong></td>
         {% endif %}
+        {% else %}
+        {% if onmove == 1 %}
+        <td><span style="color:#FF0000";>{{game.player_1.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_1.username}}</span></td>
+        {% endif %}
+        {% endif %}
+        {% if game.player_2.id == game.owner_id %}
         {% if onmove == 2 %}
         <td><strong style="color:#FF0000";>{{game.player_2.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_2.username}}</strong></td>
+        {% endif %}
+        {% else %}
+        {% if onmove == 2 %}
+        <td><span style="color:#FF0000";>{{game.player_2.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_2.username}}</span></td>
+        {% endif %}
         {% endif %}
         <td>{{game.modified_at|strftime}}</td>
         <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
@@ -59,20 +83,44 @@
         {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
         <th scope="row">{{game.id}}</th>
+        {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}
         <td><strong style="color:#FF0000";>{{game.player_0.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_0.username}}</strong></td>
         {% endif %}
+        {% else %}
+        {% if onmove == 0 %}
+        <td><span style="color:#FF0000";>{{game.player_0.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_0.username}}</span></td>
+        {% endif %}
+        {% endif %}
+        {% if game.player_1.id == game.owner_id %}
         {% if onmove == 1 %}
         <td><strong style="color:#FF0000";>{{game.player_1.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_1.username}}</strong></td>
         {% endif %}
+        {% else %}
+        {% if onmove == 1 %}
+        <td><span style="color:#FF0000";>{{game.player_1.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_1.username}}</span></td>
+        {% endif %}
+        {% endif %}
+        {% if game.player_2.id == game.owner_id %}
         {% if onmove == 2 %}
         <td><strong style="color:#FF0000";>{{game.player_2.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_2.username}}</strong></td>
+        {% endif %}
+        {% else %}
+        {% if onmove == 2 %}
+        <td><span style="color:#FF0000";>{{game.player_2.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_2.username}}</span></td>
+        {% endif %}
         {% endif %}
         <td>{{game.modified_at|strftime}}</td>
         <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
@@ -99,20 +147,44 @@
         {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
         <th scope="row">{{game.id}}</th>
+        {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}
         <td><strong style="color:#FF0000";>{{game.player_0.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_0.username}}</strong></td>
         {% endif %}
+        {% else %}
+        {% if onmove == 0 %}
+        <td><span style="color:#FF0000";>{{game.player_0.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_0.username}}</span></td>
+        {% endif %}
+        {% endif %}
+        {% if game.player_1.id == game.owner_id %}
         {% if onmove == 1 %}
         <td><strong style="color:#FF0000";>{{game.player_1.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_1.username}}</strong></td>
         {% endif %}
+        {% else %}
+        {% if onmove == 1 %}
+        <td><span style="color:#FF0000";>{{game.player_1.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_1.username}}</span></td>
+        {% endif %}
+        {% endif %}
+        {% if game.player_2.id == game.owner_id %}
         {% if onmove == 2 %}
         <td><strong style="color:#FF0000";>{{game.player_2.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_2.username}}</strong></td>
+        {% endif %}
+        {% else %}
+        {% if onmove == 2 %}
+        <td><span style="color:#FF0000";>{{game.player_2.username}}</span></td>
+        {% else %}
+        <td><span>{{game.player_2.username}}</span></td>
+        {% endif %}
         {% endif %}
         <td>{{game.modified_at|strftime}}</td>
         <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
