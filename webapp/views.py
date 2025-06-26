@@ -8,10 +8,10 @@ from flask_jwt_extended import (
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from webapp.main import app, db, lm
-from webapp.forms import LoginForm, NewGameForm, RegistrationForm
-from webapp.models import TriBoard, User
 from webapp.api import blueprint as api
+from webapp.forms import LoginForm, NewGameForm, RegistrationForm
+from webapp.main import app, db, lm
+from webapp.models import TriBoard, User
 
 
 @app.template_filter("strftime")
@@ -203,12 +203,19 @@ def playlx(id):
         TriBoard.player_1_id == g.user.id,
         TriBoard.player_2_id == g.user.id,
     )
+    colortheme = dict(
+        # hex_colors=["#cc0000", "#000000", "#737373"],
+        hex_colors=["#a8baf0", "#f0b6a8", "#d1f0a8"],
+        # pieces_colors=["#ffd11a", "#00ffff", "#ffffff"],
+        pieces_colors=["#000599", "#B33900", "#1D6600"],
+    )
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
         return render_template(
             "playlx.html",
             id=id,
             access_token=access_token,
+            colortheme=colortheme,
         )
     else:
         flash("You have no access to this game", "error")

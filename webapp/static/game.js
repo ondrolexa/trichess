@@ -1,5 +1,3 @@
-const HEX_COLORS = ["#a8baf0", "#f0b6a8", "#d1f0a8"];
-const PIECES_COLOR = ["#000599", "#B33900", "#1D6600"];
 const PIECES = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
 const gid2xy = {};
 const gid2color = {};
@@ -430,46 +428,32 @@ function gameInfo(init = false, redraw = false) {
         p0name.fontStyle("bold");
         if (data.in_chess) {
           p0name.fill("red");
-          gid2high[data.king_pos].visible(true);
-          gid2high[data.king_pos].stroke("red");
-          for (let xby in data.chess_by[1]) {
-            gid2high[data.chess_by[1][xby].gid].visible(true);
-            gid2high[data.chess_by[1][xby].gid].stroke("green");
-          }
-          for (let xby in data.chess_by[2]) {
-            gid2high[data.chess_by[2][xby].gid].visible(true);
-            gid2high[data.chess_by[2][xby].gid].stroke("green");
-          }
         }
       } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
         p1name.fontStyle("bold");
         if (data.in_chess) {
           p1name.fill("red");
-          gid2high[data.king_pos].visible(true);
-          gid2high[data.king_pos].stroke("red");
-          for (let xby in data.chess_by[0]) {
-            gid2high[data.chess_by[0][xby].gid].visible(true);
-            gid2high[data.chess_by[0][xby].gid].stroke("green");
-          }
-          for (let xby in data.chess_by[2]) {
-            gid2high[data.chess_by[2][xby].gid].visible(true);
-            gid2high[data.chess_by[2][xby].gid].stroke("green");
-          }
         }
       } else {
         p2name.fontStyle("bold");
         if (data.in_chess) {
           p2name.fill("red");
-          gid2high[data.king_pos].visible(true);
-          gid2high[data.king_pos].stroke("red");
-          for (let xby in data.chess_by[0]) {
-            gid2high[data.chess_by[0][xby].gid].visible(true);
-            gid2high[data.chess_by[0][xby].gid].stroke("green");
-          }
-          for (let xby in data.chess_by[1]) {
-            gid2high[data.chess_by[1][xby].gid].visible(true);
-            gid2high[data.chess_by[1][xby].gid].stroke("green");
-          }
+        }
+      }
+      if (data.in_chess) {
+        gid2high[data.king_pos].visible(true);
+        gid2high[data.king_pos].stroke("red");
+        for (let xby in data.chess_by["0"]) {
+          gid2high[data.chess_by["0"][xby].gid].visible(true);
+          gid2high[data.chess_by["0"][xby].gid].stroke("green");
+        }
+        for (let xby in data.chess_by["1"]) {
+          gid2high[data.chess_by["1"][xby].gid].visible(true);
+          gid2high[data.chess_by["1"][xby].gid].stroke("green");
+        }
+        for (let xby in data.chess_by["2"]) {
+          gid2high[data.chess_by["2"][xby].gid].visible(true);
+          gid2high[data.chess_by["2"][xby].gid].stroke("green");
         }
       }
       updateStats(data.eliminated, data.move_number);

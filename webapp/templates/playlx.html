@@ -77,6 +77,8 @@
 <script type="text/javascript">
 var access_token = "Bearer {{ access_token }}";
 var id = parseInt("{{ id }}");
+const HEX_COLORS = {{ colortheme.hex_colors|safe }};
+const PIECES_COLOR = {{ colortheme.pieces_colors|safe }};
 </script>
 <script src="https://unpkg.com/konva@9/konva.min.js"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='game.js') }}"></script>
