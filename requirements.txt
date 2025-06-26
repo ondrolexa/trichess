@@ -2,6 +2,7 @@ Flask
 flask-restx
 Flask-Login
 Flask-SQLAlchemy
+Flask-Migrate
 flask-cors
 Bootstrap-Flask
 Flask-WTF
