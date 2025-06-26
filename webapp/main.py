@@ -5,6 +5,7 @@ from flask_bootstrap import Bootstrap5
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
+from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
@@ -20,6 +21,7 @@ app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 
 bs = Bootstrap5(app)  # bootstrap-flask
 db = SQLAlchemy(app)  # flask-sqlalchemy
+migrate = Migrate(app, db)
 jwt = JWTManager(app)  # JWT
 
 lm = LoginManager()
