@@ -443,17 +443,11 @@ function gameInfo(init = false, redraw = false) {
       if (data.in_chess) {
         gid2high[data.king_pos].visible(true);
         gid2high[data.king_pos].stroke("red");
-        for (let xby in data.chess_by["0"]) {
-          gid2high[data.chess_by["0"][xby].gid].visible(true);
-          gid2high[data.chess_by["0"][xby].gid].stroke("green");
-        }
-        for (let xby in data.chess_by["1"]) {
-          gid2high[data.chess_by["1"][xby].gid].visible(true);
-          gid2high[data.chess_by["1"][xby].gid].stroke("green");
-        }
-        for (let xby in data.chess_by["2"]) {
-          gid2high[data.chess_by["2"][xby].gid].visible(true);
-          gid2high[data.chess_by["2"][xby].gid].stroke("green");
+        for (var player in data.chess_by) {
+          for (var pcs in data.chess_by[player]) {
+            gid2high[data.chess_by[player][pcs].gid].visible(true);
+            gid2high[data.chess_by[player][pcs].gid].stroke("green");
+          }
         }
       }
       updateStats(data.eliminated, data.move_number);
