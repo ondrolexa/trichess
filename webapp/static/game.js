@@ -473,9 +473,7 @@ function gameInfo(init = false, redraw = false) {
         backmove.className = "btn btn-secondary mb-2 col-12";
       }
       if (data.finished) {
-        gameover.text(
-          "GAME OVER\n" + seat[(data.onmove + view_pid) % 3] + " lost",
-        );
+        gameover.text("GAME OVER\n" + seat[data.onmove] + " lost");
         gameover.visible(true);
       } else {
         gameover.visible(false);
