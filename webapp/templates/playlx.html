@@ -80,6 +80,6 @@ var id = parseInt("{{ id }}");
 const HEX_COLORS = eval("{{ colortheme.hex_colors|safe }}");
 const PIECES_COLOR = eval("{{ colortheme.pieces_colors|safe }}");
 </script>
-<script src="https://unpkg.com/konva@9/konva.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/konva/8.4.3/konva.min.js" integrity="sha512-LClrzHn1DRAV9zKBENA3zogBYvIYp0VVT+/pbguTlzLW8o/cTDl1f+fYnzN4tGjEcIE9vdGqEnobBAMM2fc0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='game.js') }}"></script>
 {% endblock %}
