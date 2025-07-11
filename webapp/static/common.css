@@ -1,3 +1,10 @@
+html {
+    position: relative;
+    min-height: 100%;
+}
+body {
+    margin-bottom: 40px;
+}
 .footer {
     position: absolute;
     bottom: 0;
@@ -7,7 +14,10 @@
 }
 
 @media (orientation: landscape) and (max-width: 980px) {
-    #footer {
+    body {
+        margin-bottom: 0px;
+    }
+    .footer {
         display: none !important;
     }
 }
