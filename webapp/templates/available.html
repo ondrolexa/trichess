@@ -11,20 +11,23 @@
         <th scope="col">Player 2</th>
         <th scope="col">Player 3</th>
         <th scope="col">Created</th>
+        <th scope="col">Actions</th>
         </tr>
     </thead>
     <tbody>
         <form action=""{{ url_for('available') }}"" method="post" class="form" role="form">
         {% for game in games %}
+        {% set not_in = (game.player_0.id != player_id) and (game.player_1.id != player_id) and (game.player_2.id != player_id) %}
         <tr>
         <th scope="row">{{game.id}}<input type="hidden" id="board" name="board" value="{{game.id}}"/></th>
-        <td>{% if game.player_0 is none %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="0">Join</button>
+        <td>{% if game.player_0 is none and not_in %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="0">Join</button>
 {% else %}{{game.player_0.username}}{% endif %}</td>
-        <td>{% if game.player_1 is none %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="1">Join</button>
+        <td>{% if game.player_1 is none and not_in %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="1">Join</button>
 {% else %}{{game.player_1.username}}{% endif %}</td>
-        <td>{% if game.player_2 is none %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="2">Join</button>
+        <td>{% if game.player_2 is none and not_in %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="2">Join</button>
 {% else %}{{game.player_2.username}}{% endif %}</td>
         <td>{{game.created_at|strftime}}</td>
+        <td>{% if game.owner_id == player_id %}<button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button>{% endif %}</td>
         </tr>
         {% endfor %}
         </form>

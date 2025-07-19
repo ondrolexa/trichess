@@ -65,71 +65,39 @@ def archive():
     return render_template("archive.html", games=archive)
 
 
-@app.route("/created", methods=["GET", "POST"])
-@login_required
-def created():
-    if request.method == "POST":
-        board = TriBoard.query.filter_by(id=request.form.get("board")).first()
-        db.session.delete(board)
-        db.session.commit()
-        return redirect(url_for("created"))
-    else:
-        user_in = db.or_(
-            TriBoard.player_0_id == g.user.id,
-            TriBoard.player_1_id == g.user.id,
-            TriBoard.player_2_id == g.user.id,
-        )
-        waiting = (
-            TriBoard.query.filter_by(status=0)
-            .filter(user_in)
-            .order_by(TriBoard.created_at.desc())
-            .all()
-        )
-    return render_template("created.html", games=waiting)
-
-
 @app.route("/join", methods=["GET", "POST"])
 @login_required
 def available():
     if request.method == "POST":
-        board = TriBoard.query.filter_by(id=request.form.get("board")).first()
-        match request.form.get("seat"):
-            case "0":
-                board.player_0_id = g.user.id
-                board.player_0_accepted = True
-            case "1":
-                board.player_1_id = g.user.id
-                board.player_1_accepted = True
-            case "2":
-                board.player_2_id = g.user.id
-                board.player_2_accepted = True
-        if (
-            (board.player_0_id is not None)
-            and (board.player_1_id is not None)
-            and (board.player_2_id is not None)
-        ):
-            board.status = 1
-        db.session.commit()
-        return redirect(url_for("active"))
+        delete = request.form.get("delete", None)
+        if delete is None:
+            board = TriBoard.query.filter_by(id=request.form.get("board")).first()
+            match request.form.get("seat"):
+                case "0":
+                    board.player_0_id = g.user.id
+                    board.player_0_accepted = True
+                case "1":
+                    board.player_1_id = g.user.id
+                    board.player_1_accepted = True
+                case "2":
+                    board.player_2_id = g.user.id
+                    board.player_2_accepted = True
+            if (
+                (board.player_0_id is not None)
+                and (board.player_1_id is not None)
+                and (board.player_2_id is not None)
+            ):
+                board.status = 1
+            db.session.commit()
+            return redirect(url_for("active"))
+        else:
+            board = TriBoard.query.filter_by(id=delete).first()
+            db.session.delete(board)
+            db.session.commit()
+            return redirect(url_for("available"))
     else:
-        user_not_in = db.and_(
-            db.or_(
-                TriBoard.player_0_id != g.user.id, TriBoard.player_0_id == db.null()
-            ),
-            db.or_(
-                TriBoard.player_1_id != g.user.id, TriBoard.player_1_id == db.null()
-            ),
-            db.or_(
-                TriBoard.player_2_id != g.user.id, TriBoard.player_2_id == db.null()
-            ),
-        )
-        available = (
-            TriBoard.query.filter_by(status=0)
-            .filter(TriBoard.owner_id != g.user.id)
-            .filter(user_not_in)
-            .all()
-        )
-    return render_template("available.html", games=available)
+        available = TriBoard.query.filter_by(status=0).all()
+    return render_template("available.html", games=available, player_id=g.user.id)
 
 
 @app.route("/new", methods=["GET", "POST"])
@@ -162,7 +130,7 @@ def new():
         db.session.add(board)
         db.session.commit()
         flash("Game created successfuly!", "success")
-        return redirect(url_for("created"))
+        return redirect(url_for("available"))
     return render_template("new.html", form=form)
 
 

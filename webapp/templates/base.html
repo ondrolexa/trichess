@@ -23,7 +23,6 @@
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                         {% if current_user.is_authenticated %}
                             {% if current_user.id != 1 %}
-                            <li class="nav-item">{{ render_nav_item('created', 'Awaiting') }}</li>
                             <li class="nav-item">{{ render_nav_item('available', 'Available') }}</li>
                             <li class="nav-item">{{ render_nav_item('archive', 'Archive') }}</li>
                             <li class="nav-item">{{ render_nav_item('new', 'New game') }}</li>
