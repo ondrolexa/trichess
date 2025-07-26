@@ -10,3 +10,4 @@ WTForms-SQLAlchemy
 flask-jwt-extended
 gunicorn
 pyyaml
+python-dateutil
