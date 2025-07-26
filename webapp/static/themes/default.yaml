@@ -1,0 +1,19 @@
+board:
+  background: "#ffffff"
+  font-family: "Arial"
+  name_color: "black"
+  name_color_inchess: "red"
+  name_color_onmove: "green"
+
+hex:
+  color:
+    - "#a8baf0"
+    - "#f0b6a8"
+    - "#d1f0a8"
+
+pieces:
+  font-family: "Arial"
+  color:
+    - "#000599"
+    - "#b33900"
+    - "#1d6600"

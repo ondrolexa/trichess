@@ -9,6 +9,7 @@ Flask-WTF
 WTForms-SQLAlchemy
 flask-jwt-extended
 gunicorn
+pyyaml
 pytest
 black
 ruff

@@ -38,44 +38,20 @@
         {% endif %}
         {% endif %}
         <th scope="row">{{game.id}}</th>
-        {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}
-        <td><strong style="color:#FF0000";>{{game.player_0.username}}</strong></td>
-        {% else %}
-        <td><strong>{{game.player_0.username}}</strong></td>
-        {% endif %}
-        {% else %}
-        {% if onmove == 0 %}
-        <td><span style="color:#FF0000";>{{game.player_0.username}}</span></td>
+        <td><strong class="text-success">{{game.player_0.username}}</strong></td>
         {% else %}
         <td><span>{{game.player_0.username}}</span></td>
         {% endif %}
-        {% endif %}
-        {% if game.player_1.id == game.owner_id %}
         {% if onmove == 1 %}
-        <td><strong style="color:#FF0000";>{{game.player_1.username}}</strong></td>
-        {% else %}
-        <td><strong>{{game.player_1.username}}</strong></td>
-        {% endif %}
-        {% else %}
-        {% if onmove == 1 %}
-        <td><span style="color:#FF0000";>{{game.player_1.username}}</span></td>
+        <td><strong class="text-success">{{game.player_1.username}}</strong></td>
         {% else %}
         <td><span>{{game.player_1.username}}</span></td>
         {% endif %}
-        {% endif %}
-        {% if game.player_2.id == game.owner_id %}
         {% if onmove == 2 %}
-        <td><strong style="color:#FF0000";>{{game.player_2.username}}</strong></td>
-        {% else %}
-        <td><strong>{{game.player_2.username}}</strong></td>
-        {% endif %}
-        {% else %}
-        {% if onmove == 2 %}
-        <td><span style="color:#FF0000";>{{game.player_2.username}}</span></td>
+        <td><strong class="text-success">{{game.player_2.username}}</strong></td>
         {% else %}
         <td><span>{{game.player_2.username}}</span></td>
-        {% endif %}
         {% endif %}
         <td>
             <a class="btn btn-warning btn-sm mt-0" href="{{ url_for('play', id=game.id) }}" role="button">Play</a>
