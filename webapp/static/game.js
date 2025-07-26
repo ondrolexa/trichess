@@ -5,7 +5,7 @@ const gid2high = {};
 const gid2piece = {};
 const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
 var stageWidth = 20;
-var stageHeight = 15;
+var stageHeight = 18;
 var movestage = -1;
 var target = -1;
 var ready = false;
@@ -32,11 +32,23 @@ var stage = new Konva.Stage({
   height: stageHeight,
   draggable: true,
   offset: {
-    x: -stageWidth / 2 + 1,
-    y: -7,
+    x: -stageWidth / 2,
+    y: -stageHeight / 2 + 1,
   },
 });
-stage.container().style.backgroundColor = theme["board"]["background"];
+
+const background = new Konva.Rect({
+  x: 0,
+  y: 0,
+  width: stage.width(),
+  height: stage.height(),
+  offset: {
+    x: -stage.offsetX(),
+    y: -stage.offsetY(),
+  },
+  fill: theme["board"]["background"],
+  listening: false,
+});
 
 stage.on("wheel", function (e) {
   e.evt.preventDefault();
@@ -59,37 +71,41 @@ stage.on("wheel", function (e) {
 });
 
 var movelabel = new Konva.Text({
-  x: -12,
-  y: 5.75,
+  x: -11.5,
+  y: 6,
   text: "",
+  fontFamily: theme["board"]["font-family"],
   fontSize: 0.6,
   align: "right",
   width: 6,
   listening: false,
 });
 var p0name = new Konva.Text({
-  x: 4.5,
-  y: 5.75,
+  x: -3,
+  y: 6.75,
   text: "",
   fontFamily: theme["board"]["font-family"],
   fontSize: 0.6,
-  align: "left",
+  align: "center",
   width: 6,
   listening: false,
 });
 var p0el = new Konva.Text({
   x: 6.5,
-  y: 1.5,
+  y: 2,
   text: "",
   fontFamily: theme["pieces"]["font-family"],
   fontSize: 0.7,
+  stroke: theme["pieces"]["stroke-color"],
+  strokeWidth: 0.15,
+  fillAfterStrokeEnabled: true,
   width: 2.5,
   align: "center",
   listening: false,
 });
 var p1name = new Konva.Text({
   x: -10.5,
-  y: -6.5,
+  y: -7.25,
   text: "",
   fontFamily: theme["board"]["font-family"],
   fontSize: 0.6,
@@ -103,13 +119,16 @@ var p1el = new Konva.Text({
   text: "",
   fontFamily: theme["pieces"]["font-family"],
   fontSize: 0.7,
+  stroke: theme["pieces"]["stroke-color"],
+  strokeWidth: 0.15,
+  fillAfterStrokeEnabled: true,
   width: 2.5,
   align: "center",
   listening: false,
 });
 var p2name = new Konva.Text({
   x: 4.5,
-  y: -6.5,
+  y: -7.25,
   text: "",
   fontFamily: theme["board"]["font-family"],
   fontSize: 0.6,
@@ -123,18 +142,23 @@ var p2el = new Konva.Text({
   text: "",
   fontFamily: theme["pieces"]["font-family"],
   fontSize: 0.7,
+  stroke: theme["pieces"]["stroke-color"],
+  strokeWidth: 0.15,
+  fillAfterStrokeEnabled: true,
   width: 2.5,
   align: "center",
   listening: false,
 });
 
 var gameover = new Konva.Text({
-  x: -6,
+  x: -7.75,
   y: -2,
   text: "GAME OVER",
-  fontSize: 2,
+  fontFamily: theme["board"]["font-family"],
+  fill: theme["board"]["game_over"],
+  fontSize: 2.5,
   fontStyle: "bold",
-  opacity: 0.75,
+  opacity: 0.95,
   align: "center",
   verticalAlign: "middle",
   visible: false,
@@ -145,11 +169,20 @@ var gameover = new Konva.Text({
 function fitStageIntoDiv() {
   const container = document.querySelector("#canvas");
   const containerWidth = container.offsetWidth;
-  const scale = containerWidth / stageWidth;
-  stage.width(stageWidth * scale);
-  stage.height((3 * stageWidth * scale) / 4);
+  const containerHeight = container.offsetHeight;
+  const scale = Math.min(
+    containerWidth / stageWidth,
+    containerHeight / stageHeight,
+  );
+  stage.width(containerWidth);
+  if (containerWidth >= 768) {
+    stage.height(containerHeight);
+  } else {
+    stage.height(stageHeight * scale);
+  }
+  stage.offsetX(-stageWidth / 2 - (containerWidth / scale - stageWidth) / 2);
   stage.scale({ x: scale, y: scale });
-  stage.position({ x: 0, y: 0 });
+  stage.position({ x: -40, y: 0 });
   stage.draw();
 }
 
@@ -273,7 +306,7 @@ function cleanMove() {
   promotions.clear();
   target = -1;
   movestage = -1;
-  gameInfo();
+  gameInfo(false, true);
   ready = true;
 }
 
@@ -292,19 +325,24 @@ function drawPieces(pieces) {
   }
 }
 
-function updateStats(eliminated, move_number) {
+function updateStats(eliminated, value, move_number) {
+  p0name.text(`${seat[0]} (${value[((0 + view_pid) % 3).toString()]})`);
   let pp0 = [];
   el = eliminated[((0 + view_pid) % 3).toString()];
   for (let pcs in el) {
     pp0.push(pieces_symbols[el[pcs]]);
   }
   p0el.text(pp0.join(" "));
+
+  p1name.text(`${seat[1]} (${value[((1 + view_pid) % 3).toString()]})`);
   let pp1 = [];
   el = eliminated[((1 + view_pid) % 3).toString()];
   for (let pcs in el) {
     pp1.push(pieces_symbols[el[pcs]]);
   }
   p1el.text(pp1.join(" "));
+
+  p2name.text(`${seat[2]} (${value[((2 + view_pid) % 3).toString()]})`);
   let pp2 = [];
   el = eliminated[((2 + view_pid) % 3).toString()];
   for (let pcs in el) {
@@ -342,9 +380,9 @@ function validMoves(gid) {
         targets.add(tgid);
         gid2high[tgid].visible(true);
         if (data.targets[i].kind == "attack") {
-          gid2high[tgid].stroke("red");
+          gid2high[tgid].stroke(theme["board"]["attack_move"]);
         } else {
-          gid2high[tgid].stroke("green");
+          gid2high[tgid].stroke(theme["board"]["valid_move"]);
         }
         if (data.targets[i].promotion) {
           promotions.add(tgid);
@@ -426,6 +464,7 @@ function gameInfo(init = false, redraw = false) {
       if (redraw) {
         drawPieces(data.pieces);
       }
+
       p0name.fontStyle("normal");
       p0name.fill(theme["board"]["name_color"]);
       p1name.fontStyle("normal");
@@ -442,14 +481,14 @@ function gameInfo(init = false, redraw = false) {
       } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
         p1name.fontStyle("bold");
         if (data.in_chess) {
-          p1name.fill("red");
+          p1name.fill(theme["board"]["name_color_inchess"]);
         } else {
           p1name.fill(theme["board"]["name_color_onmove"]);
         }
       } else {
         p2name.fontStyle("bold");
         if (data.in_chess) {
-          p2name.fill("red");
+          p2name.fill(theme["board"]["name_color_inchess"]);
         } else {
           p2name.fill(theme["board"]["name_color_onmove"]);
         }
@@ -464,7 +503,7 @@ function gameInfo(init = false, redraw = false) {
           }
         }
       }
-      updateStats(data.eliminated, data.move_number);
+      updateStats(data.eliminated, data.eliminated_value, data.move_number);
       if (slog.slice(0, -4) == server_slog && on_move) {
         submit.disabled = false;
         submit.className = "btn btn-danger mb-2 col-12";
@@ -501,13 +540,13 @@ function gameInfo(init = false, redraw = false) {
         }
         lastmove["from"] = data.last_move["from"];
         gid2high[lastmove["from"]].visible(true);
-        gid2high[lastmove["from"]].stroke("black");
+        gid2high[lastmove["from"]].stroke(theme["board"]["last_move"]);
         if (lastmove["to"] != -1) {
           gid2high[lastmove["to"]].visible(false);
         }
         lastmove["to"] = data.last_move["to"];
         gid2high[lastmove["to"]].visible(true);
-        gid2high[lastmove["to"]].stroke("black");
+        gid2high[lastmove["to"]].stroke(theme["board"]["last_move"]);
       }
     })
     .catch((error) => {
@@ -546,6 +585,7 @@ function boardInfo() {
       gameInfo(true, true);
       var layer = new Konva.Layer();
       stage.add(layer);
+      layer.add(background);
 
       // Create mappings
       let gid = 0;
@@ -579,10 +619,7 @@ function boardInfo() {
       p0el.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
       p1el.fill(theme["pieces"]["color"][(1 + view_pid) % 3]);
       p2el.fill(theme["pieces"]["color"][(2 + view_pid) % 3]);
-      // set names
-      p0name.text(seat[0]);
-      p1name.text(seat[1]);
-      p2name.text(seat[2]);
+
       layer.add(movelabel);
       layer.add(p0name);
       layer.add(p0el);

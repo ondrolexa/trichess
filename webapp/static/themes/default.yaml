@@ -4,6 +4,10 @@ board:
   name_color: "black"
   name_color_inchess: "red"
   name_color_onmove: "green"
+  last_move: "black"
+  valid_move: "green"
+  attack_move: "red"
+  game_over: "black"
 
 hex:
   color:
@@ -12,7 +16,8 @@ hex:
     - "#d1f0a8"
 
 pieces:
-  font-family: "Arial"
+  font-family: "Verdana"
+  stroke-color: "white"
   color:
     - "#000599"
     - "#b33900"

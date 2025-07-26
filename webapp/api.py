@@ -181,12 +181,21 @@ game_pieces = api.model(
     },
 )
 
-game_elimenated = api.model(
-    "Game players pieces",
+game_eliminated = api.model(
+    "Game players eliminated pieces",
     {
         "0": fields.List(fields.String),
         "1": fields.List(fields.String),
         "2": fields.List(fields.String),
+    },
+)
+
+game_eliminated_value = api.model(
+    "Game players eliminated pieces total value",
+    {
+        "0": fields.Integer,
+        "1": fields.Integer,
+        "2": fields.Integer,
     },
 )
 
@@ -201,7 +210,8 @@ game_response = api.model(
         "king_pos": fields.Integer,
         "chess_by": fields.Nested(game_pieces),
         "pieces": fields.Nested(game_pieces),
-        "eliminated": fields.Nested(game_elimenated),
+        "eliminated": fields.Nested(game_eliminated),
+        "eliminated_value": fields.Nested(game_eliminated_value),
     },
 )
 
@@ -235,6 +245,7 @@ class GameInfo(Resource):
                 res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess
                 res["pieces"] = ga.pieces
                 res["eliminated"] = ga.eliminated
+                res["eliminated_value"] = ga.eliminated_value
                 return res
             except Exception as err:
                 gameapi.abort(404, message=f"Unexpected error {err}")

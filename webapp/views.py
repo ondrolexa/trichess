@@ -13,7 +13,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from webapp.api import blueprint as api
-from webapp.forms import LoginForm, NewGameForm, RegistrationForm
+from webapp.forms import LoginForm, NewGameForm, ProfileForm, RegistrationForm
 from webapp.main import app, db, lm
 from webapp.models import TriBoard, User
 
@@ -34,8 +34,10 @@ def index():
     if request.method == "POST":
         if request.form.get("action") == "login":
             return redirect(url_for("login"))
-        else:
+        elif request.form.get("action") == "logout":
             return redirect(url_for("logout"))
+        else:
+            return redirect(url_for("index"))
     return render_template("index.html")
 
 
@@ -182,7 +184,8 @@ def playlx(id):
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
         theme_file = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)), "static/themes/default.yaml"
+            os.path.abspath(os.path.dirname(__file__)),
+            f"static/themes/{g.user.theme}.yaml",
         )
         with open(theme_file) as f:
             theme = yaml.safe_load(f)
@@ -198,6 +201,21 @@ def playlx(id):
         return redirect(url_for("active"))
 
 
+@app.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    form = ProfileForm(email=g.user.email, theme=g.user.theme)
+    if form.validate_on_submit():
+        if form.password.data:
+            g.user.password = generate_password_hash(form.password.data)
+        g.user.email = form.email.data
+        g.user.theme = form.theme.data
+        db.session.commit()
+        flash("Profile saved successfuly!", "success")
+        return redirect(url_for("active"))
+    return render_template("profile.html", form=form, username=g.user.username)
+
+
 # === Admin section ===
 
 
@@ -211,6 +229,7 @@ def register():
             new_user = User(
                 username=form.username.data,
                 password=hashed_password,
+                theme="default",
             )
             db.session.add(new_user)
             db.session.commit()

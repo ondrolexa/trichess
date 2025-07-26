@@ -1,4 +1,4 @@
-from engine.pieces import Pawn, Piece, Pos
+from engine.pieces import King, Pawn, Piece, Pos
 from engine.player import Player
 
 base0 = [Pos(i, 7) for i in range(-7, 1)]
@@ -142,7 +142,6 @@ class Board:
         """Move piece from one position to other.
 
         Note:
-            When there is no piece on position, error is raised
             When label is not empty string, piece is promoted
 
         """
@@ -157,6 +156,26 @@ class Board:
         piece.hex = thex
         thex.piece = piece
         self._board[pos_from].piece = None
+        # Check castling
+        if (
+            isinstance(piece, King)
+            and round(abs(pos_from.value - pos_to.value), 5) == 2
+        ):
+            if pos_from == Pos(-4, 7):
+                if pos_to == Pos(-6, 7):
+                    self.move_piece(Pos(-7, 7), Pos(-5, 7), "")
+                else:
+                    self.move_piece(Pos(0, 7), Pos(-3, 7), "")
+            if pos_from == Pos(-3, -4):
+                if pos_to == Pos(-1, -6):
+                    self.move_piece(Pos(0, -7), Pos(-2, -5), "")
+                else:
+                    self.move_piece(Pos(-7, 0), Pos(-4, -3), "")
+            if pos_from == Pos(7, -3):
+                if pos_to == Pos(7, -1):
+                    self.move_piece(Pos(7, 0), Pos(7, -2), "")
+                else:
+                    self.move_piece(Pos(7, -7), Pos(7, -4), "")
 
     def test_move_piece(self, pos_from, pos_to):
         piece = self._board[pos_from].piece
@@ -176,23 +195,27 @@ class Board:
 
     def in_chess(self, player: Player) -> tuple[bool, list]:
         """Check if players king is under attack and returns list of attacking pieces"""
+        return self.pos_in_chess(player, player.king_piece.hex.pos)
+
+    def pos_in_chess(self, player: Player, pos) -> tuple[bool, list]:
+        """Check if players pos is under attack and returns list of attacking pieces"""
         pieces = []
         inchess = False
-        kingpos = player.king_piece.hex.pos
         for hex in self:
             if hex.has_piece:
                 piece = hex.piece
                 if piece.player is not player:
-                    targets = self.possible_moves(piece)
-                    if kingpos in targets:
+                    # King do not make chess on castling position
+                    targets = self.possible_moves(piece, castling=False)
+                    if pos in targets:
                         pieces.append(piece)
                         inchess = True
-        return inchess, kingpos, pieces
+        return inchess, pos, pieces
 
-    def possible_moves(self, piece: Piece) -> list[Pos]:
+    def possible_moves(self, piece: Piece, castling: bool = True) -> list[Pos]:
         """Return list of all posiible moves for given piece."""
         all = []
-        for dest in piece.pos_candidates():
+        for dest in piece.pos_candidates(castling):
             if dest in self._board:
                 match dest.kind:
                     case "s":

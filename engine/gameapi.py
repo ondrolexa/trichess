@@ -121,6 +121,14 @@ class GameAPI:
         return res
 
     @property
+    def eliminated_value(self):
+        """Return total values of eliminated pieces for player pid"""
+        res = {0: 0, 1: 0, 2: 0}
+        for p in self.board.eliminated:
+            res[p.player.pid] += p.value
+        return res
+
+    @property
     def pieces(self):
         res = {0: [], 1: [], 2: []}
         for hex in self.board:

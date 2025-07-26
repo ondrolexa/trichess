@@ -96,9 +96,10 @@ class Piece:
         self.symbol = symbol
         self.label = label
         self.player = player
+        self.value = 0
+        self.special_attack = False
         self.used = kwargs.get("used", False)
         self.hex = kwargs.get("hex", None)
-        self.special_attack = False
 
     def __repr__(self) -> str:
         if self.hex is None:
@@ -111,7 +112,7 @@ class Piece:
         if self.hex is not None:
             return self.hex.pos
 
-    def pos_candidates(self) -> list[Pos]:
+    def pos_candidates(self, castling: bool) -> list[Pos]:
         """Returns list of new position candidates"""
         if self.hex is not None:
             res = []
@@ -149,12 +150,49 @@ class Piece:
                                 res.append(pos)
                             else:
                                 break
+                if castling and move.kind == "c":
+                    pos = self.player.pos_from_move(self.pos, move)
+                    overmove = Move(move.steps[0])
+                    overpos = self.player.pos_from_move(self.pos, overmove)
+                    if (
+                        pos in self.hex.board
+                        and not self.hex.board[self.pos].piece.used
+                    ):
+                        if not self.hex.board[overpos].has_piece:
+                            if not self.hex.board[pos].has_piece:
+                                inchess, _, _ = self.hex.board.pos_in_chess(
+                                    self.player, overpos
+                                )
+                                if not inchess:
+                                    if move.steps[0] == "SL":
+                                        rpos = self.player.pos_from_move(pos, overmove)
+                                        if rpos in self.hex.board:
+                                            if self.hex.board[rpos].has_piece:
+                                                rp = self.hex.board[rpos].piece
+                                                if isinstance(rp, Rook) and not rp.used:
+                                                    res.append(pos)
+                                    else:
+                                        fpos = self.player.pos_from_move(pos, overmove)
+                                        if fpos in self.hex.board:
+                                            if not self.hex.board[fpos].has_piece:
+                                                rpos = self.player.pos_from_move(
+                                                    fpos, overmove
+                                                )
+                                                if rpos in self.hex.board:
+                                                    if self.hex.board[rpos].has_piece:
+                                                        rp = self.hex.board[rpos].piece
+                                                        if (
+                                                            isinstance(rp, Rook)
+                                                            and not rp.used
+                                                        ):
+                                                            res.append(pos)
             return res
 
 
 class Pawn(Piece):
     def __init__(self, player, **kwargs):
         super().__init__("♟", "P", player, **kwargs)
+        self.value = 1
         self.special_attack = True
 
     @property
@@ -179,6 +217,7 @@ class Pawn(Piece):
 class Knight(Piece):
     def __init__(self, player, **kwargs):
         super().__init__("♞", "N", player, **kwargs)
+        self.value = 3
 
     @property
     def _moves(self) -> list[Move]:
@@ -201,6 +240,7 @@ class Knight(Piece):
 class Bishop(Piece):
     def __init__(self, player, **kwargs):
         super().__init__("♝", "B", player, **kwargs)
+        self.value = 3
 
     @property
     def _moves(self) -> list[Move]:
@@ -217,6 +257,7 @@ class Bishop(Piece):
 class Rook(Piece):
     def __init__(self, player, **kwargs):
         super().__init__("♜", "R", player, **kwargs)
+        self.value = 5
 
     @property
     def _moves(self) -> list[Move]:
@@ -233,6 +274,7 @@ class Rook(Piece):
 class Queen(Piece):
     def __init__(self, player, **kwargs):
         super().__init__("♛", "Q", player, **kwargs)
+        self.value = 9
 
     @property
     def _moves(self) -> list[Move]:
@@ -271,4 +313,6 @@ class King(Piece):
             Move("DLr"),
             Move("DFr"),
             Move("DRr"),
+            Move("SL", "SL", kind="c"),
+            Move("SLr", "SLr", kind="c"),
         ]
