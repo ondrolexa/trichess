@@ -326,25 +326,25 @@ function drawPieces(pieces) {
 }
 
 function updateStats(eliminated, value, move_number) {
-  p0name.text(`${seat[0]} (${value[((0 + view_pid) % 3).toString()]})`);
+  p0name.text(`${seat[0]} (${value[(0 + view_pid) % 3]})`);
   let pp0 = [];
-  el = eliminated[((0 + view_pid) % 3).toString()];
+  el = eliminated[(0 + view_pid) % 3];
   for (let pcs in el) {
     pp0.push(pieces_symbols[el[pcs]]);
   }
   p0el.text(pp0.join(" "));
 
-  p1name.text(`${seat[1]} (${value[((1 + view_pid) % 3).toString()]})`);
+  p1name.text(`${seat[1]} (${value[(1 + view_pid) % 3]})`);
   let pp1 = [];
-  el = eliminated[((1 + view_pid) % 3).toString()];
+  el = eliminated[(1 + view_pid) % 3];
   for (let pcs in el) {
     pp1.push(pieces_symbols[el[pcs]]);
   }
   p1el.text(pp1.join(" "));
 
-  p2name.text(`${seat[2]} (${value[((2 + view_pid) % 3).toString()]})`);
+  p2name.text(`${seat[2]} (${value[(2 + view_pid) % 3]})`);
   let pp2 = [];
-  el = eliminated[((2 + view_pid) % 3).toString()];
+  el = eliminated[(2 + view_pid) % 3];
   for (let pcs in el) {
     pp2.push(pieces_symbols[el[pcs]]);
   }

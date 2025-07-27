@@ -118,6 +118,13 @@ document.getElementById('copyToClipboard2').addEventListener('click', function()
   document.execCommand('copy');
 });
 
+var input = document.getElementById("password");
+input.addEventListener("keypress", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    getToken();
+  }
+});
 
 function getToken() {
   const at = document.getElementById("access-token");

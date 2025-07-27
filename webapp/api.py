@@ -175,27 +175,27 @@ game_piece = api.model(
 game_pieces = api.model(
     "Game players pieces",
     {
-        "0": fields.List(fields.Nested(game_piece)),
-        "1": fields.List(fields.Nested(game_piece)),
-        "2": fields.List(fields.Nested(game_piece)),
+        0: fields.List(fields.Nested(game_piece)),
+        1: fields.List(fields.Nested(game_piece)),
+        2: fields.List(fields.Nested(game_piece)),
     },
 )
 
 game_eliminated = api.model(
     "Game players eliminated pieces",
     {
-        "0": fields.List(fields.String),
-        "1": fields.List(fields.String),
-        "2": fields.List(fields.String),
+        0: fields.List(fields.String),
+        1: fields.List(fields.String),
+        2: fields.List(fields.String),
     },
 )
 
 game_eliminated_value = api.model(
     "Game players eliminated pieces total value",
     {
-        "0": fields.Integer,
-        "1": fields.Integer,
-        "2": fields.Integer,
+        0: fields.Integer,
+        1: fields.Integer,
+        2: fields.Integer,
     },
 )
 
