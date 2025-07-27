@@ -1,7 +1,7 @@
 import os
+from zoneinfo import ZoneInfo
 
 import yaml
-from dateutil import tz
 from flask import abort, flash, g, jsonify, redirect, render_template, request, url_for
 from flask_jwt_extended import (
     create_access_token,
@@ -17,16 +17,12 @@ from webapp.forms import LoginForm, NewGameForm, ProfileForm, RegistrationForm
 from webapp.main import app, db, lm
 from webapp.models import TriBoard, User
 
-from_zone = tz.tzutc()
-to_zone = tz.tzlocal()
-
 
 @app.template_filter("strftime")
-def _jinja2_filter_datetime(date, fmt=None):
-    utc = date.replace(tzinfo=from_zone)
-    native = utc.astimezone(to_zone)
-    format = "%b %d, %Y %H:%M:%S"
-    return native.strftime(format)
+def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
+    utc = date.replace(tzinfo=ZoneInfo("UTC"))
+    native = utc.astimezone(ZoneInfo("Europe/Prague"))
+    return native.strftime(fmt)
 
 
 @app.route("/", methods=["GET", "POST"])
