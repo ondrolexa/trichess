@@ -202,7 +202,7 @@ def playlx(id):
 def profile():
     form = ProfileForm(email=g.user.email, theme=g.user.theme)
     if form.validate_on_submit():
-        if form.password.data:
+        if len(form.password.data) > 0:
             g.user.password = generate_password_hash(form.password.data)
         g.user.email = form.email.data
         g.user.theme = form.theme.data
