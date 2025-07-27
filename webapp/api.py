@@ -380,6 +380,13 @@ class GameBoard(Resource):
                         tb.slog = state.slog
                         if not ga2.move_possible():
                             tb.status = 2
+                            in_chess, gid, who = ga2.in_chess
+                            if in_chess:
+                                tot = [len(p) for p in who.values()]
+                                score = [v * 2 / sum(tot) for v in tot]
+                                tb.player_0.score = tb.player_0.score + score[0]
+                                tb.player_1.score = tb.player_1.score + score[1]
+                                tb.player_2.score = tb.player_2.score + score[2]
                         db.session.commit()
                     else:
                         managerapi.abort(

@@ -209,7 +209,9 @@ def profile():
         db.session.commit()
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active"))
-    return render_template("profile.html", form=form, username=g.user.username)
+    return render_template(
+        "profile.html", form=form, username=g.user.username, score=g.user.score
+    )
 
 
 # === Admin section ===
@@ -226,6 +228,7 @@ def register():
                 username=form.username.data,
                 password=hashed_password,
                 theme="default",
+                score=0.0,
             )
             db.session.add(new_user)
             db.session.commit()
