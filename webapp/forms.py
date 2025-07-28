@@ -3,6 +3,7 @@ import os
 from flask_wtf import FlaskForm
 from wtforms import (
     EmailField,
+    HiddenField,
     PasswordField,
     SelectField,
     StringField,
@@ -39,11 +40,6 @@ class LoginForm(FlaskForm):
 
 
 class ProfileForm(FlaskForm):
-    password = PasswordField(
-        "Password",
-        validators=[Optional(), Length(min=6, max=20)],
-        render_kw={"placeholder": "Leave blank for current"},
-    )
     email = EmailField(validators=[Optional(), Email()])
     themes_dir = os.path.join(
         os.path.abspath(os.path.dirname(__file__)), "static/themes"
@@ -54,8 +50,21 @@ class ProfileForm(FlaskForm):
         if os.path.splitext(f)[1] == ".yaml"
     ]
     theme = SelectField(
-        "Select theme",
+        "Theme",
         validators=[DataRequired()],
         choices=theme_files,
     )
     submit = SubmitField("Save")
+
+
+class PasswordForm(FlaskForm):
+    username = StringField("Username", render_kw={"disabled": True})
+    password = PasswordField(
+        "Old password",
+        validators=[DataRequired(), Length(min=6, max=20)],
+    )
+    password_new = PasswordField(
+        "New password",
+        validators=[DataRequired(), Length(min=6, max=20)],
+    )
+    submit = SubmitField("Change password")

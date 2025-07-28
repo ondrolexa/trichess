@@ -13,7 +13,13 @@ from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from webapp.api import blueprint as api
-from webapp.forms import LoginForm, NewGameForm, ProfileForm, RegistrationForm
+from webapp.forms import (
+    LoginForm,
+    NewGameForm,
+    PasswordForm,
+    ProfileForm,
+    RegistrationForm,
+)
 from webapp.main import app, db, lm
 from webapp.models import TriBoard, User
 
@@ -200,17 +206,42 @@ def playlx(id):
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
-    form = ProfileForm(email=g.user.email, theme=g.user.theme)
-    if form.validate_on_submit():
-        if len(form.password.data) > 0:
-            g.user.password = generate_password_hash(form.password.data)
-        g.user.email = form.email.data
-        g.user.theme = form.theme.data
+    form_profile = ProfileForm(email=g.user.email, theme=g.user.theme)
+    form_password = PasswordForm(username=g.user.username)
+    if form_profile.validate_on_submit():
+        g.user.email = form_profile.email.data
+        g.user.theme = form_profile.theme.data
         db.session.commit()
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active"))
     return render_template(
-        "profile.html", form=form, username=g.user.username, score=g.user.score
+        "profile.html",
+        form_profile=form_profile,
+        form_password=form_password,
+        username=g.user.username,
+        score=g.user.score,
+    )
+
+
+@app.route("/profile_password", methods=["GET", "POST"])
+@login_required
+def password():
+    form_profile = ProfileForm(email=g.user.email, theme=g.user.theme)
+    form_password = PasswordForm(username=g.user.username)
+    if form_password.validate_on_submit():
+        print("B")
+        if check_password_hash(g.user.password, form_password.password.data):
+            # user = User.query.filter_by(username=g.user.username).first()
+            g.user.password = generate_password_hash(form_password.password_new.data)
+            db.session.commit()
+            flash("Password changed successfuly!", "success")
+        return redirect(url_for("active"))
+    return render_template(
+        "profile.html",
+        form_profile=form_profile,
+        form_password=form_password,
+        username=g.user.username,
+        score=g.user.score,
     )
 
 
