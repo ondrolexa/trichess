@@ -14,9 +14,6 @@
         <button id="b_fw" class="button"  onclick="Click_Forward()">></button>
         <button id="b_rf" class="button"  onclick="Click_Refresh()">R</button>
         <button id="b_ok" class="button"  onclick="Click_OK()">OK</button>
-        <div class="divmess">
-            <span id="message"> Message: </span>
-        </div>
     </div>
 
 <!-- The Modal -->
@@ -27,11 +24,7 @@
     <p>GAME OVER!!!</p>
   </div>
 </div>
-
-
 </div>
-
-
 
 {%endblock%}
 
@@ -40,8 +33,7 @@
 var TOKEN = "Bearer {{ access_token }}";
 var ID = {{ id }};
 var VIEW_PID = "{{ view_pid }}";
-//const theme = JSON.parse('{{ theme }}');
-const theme = JSON.parse('{"board": {"attack_move": "red", "background": "#ffffff", "font-family": "Arial", "game_over": "black", "last_move": "black", "name_color": "black", "name_color_inchess": "red", "name_color_onmove": "green", "valid_move": "green"}, "hex": {"color": ["#a8baf0", "#f0b6a8", "#d1f0a8"]}, "pieces": {"color": ["#000599", "#b33900", "#1d6600"], "font-family": "Verdana", "stroke-color": "white"}}');
+const theme = JSON.parse('{{ theme|tojson }}');
 </script>
 </script>
 <script type="text/javascript" src="{{ url_for('static', filename='board.js') }}"></script>

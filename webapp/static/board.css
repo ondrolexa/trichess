@@ -32,17 +32,6 @@
     flex-wrap: wrap;
     justify-content: center;
 }
-.divmess {
-    background-color: #910000;
-    width: 10%;
-    font-size: 9px;
-    display: flex;
-    flex-wrap: wrap;
-    min-width: 50px;
-    max-width: 1600px;
-    justify-content: left;
-    margin: 0px 20px;
-}
 .modal {
     display: none; /* Hidden by default */
     left: 22%;

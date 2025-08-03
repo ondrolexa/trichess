@@ -170,11 +170,20 @@ def play(id):
             tb.player_2.username: 2,
         }
         view_pid = pid[g.user.username]
+
+        theme_file = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            f"static/themes/{g.user.theme}.yaml",
+        )
+        with open(theme_file) as f:
+            theme = yaml.safe_load(f)
+
         return render_template(
             "play.html",
             id=id,
             view_pid=view_pid,
             access_token=access_token,
+            theme=theme,
         )
     else:
         flash("You have no access to this game", "error")

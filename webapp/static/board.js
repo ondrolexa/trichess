@@ -1,139 +1,3 @@
-//var mydata = JSON.parse(elems);
-//a = data
-const Control_panel = {
-  "elems": [
-    {
-      "id": "0_message",
-      "text": "",
-          "font": "35px Arial",
-      "stroke_flag": false,
-      "show_flag": true,
-      "pos": {
-        "x": 20,
-        "y": 675,
-        "rotate": 0,
-        "align": "left"
-      }
-    },
-    {
-      "id": "0_player",
-      "text": "Player_0",
-      "font": "35px Verdana",
-      "stroke_flag": false,
-      "show_flag": true,
-      "pos": {
-        "x": 1100,
-        "y": 675,
-        "rotate": 0,
-        "align": "right"
-      }
-    },
-    {
-      "id": "1_player",
-      "text": "Player_1",
-      "font": "35px Verdana",
-      "stroke_flag": false,
-      "show_flag": true,
-      "pos": {
-        "x": 10,
-        "y": 47,
-        "rotate": 0,
-        "align": "left"
-      }
-    },
-    {
-      "id": "2_player",
-      "text": "Player_2",
-      "font": "35px Verdana",
-      "stroke_flag": false,
-      "show_flag": true,
-      "pos": {
-        "x": 1090,
-        "y": 47,
-        "rotate": 0,
-        "align": "right"
-      }
-    },
-    {
-      "id": "0_eliminate",
-      "text": "eliminate_0",
-      "font": "38px Arial",
-      "stroke_flag": true,
-      "show_flag": true,
-      "pos": {
-        "x": 1100,
-        "y": 550,
-        "rotate": 0,
-        "align": "right",
-      }
-    },
-    {
-      "id": "1_eliminate",
-      "text": "eliminate_1",
-      "font": "38px Arial",
-      "stroke_flag": true,
-      "show_flag": true,
-      "pos": {
-        "x": 5,
-        "y": 100,
-        "rotate": 0,
-        "align": "left"
-      }
-    },
-    {
-      "id": "2_eliminate",
-      "text": "eliminate_2",
-      "font": "38px Arial",
-      "stroke_flag": true,
-      "show_flag": true,
-      "pos": {
-        "x": 1100,
-        "y": 100,
-        "rotate": 0,
-        "align": "right"
-      }
-    },
-    {
-      "id": "1_message",
-      "text": " Select piece: ",
-      "font": "30px Arial",
-      "stroke_flag": false,
-      "show_flag": false,
-      "pos": {
-        "x": 550,
-        "y": 350,
-        "rotate": 0,
-        "align": "center"
-      }
-    },
-    {
-      "id": "promotion",
-      "text": " ♛  ♜  ♝  ♞ ",
-      "font": "38px Arial",
-      "stroke_flag": true,
-      "show_flag": false,
-      "pos": {
-        "x": 550,
-        "y": 403,
-        "rotate": 0,
-        "align": "center"
-      }
-    },
-    {
-      "id": "theend",
-      "text": " GAME OVER !!! ",
-      "font": "80px Arial",
-      "stroke_flag": true,
-      "show_flag": false,
-      "pos": {
-        "x": 550,
-        "y": 350,
-        "rotate": 0,
-        "align": "center"
-      }
-    }
-  ]
-}
 const canvas = document.getElementById('canvas');
 canvas.addEventListener('mouseclick', Click_Board);
 const ctx = canvas.getContext('2d');
@@ -154,7 +18,7 @@ let SemaforGreen = true
 
 // tools
 function debug(itext) {
-        span = document.getElementById("message").innerHTML = "Debug:"+itext;
+        window.alert("Debug:"+itext);
 }
 function ColorLuminance(hex, ilum) {
 	// validate hex string
@@ -180,7 +44,6 @@ function fetchData() {
 fetchData.prototype.fetchPOST = function(iurl, ijson , icallback) {
     const jsonData = JSON.stringify(ijson)
     const z = this.headers
-    debug('connect:'+iurl);
     fetch(iurl, {
     method: "POST",
     headers: this.headers,
@@ -200,9 +63,8 @@ fetchData.prototype.fetchPOST = function(iurl, ijson , icallback) {
     })
     .then(data => {
                     icallback(data);
-                    debug('end:'+iurl);
     })
-    .catch(error => { window.alert('Error:'+error+' url:'+iurl)
+    .catch(error => { debug('Error:'+error+' url:'+iurl)
     })
 };
 fetchData.prototype.fetchGET = function(iurl,  icallback) {
@@ -223,13 +85,12 @@ fetchData.prototype.fetchGET = function(iurl,  icallback) {
   .catch(error => { debug('Error:'+error+' url:'+iurl);
   })
 };
-
-// rotateArray ///////////////////////////////////////////////////
 function rotateArray(arr, rotateBy) {
     const n = arr.length;
     rotateBy %= n;
     return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
 }
+
 // llines ///////////////////////////////////////////////////
 class llines {
   constructor( itext, ipos_x, ipos_y, ialign, ilength, ifont, icolor, istrokeLine, istrokeColor ) {
@@ -594,133 +455,6 @@ board.prototype.moveMake = async function(inew_piece = "") {
     }
     F.fetchPOST(url+'/api/v1/move/make', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new, "new_piece": inew_piece}, Step_make_move);
 }
-//element/////////////////////////////////////////
-function elem(init) {
-
-    this.e = init;
-}
-elem.prototype.clear  = function () {
-            let high = Number(this.e.font.substring(0,2))
-            let width = 6*high;
-            ctx.fillStyle = text_color
-            ctx.fillRect(this.e.pos.x,this.e.pos.y, 2,2);//todo
-
-            if (this.e.pos.align == "left"){
-                ctx.clearRect(this.e.pos.x-4,this.e.pos.y+4, width, -high);//todo
-                if (this.e.id.substring(2,6) == 'elim' || this.e.id.substring(0,4) == 'prom') {
-                    ctx.clearRect(this.e.pos.x-2,this.e.pos.y-high, 255, high*3+2);//todo
-                }
-            }
-            if (this.e.pos.align == "right"){
-                ctx.clearRect(this.e.pos.x+3,this.e.pos.y+4, -width, -high);//todo
-                if (this.e.id.substring(2,6) == 'elim' || this.e.id.substring(0,4) == 'prom') {
-                    ctx.clearRect(this.e.pos.x,this.e.pos.y-high, -255, high*3+2);//todo
-                }
-            }
-            if (this.e.pos.align == "center"){
-                let width = this.e.text.length*Number(this.e.font.substring(0,2))/2
-                ctx.clearRect(this.e.pos.x-width/2 ,this.e.pos.y-high-10, width, high+30);//todo
-            }
-}
-elem.prototype.draw2  = function () {
-    if (this.e.show_flag) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.font = this.e.font;
-        ctx.textAlign = this.e.pos.align;
-        ctx.miterLimit = 2;
-        ctx.lineWidth = 2;
-        ctx.lineJoin = 'circle';
-        if (this.e.id.substring(2,6) == 'play' || this.e.id.substring(2,6) == 'mess') {
-            this.clear();
-            ctx.fillStyle = text_color
-            if (this.e.stroke_flag) {
-                ctx.lineWidth = 8
-                ctx.strokeStyle = 'lightgreen';
-                ctx.strokeText(this.e.text,this.e.pos.x, this.e.pos.y);
-            }
-            ctx.fillText(this.e.text,this.e.pos.x,this.e.pos.y);
-        }
-        if (this.e.id.substring(2,6) == 'elim') {
-            this.clear();
-            let limit = 6 // number of eliminated pieces in one row
-            let player_id = Number(this.e.id.substring(0, 1))
-            let high = Number(this.e.font.substring(0,2))
-            ctx.fillStyle = piece_color[(player_id+B.view_player+2)%3];
-            let line = []
-            line[0] = this.e.text.substring(0,6)
-            line[1] = this.e.text.substring(6,12)
-            line[2] = this.e.text.substring(12,19)
-            for (let i in line) {
-                ctx.strokeText(line[i],this.e.pos.x,this.e.pos.y+i*high);
-                ctx.fillText(line[i],this.e.pos.x,this.e.pos.y+i*high);
-            }
-        }
-        if (this.e.id.substring(0,4) == 'prom') {
-            this.clear();
-            ctx.fillStyle = piece_color[(CP.player_onmove+2)%3];
-            ctx.strokeText(this.e.text,this.e.pos.x,this.e.pos.y)
-            ctx.fillText( this.e.text,this.e.pos.x,this.e.pos.y)
-        }
-        if (this.e.id.substring(0,4) == 'thee') {
-            this.clear();
-            ctx.fillStyle = piece_color[(CP.player_onmove+2)%3];
-            ctx.strokeText(this.e.text,this.e.pos.x,this.e.pos.y)
-            ctx.fillText( this.e.text,this.e.pos.x,this.e.pos.y)
-            CP.elems[9].e.show_flag = false;
-        }
-        ctx.restore()
-        }
-}
-elem.prototype.settext  = function (itext) {
-    let limit = 4
-    this.e.show_flag = true
-    this.e.text = itext
-};
-//elementS/////////////////////////////////////////
-function elems(control_panel) {
-    this.ID = 0
-    this.player_onmove = 0
-    this.elems  = [];
-    for (let i in control_panel.elems) {
-        this.elems[i] = new elem(control_panel.elems[i]);
-    }
-};
-elems.prototype.text= function (itext) {
-    this.elems[0].e.text = itext;
-    this.elems[0].e.show_flag = true;
-};
-elems.prototype.onmove= function (i) {
-    //this.player_onmove = i
-    for (let j = 1; j < 4; j++) {
-        this.elems[j].e.show_flag = true;
-        this.elems[j].e.stroke_flag = false;
-    }
-    this.elems[i+1].e.stroke_flag = true;
-
-    for (let j = 1; j < 4; j++) {
-        this.elems[j].draw2();
-    }
-};
-elems.prototype.draw = function() {
-    for (let i in this.elems) {
-        this.elems[i].draw2();            }
-};
-elems.prototype.getpromo  = function (ix,iy) {
-    const possx = [466, 512, 577, 633]
-    const possy = [391, 391, 391, 391]
-    const piece = ["Q", "R", "B", "N"]
-    let d = 0;
-    let d_min = 35;
-    for (let i = 0; i < 4; i++) {
-        d = Math.sqrt(Math.pow((ix-possx[i]),2) + Math.pow((iy-possy[i]),2))
-        if (d<d_min) {
-            return piece[i]
-            }
-        }
-    return ""
-}
-
 //----------------------------------------------------
 function elim2array(idata) {
     let s = ''
@@ -761,7 +495,6 @@ function Step_1_settoken(idata) {
 }
 function Step_2_setplayers(idata) {
     II.players = [idata.player_0, idata.player_1, idata.player_2]
-    CP.ID = idata.id
     B.view_player = (idata.view_pid)%3
     B.slog = idata.slog
     F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
@@ -908,22 +641,18 @@ function Click_Board(event) {
     }
 };
 // Main ////////////////////////////////////////////////////////////////////////////////
-let B = new board()
-let F = new fetchData()
-let CP = new elems(Control_panel)
-let b_ok = new butt('b_ok', "lightgreen" )
-let b_rf = new butt('b_rf', button_color )
-let b_fw = new butt('b_fw', button_color )
-let b_bw = new butt('b_bw', button_color )
+var B = new board()
+var F = new fetchData()
+var b_ok = new butt('b_ok', "lightgreen" )
+var b_rf = new butt('b_rf', button_color )
+var b_fw = new butt('b_fw', button_color )
+var b_bw = new butt('b_bw', button_color )
 var II = new iinfos()
 var SS = new ssel()
-
 
 B.init();
 B.draw();
 II.write()
-
-
 
 Step_1_settoken()
 

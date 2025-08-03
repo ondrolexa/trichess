@@ -1,9 +1,14 @@
-board:
+window:
+  text: "#ffffff"
+  text_highlight: "lightgreen"
   background: "#ffffff"
-  font-family: "Verdana"
-  name_color: "black"
+  font: "Arial"
+board:
+  #background: "#ffffff"
+  #font-family: "Arial"
+  name_color: "black"         
   name_color_inchess: "red"
-  name_color_onmove: "green"
+  name_color_onmove: "lightgreen"
   last_move: "white"
   valid_move: "lightgreen"
   attack_move: "orangered"
