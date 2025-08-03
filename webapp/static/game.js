@@ -71,14 +71,15 @@ stage.on("wheel", function (e) {
 });
 
 var movelabel = new Konva.Text({
-  x: -11.5,
-  y: 6,
+  x: -9,
+  y: 4,
   text: "",
   fontFamily: theme["canvas"]["font-family"],
   fontSize: 0.6,
-  align: "right",
-  width: 6,
   fill: theme["canvas"]["info"],
+  align: "center",
+  offsetX: 1.25,
+  width: 5,
   listening: false,
 });
 var p0name = new Konva.Text({
@@ -105,13 +106,14 @@ var p0el = new Konva.Text({
   listening: false,
 });
 var p1name = new Konva.Text({
-  x: -10.5,
+  x: -9,
   y: -7.25,
   text: "",
   fontFamily: theme["canvas"]["font-family"],
   fontSize: 0.6,
-  align: "right",
-  width: 6,
+  align: "center",
+  offsetX: 1.25,
+  width: 5,
   listening: false,
 });
 var p1el = new Konva.Text({
@@ -125,16 +127,18 @@ var p1el = new Konva.Text({
   fillAfterStrokeEnabled: true,
   width: 2.5,
   align: "center",
+  wrap: "char",
   listening: false,
 });
 var p2name = new Konva.Text({
-  x: 4.5,
+  x: 6.5,
   y: -7.25,
   text: "",
   fontFamily: theme["canvas"]["font-family"],
   fontSize: 0.6,
-  align: "left",
-  width: 6,
+  align: "center",
+  offsetX: 1.25,
+  width: 5,
   listening: false,
 });
 var p2el = new Konva.Text({
@@ -148,6 +152,7 @@ var p2el = new Konva.Text({
   fillAfterStrokeEnabled: true,
   width: 2.5,
   align: "center",
+  wrap: "char",
   listening: false,
 });
 
@@ -221,7 +226,7 @@ function createHexHigh(xy) {
 function createHexLabel(gid, xy, color, text) {
   let label = new Konva.Text({
     id: gid,
-    x: xy[0] - 0.36,
+    x: xy[0] - 0.33,
     y: xy[1] - 0.45,
     fontFamily: theme["pieces"]["font-family"],
     fontSize: 0.8,
@@ -353,7 +358,9 @@ function updateStats(eliminated, value, move_number) {
   }
   p2el.text(pp2.join(""));
   slogtext.innerHTML = slog;
-  movelabel.text(`#${id}:${move_number}/${game_slog.length / 4}`);
+  movelabel.text(
+    `Game ID: ${id}\nMove: ${move_number}/${game_slog.length / 4}`,
+  );
 }
 
 function validMoves(gid) {
