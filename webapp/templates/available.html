@@ -21,11 +21,11 @@
         <tr>
         <th scope="row">{{game.id}}<input type="hidden" id="board" name="board" value="{{game.id}}"/></th>
         <td>{% if game.player_0 is none and not_in %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="0">Join</button>
-{% else %}{{game.player_0.username}}{% endif %}</td>
+{% else %}{{game.player_0.username}} ({{ '%.2g' % game.player_0.score|float }}){% endif %}</td>
         <td>{% if game.player_1 is none and not_in %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="1">Join</button>
-{% else %}{{game.player_1.username}}{% endif %}</td>
+{% else %}{{game.player_1.username}} ({{ '%.2g' % game.player_1.score|float }}){% endif %}</td>
         <td>{% if game.player_2 is none and not_in %}<button type="submit" class="btn btn-success btn-sm" name="seat" value="2">Join</button>
-{% else %}{{game.player_2.username}}{% endif %}</td>
+{% else %}{{game.player_2.username}} ({{ '%.2g' % game.player_2.score|float }}){% endif %}</td>
         <td>{{game.created_at|strftime}}</td>
         <td>{% if game.owner_id == player_id %}<button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button>{% endif %}</td>
         </tr>

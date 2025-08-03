@@ -39,19 +39,19 @@
         {% endif %}
         <th scope="row">{{game.id}}</th>
         {% if onmove == 0 %}
-        <td><strong class="text-success">{{game.player_0.username}}</strong></td>
+        <td><strong class="text-success">{{game.player_0.username}} ({{ '%.2g' % game.player_0.score|float }})</strong></td>
         {% else %}
-        <td><span>{{game.player_0.username}}</span></td>
+        <td><span>{{game.player_0.username}} ({{ '%.2g' % game.player_0.score|float }})</span></td>
         {% endif %}
         {% if onmove == 1 %}
-        <td><strong class="text-success">{{game.player_1.username}}</strong></td>
+        <td><strong class="text-success">{{game.player_1.username}} ({{ '%.2g' % game.player_1.score|float }})</strong></td>
         {% else %}
-        <td><span>{{game.player_1.username}}</span></td>
+        <td><span>{{game.player_1.username}} ({{ '%.2g' % game.player_1.score|float }})</span></td>
         {% endif %}
         {% if onmove == 2 %}
-        <td><strong class="text-success">{{game.player_2.username}}</strong></td>
+        <td><strong class="text-success">{{game.player_2.username}} ({{ '%.2g' % game.player_2.score|float }})</strong></td>
         {% else %}
-        <td><span>{{game.player_2.username}}</span></td>
+        <td><span>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score|float }})</span></td>
         {% endif %}
         <td>
             <a class="btn btn-warning btn-sm mt-0" href="{{ url_for('play', id=game.id) }}" role="button">Play</a>

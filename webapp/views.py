@@ -2,7 +2,9 @@ import os
 from zoneinfo import ZoneInfo
 
 import yaml
-from flask import abort, flash, g, jsonify, redirect, render_template, request, url_for
+from flask import abort, flash, g, jsonify, redirect
+from flask import render_template as real_render_template
+from flask import request, url_for
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -29,6 +31,11 @@ def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
     utc = date.replace(tzinfo=ZoneInfo("UTC"))
     native = utc.astimezone(ZoneInfo("Europe/Prague"))
     return native.strftime(fmt)
+
+
+def render_template(*args, **kwargs):
+    navailable = TriBoard.query.filter_by(status=0).count()
+    return real_render_template(*args, **kwargs, navailable=navailable)
 
 
 @app.route("/", methods=["GET", "POST"])
