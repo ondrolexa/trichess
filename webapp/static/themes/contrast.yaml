@@ -6,7 +6,7 @@ window:
 board:
   #background: "#ffffff"
   #font-family: "Arial"
-  name_color: "black"         
+  name_color: "black"
   name_color_inchess: "red"
   name_color_onmove: "lightgreen"
   last_move: "white"
