@@ -1,23 +1,21 @@
 canvas:
-  text: "#000000"
-  text_highlight: "lightgreen"
-  background: "#ffffff"
-  font-family: "Arial"
-
-board:
+  info: "#000000"
   name: "black"
   name_inchess: "red"
   name_onmove: "lightgreen"
+  background: "#ffffff"
+  font-family: "Arial"
+  game_over: "gold"
+
+board:
   last_move: "white"
   valid_move: "lightgreen"
   attack_move: "orangered"
-  game_over: "gold"
-
-hex:
-  color:
+  hex_color:
     - "#cc0000"
     - "#000000"
     - "#737373"
+  hex_inchess: "red"
 
 pieces:
   font-family: "Verdana"

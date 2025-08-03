@@ -31,7 +31,7 @@
 {% block scripts %}
 <script type="text/javascript">
 var TOKEN = "Bearer {{ access_token }}";
-var ID = {{ id }};
+var ID = parseInt("{{ id }}");
 var VIEW_PID = "{{ view_pid }}";
 const theme = JSON.parse('{{ theme|tojson }}');
 </script>

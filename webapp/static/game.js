@@ -46,7 +46,7 @@ const background = new Konva.Rect({
     x: -stage.offsetX(),
     y: -stage.offsetY(),
   },
-  fill: theme["board"]["background"],
+  fill: theme["canvas"]["background"],
   listening: false,
 });
 
@@ -74,7 +74,7 @@ var movelabel = new Konva.Text({
   x: -11.5,
   y: 6,
   text: "",
-  fontFamily: theme["board"]["font-family"],
+  fontFamily: theme["canvas"]["font-family"],
   fontSize: 0.6,
   align: "right",
   width: 6,
@@ -84,7 +84,7 @@ var p0name = new Konva.Text({
   x: -3,
   y: 7,
   text: "",
-  fontFamily: theme["board"]["font-family"],
+  fontFamily: theme["canvas"]["font-family"],
   fontSize: 0.6,
   align: "center",
   width: 6,
@@ -107,7 +107,7 @@ var p1name = new Konva.Text({
   x: -10.5,
   y: -7.25,
   text: "",
-  fontFamily: theme["board"]["font-family"],
+  fontFamily: theme["canvas"]["font-family"],
   fontSize: 0.6,
   align: "right",
   width: 6,
@@ -130,7 +130,7 @@ var p2name = new Konva.Text({
   x: 4.5,
   y: -7.25,
   text: "",
-  fontFamily: theme["board"]["font-family"],
+  fontFamily: theme["canvas"]["font-family"],
   fontSize: 0.6,
   align: "left",
   width: 6,
@@ -154,8 +154,8 @@ var gameover = new Konva.Text({
   x: -7.75,
   y: -2,
   text: "GAME OVER",
-  fontFamily: theme["board"]["font-family"],
-  fill: theme["board"]["game_over"],
+  fontFamily: theme["canvas"]["font-family"],
+  fill: theme["canvas"]["game_over"],
   fontSize: 2.5,
   fontStyle: "bold",
   opacity: 0.95,
@@ -468,31 +468,31 @@ function gameInfo(init = false, redraw = false) {
       }
 
       p0name.fontStyle("normal");
-      p0name.fill(theme["board"]["name_color"]);
+      p0name.fill(theme["canvas"]["name"]);
       p1name.fontStyle("normal");
-      p1name.fill(theme["board"]["name_color"]);
+      p1name.fill(theme["canvas"]["name"]);
       p2name.fontStyle("normal");
-      p2name.fill(theme["board"]["name_color"]);
+      p2name.fill(theme["canvas"]["name"]);
       if ((data.onmove + 3 - view_pid) % 3 == 0) {
         p0name.fontStyle("bold");
         if (data.in_chess) {
-          p0name.fill(theme["board"]["name_color_inchess"]);
+          p0name.fill(theme["canvas"]["name_inchess"]);
         } else {
-          p0name.fill(theme["board"]["name_color_onmove"]);
+          p0name.fill(theme["canvas"]["name_onmove"]);
         }
       } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
         p1name.fontStyle("bold");
         if (data.in_chess) {
-          p1name.fill(theme["board"]["name_color_inchess"]);
+          p1name.fill(theme["canvas"]["name_inchess"]);
         } else {
-          p1name.fill(theme["board"]["name_color_onmove"]);
+          p1name.fill(theme["canvas"]["name_onmove"]);
         }
       } else {
         p2name.fontStyle("bold");
         if (data.in_chess) {
-          p2name.fill(theme["board"]["name_color_inchess"]);
+          p2name.fill(theme["canvas"]["name_inchess"]);
         } else {
-          p2name.fill(theme["board"]["name_color_onmove"]);
+          p2name.fill(theme["canvas"]["name_onmove"]);
         }
       }
       if (data.in_chess) {
@@ -602,7 +602,7 @@ function boardInfo() {
             gid2hex[gid] = createHexPatch(
               gid,
               [x, y],
-              theme["hex"]["color"][colorid],
+              theme["board"]["hex_color"][colorid],
             );
             gid2high[gid] = createHexHigh([x, y]);
             gid2piece[gid] = createHexLabel(gid, [x, y], "#ffffff", "");
