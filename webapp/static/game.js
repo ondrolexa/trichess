@@ -78,6 +78,7 @@ var movelabel = new Konva.Text({
   fontSize: 0.6,
   align: "right",
   width: 6,
+  fill: theme["canvas"]["info"],
   listening: false,
 });
 var p0name = new Konva.Text({

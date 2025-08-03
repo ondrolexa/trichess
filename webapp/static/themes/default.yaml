@@ -1,5 +1,5 @@
 canvas:
-  info: "#ffffff"
+  info: "#000000"
   name: "black"
   name_inchess: "red"
   name_onmove: "green"
