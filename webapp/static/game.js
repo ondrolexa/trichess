@@ -184,7 +184,7 @@ function fitStageIntoDiv() {
     -stageWidth / 2 - (containerWidth / scale - stageWidth) / 2 - 0.5,
   );
   stage.scale({ x: scale, y: scale });
-  stage.position({ x: -40, y: 0 });
+  stage.position({ x: -20, y: 0 });
   stage.draw();
 }
 

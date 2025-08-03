@@ -157,24 +157,21 @@ class Board:
         thex.piece = piece
         self._board[pos_from].piece = None
         # Check castling
-        if (
-            isinstance(piece, King)
-            and round(abs(pos_from.value - pos_to.value), 5) == 2
-        ):
+        if isinstance(piece, King):
             if pos_from == Pos(-4, 7):
                 if pos_to == Pos(-6, 7):
                     self.move_piece(Pos(-7, 7), Pos(-5, 7), "")
-                else:
+                elif pos_to == Pos(-2, 7):
                     self.move_piece(Pos(0, 7), Pos(-3, 7), "")
             if pos_from == Pos(-3, -4):
                 if pos_to == Pos(-1, -6):
                     self.move_piece(Pos(0, -7), Pos(-2, -5), "")
-                else:
+                elif pos_to == Pos(-5, -2):
                     self.move_piece(Pos(-7, 0), Pos(-4, -3), "")
             if pos_from == Pos(7, -3):
                 if pos_to == Pos(7, -1):
                     self.move_piece(Pos(7, 0), Pos(7, -2), "")
-                else:
+                elif pos_to == Pos(7, -5):
                     self.move_piece(Pos(7, -7), Pos(7, -4), "")
 
     def test_move_piece(self, pos_from, pos_to):
