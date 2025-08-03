@@ -1,9 +1,13 @@
-board:
+canvas:
+  text: "#ffffff"
+  text_highlight: "lightgreen"
   background: "#ffffff"
   font-family: "Arial"
-  name_color: "black"
-  name_color_inchess: "red"
-  name_color_onmove: "green"
+
+board:
+  name: "black"
+  name_inchess: "red"
+  name_onmove: "green"
   last_move: "black"
   valid_move: "green"
   attack_move: "red"

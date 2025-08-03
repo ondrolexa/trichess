@@ -1,14 +1,13 @@
-window:
-  text: "#ffffff"
+canvas:
+  text: "#000000"
   text_highlight: "lightgreen"
   background: "#ffffff"
-  font: "Arial"
+  font-family: "Arial"
+
 board:
-  #background: "#ffffff"
-  #font-family: "Arial"
-  name_color: "black"
-  name_color_inchess: "red"
-  name_color_onmove: "lightgreen"
+  name: "black"
+  name_inchess: "red"
+  name_onmove: "lightgreen"
   last_move: "white"
   valid_move: "lightgreen"
   attack_move: "orangered"
