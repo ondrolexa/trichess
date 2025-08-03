@@ -364,22 +364,22 @@ board.prototype.set = function(idata) {
     }
     // mark last move
     if (jdata.last_move != undefined ) {
-        this.hexs[jdata.last_move.from].setlumi(theme["board"]["last_move"])
-        this.hexs[jdata.last_move.to].setlumi(theme["board"]["last_move"])
+        this.hexs[jdata.last_move.from].setlumi(theme["board"]["last_move"] + theme["board"]["hex_alpha"])
+        this.hexs[jdata.last_move.to].setlumi(theme["board"]["last_move"] + theme["board"]["hex_alpha"])
     }
     // set chess by
     for (let player_id  in jdata.chess_by) {
          for (let j in jdata.chess_by[player_id]) {
              const pcs =jdata.chess_by[player_id][j];
-             this.hexs[pcs.gid].setlumi(theme["board"]["hex_inchess"])
+             this.hexs[pcs.gid].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
         }
     }
     //king_pos
     if (!(jdata.chess_by[0].length == 0 && jdata.chess_by[1].length == 0 && jdata.chess_by[2].length == 0)) {
-        this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"])
+        this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
     }
    if (jdata.king_pos != 0) {
-       //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"])
+       //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
    }
 }
 board.prototype.init  = function () {

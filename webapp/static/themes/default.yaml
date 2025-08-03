@@ -8,14 +8,15 @@ canvas:
   game_over: "black"
 
 board:
-  last_move: "black"
+  last_move: "#000000"
   valid_move: "green"
   attack_move: "red"
   hex_color:
     - "#a8baf0"
     - "#f0b6a8"
     - "#d1f0a8"
-  hex_inchess: "red"
+  hex_inchess: "#ff0000"
+  hex_alpha: "a8"
 
 pieces:
   font-family: "Verdana"
