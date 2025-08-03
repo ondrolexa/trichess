@@ -3,14 +3,12 @@
     border: 1;
     color: black;
     text-align: center;
-    font-size: 16px;
-    margin: 10px 3px;
+    font-size: 14px;
     cursor: pointer;
     border-radius: 8px;
-    vertical-align: 10px;
-    width: 80px;
+    width: 75px;
     height: 40px;
-    min-width: 10px;
+    min-width: 50px;
 }
 .divbutt {
     width: 10%;
@@ -19,13 +17,15 @@
     margin: 7% 0px;
     min-width: 40px;
     max-width: 1200px;
-    justify-content: right;
+    justify-content: center;
 }
 #canvas {
     width: 90%;
     justify-content: left;
     min-width: 200px;
     max-width: 1600px;
+    min-high: 200px;
+    max-high: 1600px;
 }
 .divmain {
     display: flex;
