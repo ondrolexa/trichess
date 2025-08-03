@@ -8,18 +8,18 @@
     cursor: pointer;
     border-radius: 8px;
     vertical-align: 10px;
-    width: 600px;
+    width: 80px;
     height: 40px;
+    min-width: 10px;
 }
 .divbutt {
-    background-color: #919500;
     width: 10%;
     display: flex;
     flex-wrap: wrap;
     margin: 7% 0px;
-    min-width: 50px;
+    min-width: 40px;
     max-width: 1200px;
-    justify-content: left;
+    justify-content: right;
 }
 #canvas {
     width: 90%;

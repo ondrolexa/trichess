@@ -5,37 +5,13 @@ const ctx = canvas.getContext('2d');
 const url = `${window.location.protocol}//${window.location.host}`;
 const r = 30; // radius
 // colors
-const text_color = '#000000'
 const button_color = '#919595';
-const hex_color_gray = '#bcbcbc';
-const hex_color =   ['#cc0000', '#000000', "#737373"];
-const piece_color_red = '#f8c471';
-const piece_color = ['#ffd11a', '#00ffff','#ffffff'];//#d4ac6e #cc000f
-const Color_Lumi = [4,212,16, -0.4]
-const Color_Lumi1 = [18,13,246, -0.4]
 const pcs_map = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
 let SemaforGreen = true
 
 // tools
 function debug(itext) {
         window.alert("Debug:"+itext);
-}
-function ColorLuminance(hex, ilum) {
-	// validate hex string
-	hex = String(hex).replace(/[^0-9a-f]/gi, '');
-	if (hex.length < 6) {
-		hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
-	}
-	//lum = lum || 0;
-	// convert to decimal and change luminosity
-	var rgb = "#", c, i;
-	for (i = 0; i < 3; i++) {
-	    c = parseInt(hex.substr(i*2,2), 16); //rgb
-	    c += ilum[i]
-		c = Math.round(Math.min(Math.max(0, c + (c * ilum[3])), 255)).toString(16);
-		rgb += ("00"+c).substr(c.length);
-	}
-	return rgb;
 }
 // fetchData /////////////////////////////////////////////
 function fetchData() {
@@ -150,8 +126,8 @@ class ssel {
     constructor(){
         this.active = false
         this.line = []
-        this.line[0] = new llines('Select piece:', 550, 350, 'center', 200, "35px "+theme["pieces"]["font-family"] , text_color, 0, "#000000")
-        this.line[1] = new llines(' ♛  ♜  ♝  ♞ ', 550, 400, 'center', 200, "35px "+theme["pieces"]["font-family"] , '#ffffff', 2, "#000000")
+        this.line[0] = new llines('Select piece:', 550, 350, 'center', 200, "35px "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
+        this.line[1] = new llines(' ♛  ♜  ♝  ♞ ', 550, 400, 'center', 200, "38px "+theme["pieces"]["font-family"] , '#ff00ff', 2, theme["pieces"]["stroke-color"])
     }
     getpromo(ix,iy) {
     const possx = [475, 525, 575, 625]
@@ -168,7 +144,7 @@ class ssel {
     return ""
     }
     write() {
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle =  theme["canvas"]["background"];
         ctx.rect(400,300, 307, 130);
         ctx.fill();
         this.line[0].write()
@@ -185,15 +161,19 @@ class iinfo {
         const height = ctx.canvas.height
         this.text = []
         this.lines  = []
-        this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, "35px "+theme["board"]["font-family"] , text_color, undefined ,theme["board"]["name_color_onmove"])
+        // player name
+        this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, "35px "+theme["canvas"]["font-family"] , theme["canvas"]["name"] )
         line_len  = line_len - 30
-        if (iinfo_id == 3)
-            {this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, "35px "+theme["board"]["font-family"], text_color)}
+        // info plock
+        if (iinfo_id == 3) {
+            this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, "35px "+theme["canvas"]["font-family"], theme["canvas"]["info"])}
+        // player info
         else
-            {this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, "25px "+theme["board"]["font-family"], text_color)}
+            {this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, "25px "+theme["canvas"]["font-family"], theme["canvas"]["info"])}
+        // elimited
         for (let i = 2; i < 7; i++) {
             line_len  = line_len-25//10 - 60/i
-            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, "35px "+theme["pieces"]["font-family"] , text_color, 0, "#000000")
+            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, "38px "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
         }
     }
     write() {
@@ -209,7 +189,7 @@ class iinfo {
   }
 class iinfos {
     constructor() {
-    var a = theme["board"]["font-family"]
+    var a = theme["canvas"]["font-family"]
     this.panel = []
     this.players = []
     this.index = []
@@ -223,17 +203,19 @@ class iinfos {
         for (let i = 0; i < 3; i++) {
             this.panel[i].lines[0].text = this.players[this.index[i] ] // set players names
               //set players color
-            for (let j = 2; j < 7; j++) {
-                this.panel[i].lines[j].color =  theme["pieces"]["color"][this.index[i]]
-                this.panel[i].lines[j].strokeColor = text_color
-            }
+            //for (let j = 2; j < 7; j++) {
+                //this.panel[i].lines[j].color =  theme["pieces"]["color"][this.index[i]]
+                //this.panel[i].lines[j].strokeColor = text_color
+            //}
         }
         this.panel[3].lines[1].text = 'Game ID: '+ID.toString()
         this.panel[3].lines[0].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
         for (let i = 0; i < 3; i++) {
             // highlight players
-            if (this.index[i] == idata.onmove)
-                {this.panel[i].lines[0].strokeLine = 8}
+            if (this.index[i] == idata.onmove) {
+                this.panel[i].lines[0].strokeLine = 8
+                this.panel[i].lines[0].strokeColor = theme["canvas"]["name_onmove"]
+                }
             else
                 {this.panel[i].lines[0].strokeLine = undefined}
             // eliminated_value
@@ -243,6 +225,7 @@ class iinfos {
             if (e != undefined)
                 {
                 for (let j = 0; j < e.length; j++) {
+                    this.panel[i].lines[j+2].color= theme["pieces"]["color"][(this.index[i]+2)%3]
                     this.panel[i].lines[j+2].text= e[j]
                     }
                 }
@@ -265,8 +248,8 @@ function hex(a, b, id) {
     this.y =  (1 + b * 1.5) * r;
     this.id = id;
     this.piece = {"piece":"" , "player_id":-1};
-    this.hex_color = hex_color[(a+2*b)%3];
-    this.lumi = [0,0,0,0]  // R,G,B, luminiscence
+    this.hex_color =  theme["board"]["hex_color"][(a+2*b)%3] ;
+    this.lumi = undefined  // R,G,B, luminiscence
     this.show_flag = true; // true means to redraw the hex
     this.valid_flag = false;
     this.promo_flag = false;
@@ -290,7 +273,15 @@ hex.prototype.draw = function () {
                    this.y + r * Math.sin((i  + 0.5)*(Math.PI / 3 )));
     }
     ctx.closePath();
-    ctx.fillStyle = ColorLuminance(this.hex_color, this.lumi);
+    ctx.fillStyle = this.hex_color
+    if (this.lumi != undefined) {
+        ctx.fillStyle = this.hex_color
+        ctx.fill();
+        ctx.fillStyle = this.lumi
+        }
+    else
+    {ctx.fillStyle = this.hex_color
+    }
     ctx.fill();
     if (this.piece.piece != undefined) {
         this.draw_piece()
@@ -298,32 +289,22 @@ hex.prototype.draw = function () {
     //ctx.stroke();
 }
 hex.prototype.draw_piece = function () {
-        ctx.font = "38px Verdana";
+        ctx.font = "38px "+theme["pieces"]["font-family"];
         ctx.textAlign = "left";
-        ctx.fillStyle = piece_color[(this.piece.player_id+2)%3];      //todo
+        ctx.fillStyle = theme["pieces"]["color"][(this.piece.player_id+2)%3]  //piece_color[];      //todo
         ctx.miterLimit = 2;
         ctx.lineJoin = 'circle';
         ctx.lineWidth = 2;
-        //if (this.hex_color == '#cc0000' &&  ctx.fillStyle == piece_color_red)  {
-        //    ctx.strokeStyle = "white";
-        //}
         ctx.strokeText(pcs_map[this.piece.piece],this.x-17, this.y+13); // todo
         ctx.fillText(pcs_map[this.piece.piece],this.x-17,this.y+13); // todo
-        ctx.strokeStyle = "black"
-        //draw_piece(this.piece.piece, this.piece.player_id, this.x, this.y)
-        //ctx.lineWidth = 1
-        
-
+        ctx.strokeStyle = theme["pieces"]["stroke-color"]
 }
 hex.prototype.draw_mark = function (i_kind) {
     this.show_flag = true;
     ctx.save();
-    if (this.hex_color == '#ffffff' )  {
-        ctx.strokeStyle = '#000000';
-    }
-    else {
-        ctx.strokeStyle = '#ffffff';
-    }
+
+    ctx.strokeStyle = theme["board"]["valid_move"]
+
     ctx.lineWidth = 3
     if (i_kind == 'safe') {
        ctx.beginPath();
@@ -372,7 +353,8 @@ board.prototype.set = function(idata) {
     }
     for (let z= 0; z < 169; z++) {   // clear
         this.hexs[z].set({"piece":"", "player_id":-1})
-        this.hexs[z].setlumi([0,0,0,0])
+        //this.hexs[z].piece.piece = undefined
+        this.hexs[z].setlumi(undefined)
     }
     for (let player_id  in jdata.pieces) {// set pieses
          for (let j in jdata.pieces[player_id]) {
@@ -382,22 +364,22 @@ board.prototype.set = function(idata) {
     }
     // mark last move
     if (jdata.last_move != undefined ) {
-        this.hexs[jdata.last_move.from].setlumi(Color_Lumi)
-        this.hexs[jdata.last_move.to].setlumi(Color_Lumi)
+        this.hexs[jdata.last_move.from].setlumi(theme["board"]["last_move"])
+        this.hexs[jdata.last_move.to].setlumi(theme["board"]["last_move"])
     }
     // set chess by
     for (let player_id  in jdata.chess_by) {
          for (let j in jdata.chess_by[player_id]) {
              const pcs =jdata.chess_by[player_id][j];
-             this.hexs[pcs.gid].setlumi(Color_Lumi1)
+             this.hexs[pcs.gid].setlumi(theme["board"]["hex_inchess"])
         }
     }
     //king_pos
     if (!(jdata.chess_by[0].length == 0 && jdata.chess_by[1].length == 0 && jdata.chess_by[2].length == 0)) {
-        this.hexs[jdata.king_pos].setlumi(Color_Lumi1)
+        this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"])
     }
    if (jdata.king_pos != 0) {
-       //this.hexs[jdata.king_pos].setlumi(Color_Lumi1)
+       //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"])
    }
 }
 board.prototype.init  = function () {
@@ -553,7 +535,7 @@ function butt(iid, icolor) {
 }
 butt.prototype.update = function() {
     if (this.disabled) {
-        document.getElementById(this.id).style.backgroundColor = hex_color_gray;
+        document.getElementById(this.id).style.backgroundColor = button_color;
         document.getElementById(this.id).disabled = true;
     }
     else {
@@ -561,7 +543,6 @@ butt.prototype.update = function() {
         document.getElementById(this.id).disabled = false;
     }
 };
-
 // Click ////////////////////////////////////////////////////////////////////////////////
 function Click_Backward() {
     B.move_number = B.move_number -1
@@ -589,6 +570,10 @@ function Click_Refresh()    {
     B.hist_changed = false
     F.fetchGET(url+'/api/v1/manager/board?id='+ID.toString(), Step_2_setplayers)
 };
+function Click_Rotate() {
+    B.view_player = (B.view_player+1)%3
+    F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
+}
 function Click_Board(event) {
     function getMouesPosition(e) {
         var mouseX = e.offsetX * canvas.width / canvas.clientWidth | 0;
@@ -620,16 +605,11 @@ function Click_Board(event) {
         // gid_new gid_old change
         else        {
             B.getGid(x,y)
-
         }
         B.draw();
         B.hexs[B.gid_new].draw_mark('rect'); // show cursor
         //if new piece promotion
         if (B.hexs[B.gid_new].promo_flag) {
-            //CP.elems[7].e.show_flag = true
-            //CP.elems[8].e.show_flag = true
-            //CP.elems[7].draw2()
-            //CP.elems[8].draw2()
             SS.line[1].color = theme["pieces"]["color"][B.onmove]
             SS.write()
             SemaforGreen = true
@@ -643,7 +623,7 @@ function Click_Board(event) {
 // Main ////////////////////////////////////////////////////////////////////////////////
 var B = new board()
 var F = new fetchData()
-var b_ok = new butt('b_ok', "lightgreen" )
+var b_ok = new butt('b_ok', theme["canvas"]["name_onmove"])
 var b_rf = new butt('b_rf', button_color )
 var b_fw = new butt('b_fw', button_color )
 var b_bw = new butt('b_bw', button_color )

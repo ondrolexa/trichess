@@ -8,14 +8,14 @@ canvas:
   game_over: "gold"
 
 board:
-  last_move: "white"
-  valid_move: "lightgreen"
+  last_move: "#04D410a8" #rgba(4, 212,16,-0.4)
+  valid_move: "#ffffff"
   attack_move: "orangered"
   hex_color:
     - "#cc0000"
     - "#000000"
     - "#737373"
-  hex_inchess: "red"
+  hex_inchess: "#9966ffA8" #"rgba(18,13,246, -0.4)"
 
 pieces:
   font-family: "Verdana"
