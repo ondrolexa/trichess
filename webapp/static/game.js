@@ -82,7 +82,7 @@ var movelabel = new Konva.Text({
 });
 var p0name = new Konva.Text({
   x: -3,
-  y: 6.75,
+  y: 7,
   text: "",
   fontFamily: theme["board"]["font-family"],
   fontSize: 0.6,
