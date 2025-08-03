@@ -1,9 +1,11 @@
+//var mydata = JSON.parse(elems);
+//a = data
 const Control_panel = {
   "elems": [
     {
       "id": "0_message",
       "text": "",
-      "font": "35px Arial",
+          "font": "35px Arial",
       "stroke_flag": false,
       "show_flag": true,
       "pos": {
@@ -46,7 +48,7 @@ const Control_panel = {
       "stroke_flag": false,
       "show_flag": true,
       "pos": {
-        "x": 1100,
+        "x": 1090,
         "y": 47,
         "rotate": 0,
         "align": "right"
@@ -135,7 +137,8 @@ const Control_panel = {
 const canvas = document.getElementById('canvas');
 canvas.addEventListener('mouseclick', Click_Board);
 const ctx = canvas.getContext('2d');
-const url = 'https://trichess.mykuna.eu';
+//const url = 'https://trichess.mykuna.eu';
+const url = `${window.location.protocol}//${window.location.host}`;
 const r = 30; // radius
 // colors
 const text_color = '#000000'
@@ -185,7 +188,13 @@ fetchData.prototype.fetchPOST = function(iurl, ijson , icallback) {
   })
     .then(response => {
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.status == 401) {
+            window.alert('Token expired. Reload the page');
+            throw new Error(`EEEExpire: ${response.status}`);
+        }
+        else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
     }
     return response.json();
     })
@@ -193,7 +202,7 @@ fetchData.prototype.fetchPOST = function(iurl, ijson , icallback) {
                     icallback(data);
                     debug('end:'+iurl);
     })
-    .catch(error => { debug('Error:'+error+' url:'+iurl);
+    .catch(error => { window.alert('Error:'+error+' url:'+iurl)
     })
 };
 fetchData.prototype.fetchGET = function(iurl,  icallback) {
@@ -215,9 +224,183 @@ fetchData.prototype.fetchGET = function(iurl,  icallback) {
   })
 };
 
+// rotateArray ///////////////////////////////////////////////////
+function rotateArray(arr, rotateBy) {
+    const n = arr.length;
+    rotateBy %= n;
+    return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
+}
+// llines ///////////////////////////////////////////////////
+class llines {
+  constructor( itext, ipos_x, ipos_y, ialign, ilength, ifont, icolor, istrokeLine, istrokeColor ) {
+    this.text        = itext;
+    this.pos_x       = ipos_x;
+    this.pos_y       = ipos_y;
+    this.align       = ialign;
+    this.length      = ilength
+    this.font        = ifont;
+    this.color       = icolor;
+    this.strokeLine = istrokeLine
+    this.strokeColor = istrokeColor
+    ctx.font = ifont
+    var text_width = ctx.measureText(this.text).width
+    var l = this.text.length
+    while (text_width > ilength) {
+        l--;
+        this.text = this.text.substr(0,l);
+        text_width = ctx.measureText(this.text).width
+    }
+    this.text_width = text_width;
+    this.text_hi  = ifont.substring(0,2);
+    this.text_high  = Number(this.font.substring(0,2));
+  }
+  clear() {
+        var c = -1
+        if (this.align == 'left') {
+            c = 1}
+        ctx.save();
+        //ctx.strokeStyle = "red";
+        //ctx.rect(this.pos_x,this.pos_y+10, c*this.length, (this.text_high+10)*(-1));
+        //ctx.stroke()
+        //ctx.restore()
+        ctx.clearRect(this.pos_x,this.pos_y+12, c*this.length+12, (this.text_high+10)*(-1));
+        this.text = ''
+  }
+  write() {
+        ctx.save();
+        ctx.beginPath();
+        ctx.font = this.font;
+        ctx.textAlign = this.align;
+        ctx.fillStyle = this.color;
+        ctx.lineWidth = this.strokeLine
+        ctx.lineJoin = 'circle';
+        ctx.strokeStyle = this.strokeColor
+        if (this.strokeLine != undefined) {
+            ctx.lineWidth = undefined
+            ctx.strokeStyle = undefined
+            ctx.strokeText(this.text,this.pos_x, this.pos_y);
+        }
+        ctx.fillText(this.text,this.pos_x,this.pos_y);
+        ctx.restore()
+    }
+}
+// ssel ////////////////////////////////////////////////////////
+class ssel {
+    constructor(){
+        this.active = false
+        this.line = []
+        this.line[0] = new llines('Select piece:', 550, 350, 'center', 200, "35px "+theme["pieces"]["font-family"] , text_color, 0, "#000000")
+        this.line[1] = new llines(' ♛  ♜  ♝  ♞ ', 550, 400, 'center', 200, "35px "+theme["pieces"]["font-family"] , '#ffffff', 2, "#000000")
+    }
+    getpromo(ix,iy) {
+    const possx = [475, 525, 575, 625]
+    const possy = [391, 391, 391, 391]
+    const piece = ["Q", "R", "B", "N"]
+    let d = 0;
+    let d_min = 35;
+    for (let i = 0; i < 4; i++) {
+        d = Math.sqrt(Math.pow((ix-possx[i]),2) + Math.pow((iy-possy[i]),2))
+        if (d<d_min) {
+            return piece[i]
+            }
+        }
+    return ""
+    }
+    write() {
+        ctx.fillStyle = '#ffffff';
+        ctx.rect(400,300, 307, 130);
+        ctx.fill();
+        this.line[0].write()
+        this.line[1].write()
+        this.active = true
+    }
+}
+// iinfo  ///////////////////////////////////////////////////
+class iinfo {
+    constructor(iinfo_id, ipos_x, ipos_y, ialign, ivert) {
+        var line_len = 310
+        var line_high = 45
+        const width = ctx.canvas.width
+        const height = ctx.canvas.height
+        this.text = []
+        this.lines  = []
+        this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, "35px "+theme["board"]["font-family"] , text_color, undefined ,theme["board"]["name_color_onmove"])
+        line_len  = line_len - 30
+        if (iinfo_id == 3)
+            {this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, "35px "+theme["board"]["font-family"], text_color)}
+        else
+            {this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, "25px "+theme["board"]["font-family"], text_color)}
+        for (let i = 2; i < 7; i++) {
+            line_len  = line_len-25//10 - 60/i
+            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, "35px "+theme["pieces"]["font-family"] , text_color, 0, "#000000")
+        }
+    }
+    write() {
+    for (let i = 0; i < 7; i++) {
+            this.lines[i].write()
+        }
+    }
+    clear() {
+    for (let i = 0; i < 7; i++) {
+            this.lines[i].clear()
+        }
+    }
+  }
+class iinfos {
+    constructor() {
+    var a = theme["board"]["font-family"]
+    this.panel = []
+    this.players = []
+    this.index = []
+    this.panel[0] = new iinfo(0, 1100   , 675   , 'right', -1)
+    this.panel[1] = new iinfo(1, 0      , 45    , 'left' ,  1)
+    this.panel[2] = new iinfo(2, 1100   , 45    , 'right',  1)
+    this.panel[3] = new iinfo(3, 0      , 675   , 'left' , -1)
+    }
+    set (idata) {
+        this.index = rotateArray([0,1,2], B.view_player)
+        for (let i = 0; i < 3; i++) {
+            this.panel[i].lines[0].text = this.players[this.index[i] ] // set players names
+              //set players color
+            for (let j = 2; j < 7; j++) {
+                this.panel[i].lines[j].color =  theme["pieces"]["color"][this.index[i]]
+                this.panel[i].lines[j].strokeColor = text_color
+            }
+        }
+        this.panel[3].lines[1].text = 'Game ID: '+ID.toString()
+        this.panel[3].lines[0].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
+        for (let i = 0; i < 3; i++) {
+            // highlight players
+            if (this.index[i] == idata.onmove)
+                {this.panel[i].lines[0].strokeLine = 8}
+            else
+                {this.panel[i].lines[0].strokeLine = undefined}
+            // eliminated_value
+            this.panel[i].lines[1].text= 'lost: '+idata.eliminated_value[this.index[i]].toString()
+            // eliminated pieces
+            var e = elim2array(idata.eliminated[this.index[i]])
+            if (e != undefined)
+                {
+                for (let j = 0; j < e.length; j++) {
+                    this.panel[i].lines[j+2].text= e[j]
+                    }
+                }
+        }
+    }
+    write() {
+    for (let i = 0; i < 4; i++) {
+        this.panel[i].write()
+        }
+    }
+    clear() {
+        for (let i = 0; i < 4; i++) { //draw hex tile
+            this.panel[i].clear()
+        }
+    }
+}
 // hex ///////////////////////////////////////////////////
 function hex(a, b, id) {
-    this.x =  (a +b*(0.5 ))*(r * Math.sqrt(3));
+    this.x =  (a +b*(0.5 ))*(r * Math.sqrt(3))+8;
     this.y =  (1 + b * 1.5) * r;
     this.id = id;
     this.piece = {"piece":"" , "player_id":-1};
@@ -301,7 +484,6 @@ hex.prototype.draw_mark = function (i_kind) {
     }
     ctx.restore();
 }
-
 // board /////////////////////////////////////////////////
 function board() {
     this.hexs    = [];
@@ -529,7 +711,7 @@ elems.prototype.getpromo  = function (ix,iy) {
     const possy = [391, 391, 391, 391]
     const piece = ["Q", "R", "B", "N"]
     let d = 0;
-    let d_min = Number(this.elems[8].e.font.substring(0,2));
+    let d_min = 35;
     for (let i = 0; i < 4; i++) {
         d = Math.sqrt(Math.pow((ix-possx[i]),2) + Math.pow((iy-possy[i]),2))
         if (d<d_min) {
@@ -540,12 +722,13 @@ elems.prototype.getpromo  = function (ix,iy) {
 }
 
 //----------------------------------------------------
-function elim2pieces(idata) {
+function elim2array(idata) {
     let s = ''
     for (i in idata) {
         s = s + pcs_map[idata[i]]
     }
-    return s
+    var t = Array.from(s).sort().reverse().join('').match(/(.)\1*/g)
+    return t;
 }
 function Step_make_move(idata) {
          B.slog = idata.slog;
@@ -577,37 +760,33 @@ function Step_1_settoken(idata) {
     F.fetchGET(url+'/api/v1/manager/board?id='+ID.toString(), Step_2_setplayers)
 }
 function Step_2_setplayers(idata) {
-    let player = [idata.player_0, idata.player_1, idata.player_2]
+    II.players = [idata.player_0, idata.player_1, idata.player_2]
     CP.ID = idata.id
-    B.view_player = idata.view_pid
+    B.view_player = (idata.view_pid)%3
     B.slog = idata.slog
-    //B.slog = "BNDLGCICNILICOFMCGCIOCLDGNILCFEGLIKJGOKGBGDINFMFKGCKDIHGOGIJDNEMDEIJNBLBBOCMIJKIODNFFOGLKIGIOHKLINJMGIGDOBKDEODNGBIDNEJGCNELIDOANFMECKALOAIDMEHODOCNBHBJHOMEDLEKBJALNALCCMDKAHCHMELEAODOHGLENDLEDKFJCIDINCMDCNAOFCGEKJJKDNDIAIBIKDHADIDFEDFCKLKHDFLBCHKHOFNDFMHJEGHFLEKF"
-
-    CP.elems[1].settext(player[(B.view_player+0) % 3 ])
-    CP.elems[2].settext(player[(B.view_player+1) % 3 ])
-    CP.elems[3].settext(player[(B.view_player+2) % 3 ])
     F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Step_3_setelim_board_and_draw(idata) {
     B.set(idata);
     B.draw();
-    CP.player_onmove = idata.onmove
-    CP.elems[4].settext(elim2pieces(idata.eliminated[(B.view_player+0) % 3]))
-    CP.elems[5].settext(elim2pieces(idata.eliminated[(B.view_player+1) % 3]))
-    CP.elems[6].settext(elim2pieces(idata.eliminated[(B.view_player+2) % 3]))
-    CP.elems[0].e.show_flag = true;
-    CP.elems[0].e.text = "#"+CP.ID.toString()+":"+B.move_number_org.toString()+"/"+B.move_number.toString()//+"-"+B.onmove.toString()+"-v:"+B.view_player.toString();
-    if (idata.finished) { //game over
-        CP.elems[9].e.show_flag = true;
-    }
-    CP.draw()
-    if (B.view_player ==0 ){
-        CP.onmove(idata.onmove);    //todo
-    }
-    else {
-        CP.onmove((idata.onmove+ Math.pow(-1, B.view_player+1)+B.view_player)%3);    //todo
-    }
+    B.set(idata);
+    II.clear()
+    II.set(idata);
+    II.write()
     button_control()
+    if (B.finished) {
+        // Get the modal
+        var name = II.players[B.onmove]
+        var modal = document.getElementById("myModal");
+        modal.style.color = theme["pieces"]["color"][B.onmove]
+        modal.innerHTML = "GAME OVER <br>"+name+" lost :-("
+        modal.style.display = "block";
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+    }
 }
 
 // Button ////////////////////////////////////////////////////////////////////////////////
@@ -687,14 +866,15 @@ function Click_Board(event) {
     if (SemaforGreen) {
         SemaforGreen = false;
         const bounds = canvas.getBoundingClientRect()
+        document.getElementById("myModal").style.display = "none";
         let x = pos.x
         let y = pos.y
         //if select pieces window is open
-        if (B.hexs[B.gid_new].promo_flag && CP.elems[8].e.show_flag) {
+        if (B.hexs[B.gid_new].promo_flag && SS.active) {
             B.hexs[B.gid_new].promo_flag = false
-            CP.elems[7].e.show_flag = false
-            CP.elems[8].e.show_flag = false
-            a = CP.getpromo(x,y)
+            //CP.elems[7].e.show_flag = false
+            //CP.elems[8].e.show_flag = false
+            a = SS.getpromo(x,y)
             if (a == "") { // ked klikne do prdele
                 SemaforGreen = true
                 B.draw();
@@ -713,10 +893,12 @@ function Click_Board(event) {
         B.hexs[B.gid_new].draw_mark('rect'); // show cursor
         //if new piece promotion
         if (B.hexs[B.gid_new].promo_flag) {
-            CP.elems[7].e.show_flag = true
-            CP.elems[8].e.show_flag = true
-            CP.elems[7].draw2()
-            CP.elems[8].draw2()
+            //CP.elems[7].e.show_flag = true
+            //CP.elems[8].e.show_flag = true
+            //CP.elems[7].draw2()
+            //CP.elems[8].draw2()
+            SS.line[1].color = theme["pieces"]["color"][B.onmove]
+            SS.write()
             SemaforGreen = true
             return
         }
@@ -733,9 +915,18 @@ let b_ok = new butt('b_ok', "lightgreen" )
 let b_rf = new butt('b_rf', button_color )
 let b_fw = new butt('b_fw', button_color )
 let b_bw = new butt('b_bw', button_color )
+var II = new iinfos()
+var SS = new ssel()
+
+
 B.init();
 B.draw();
+II.write()
+
+
+
 Step_1_settoken()
-//F.fetchPOST(url+'/token', {username: "filio", password: 'tyblko'} , Step_1_settoken);
-//F.fetchPOST(url+'/token', {username: "ondro", password: 'marketa25'} , Step_1_settoken);
-//F.fetchPOST(url+'/token', {username: "livia", password: 'neutrino'} , Step_1_settoken);
+
+//F.fetchPOST(url+'/token', {username: "filio", password: ''} , Step_1_settoken);
+//F.fetchPOST(url+'/token', {username: "ondro", password: ''} , Step_1_settoken);
+//F.fetchPOST(url+'/token', {username: "livia", password: ''} , Step_1_settoken);

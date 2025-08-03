@@ -19,8 +19,20 @@
         </div>
     </div>
 
+<!-- The Modal -->
+<div id="myModal" class="modal">
+  <!-- Modal content -->
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <p>GAME OVER!!!</p>
+  </div>
+</div>
+
 
 </div>
+
+
+
 {%endblock%}
 
 {% block scripts %}
@@ -28,6 +40,9 @@
 var TOKEN = "Bearer {{ access_token }}";
 var ID = {{ id }};
 var VIEW_PID = "{{ view_pid }}";
+//const theme = JSON.parse('{{ theme }}');
+const theme = JSON.parse('{"board": {"attack_move": "red", "background": "#ffffff", "font-family": "Arial", "game_over": "black", "last_move": "black", "name_color": "black", "name_color_inchess": "red", "name_color_onmove": "green", "valid_move": "green"}, "hex": {"color": ["#a8baf0", "#f0b6a8", "#d1f0a8"]}, "pieces": {"color": ["#000599", "#b33900", "#1d6600"], "font-family": "Verdana", "stroke-color": "white"}}');
+</script>
 </script>
 <script type="text/javascript" src="{{ url_for('static', filename='board.js') }}"></script>
 {% endblock %}
