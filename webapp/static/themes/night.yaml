@@ -1,0 +1,27 @@
+canvas:
+  info: "#ffffff"
+  name: "#ffffff"
+  name_inchess: "red"
+  name_onmove: "green"
+  background: "#000000"
+  font-family: "Georgia"
+  game_over: "black"
+
+board:
+  last_move: "#04D410"
+  valid_move: "#ffffff"
+  attack_move: "orangered"
+  hex_color:
+    - "#cc0000"
+    - "#ffffff"
+    - "#737373"
+  hex_inchess: "#9966ff"
+  hex_alpha: "a8"
+
+pieces:
+  font-family: "Verdana"
+  stroke-color: "black"
+  color:
+    - "#ffd11a"
+    - "#009933"
+    - "#1a53ff"

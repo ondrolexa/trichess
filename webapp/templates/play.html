@@ -5,7 +5,19 @@
 {%endblock%}
 
 {%block content%}
+<!-- The Modal -->
+
 <div class="divmain">
+
+    <div id="myModal" class="modal">
+  <!-- Modal content -->
+  <div class="modal-content">
+    <span class="close">&times;</span>
+    <p>GAME OVER!!!</p>
+  </div>
+    </div>
+
+
 
     <canvas id="canvas" width="1100" height="690"  onclick="Click_Board(event)"></canvas>
 
@@ -16,15 +28,6 @@
         <button id="b_rt" class="button"  onclick="Click_Rotate()">Rotate</button>
         <button id="b_ok" class="button"  onclick="Click_OK()">OK</button>
     </div>
-
-<!-- The Modal -->
-<div id="myModal" class="modal">
-  <!-- Modal content -->
-  <div class="modal-content">
-    <span class="close">&times;</span>
-    <p>GAME OVER!!!</p>
-  </div>
-</div>
 </div>
 
 {%endblock%}

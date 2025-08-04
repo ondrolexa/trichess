@@ -1,6 +1,8 @@
 const canvas = document.getElementById('canvas');
 canvas.addEventListener('mouseclick', Click_Board);
 const ctx = canvas.getContext('2d');
+ctx.fillStyle = theme["canvas"]["background"];
+ctx.fillRect(0, 0, canvas.width, canvas.height);
 //const url = 'https://trichess.mykuna.eu';
 const url = `${window.location.protocol}//${window.location.host}`;
 const r = 30; // radius
@@ -96,11 +98,12 @@ class llines {
         if (this.align == 'left') {
             c = 1}
         ctx.save();
-        //ctx.strokeStyle = "red";
-        //ctx.rect(this.pos_x,this.pos_y+10, c*this.length, (this.text_high+10)*(-1));
-        //ctx.stroke()
-        //ctx.restore()
-        ctx.clearRect(this.pos_x,this.pos_y+12, c*this.length+12, (this.text_high+10)*(-1));
+        //ctx.clearRect(this.pos_x,this.pos_y+12, c*this.length+12, (this.text_high+10)*(-1));
+        ctx.fillStyle = theme["canvas"]["background"];
+        ctx.rect(this.pos_x,this.pos_y+10, c*this.length, (this.text_high+10)*(-1));
+        ctx.fill()
+        ctx.restore()
+
         this.text = ''
   }
   write() {
@@ -471,7 +474,6 @@ function Step_valid_moves(idata) {
     }
 }
 function Step_1_settoken(idata) {
-    //F.headers.Authorization = "Bearer "+idata.access_token;
     F.headers.Authorization = TOKEN;
     F.fetchGET(url+'/api/v1/manager/board?id='+ID.toString(), Step_2_setplayers)
 }
@@ -493,7 +495,7 @@ function Step_3_setelim_board_and_draw(idata) {
         // Get the modal
         var name = II.players[B.onmove]
         var modal = document.getElementById("myModal");
-        modal.style.color = theme["pieces"]["color"][B.onmove]
+        modal.style.color = theme["pieces"]["color"][(B.onmove+2)%3]
         modal.innerHTML = "GAME OVER <br>"+name+" lost :-("
         modal.style.display = "block";
         window.onclick = function(event) {
@@ -556,7 +558,7 @@ function Click_Forward() {
 }
 function Click_OK() {
     if (B.move_number_org == B.move_number-1 && B.view_player == (B.onmove+2)%3 ) {
-        F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.slog.substring(0,B.move_number*4)} , debug);
+        F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.slog.substring(0,B.move_number*4)},function () {} );
     }
     B.move_number_org = -1
     B.move_number_max = -1
