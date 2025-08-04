@@ -398,17 +398,19 @@ class GameBoard(Resource):
                                     f"https://ntfy.mykuna.eu/trichess_{usernames[ga2.on_move]}",
                                     data=f"You lost in game {state.id}".encode("utf-8"),
                                     headers={
-                                        "Click": f"https://trichess.mykuna.eu/playlx/{state.id}"
+                                        "Title": "Game over",
+                                        "Click": f"https://trichess.mykuna.eu/playlx/{state.id}",
                                     },
                                 )
                             else:
                                 requests.post(
                                     f"https://ntfy.mykuna.eu/trichess_{usernames[ga2.on_move]}",
-                                    data=f"Game {state.id} finished by pat".encode(
+                                    data=f"The game {state.id} ended in a stalemate".encode(
                                         "utf-8"
                                     ),
                                     headers={
-                                        "Click": f"https://trichess.mykuna.eu/playlx/{state.id}"
+                                        "Title": "Game over",
+                                        "Click": f"https://trichess.mykuna.eu/playlx/{state.id}",
                                     },
                                 )
                         else:
@@ -419,7 +421,8 @@ class GameBoard(Resource):
                                     "utf-8"
                                 ),
                                 headers={
-                                    "Click": f"https://trichess.mykuna.eu/playlx/{state.id}"
+                                    "Title": "Your turn",
+                                    "Click": f"https://trichess.mykuna.eu/playlx/{state.id}",
                                 },
                             )
                         db.session.commit()
