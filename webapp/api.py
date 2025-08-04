@@ -1,3 +1,4 @@
+import requests
 from flask import Blueprint
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
@@ -373,6 +374,11 @@ class GameBoard(Resource):
                         tb.player_1.username: 1,
                         tb.player_2.username: 2,
                     }
+                    usernames = {
+                        0: tb.player_0.username,
+                        1: tb.player_1.username,
+                        2: tb.player_2.username,
+                    }
                     poster = ga1.on_move == pid[username]
                     oneadded = ga2.move_number - ga1.move_number == 1
                     same = ga2.slog.startswith(ga1.slog)
@@ -387,6 +393,35 @@ class GameBoard(Resource):
                                 tb.player_0.score = tb.player_0.score + score[0]
                                 tb.player_1.score = tb.player_1.score + score[1]
                                 tb.player_2.score = tb.player_2.score + score[2]
+                                # notify
+                                requests.post(
+                                    f"https://ntfy.mykuna.eu/trichess_{usernames[ga2.on_move]}",
+                                    data=f"You lost in game {state.id}".encode("utf-8"),
+                                    headers={
+                                        "Click": f"https://trichess.mykuna.eu/playlx/{state.id}"
+                                    },
+                                )
+                            else:
+                                requests.post(
+                                    f"https://ntfy.mykuna.eu/trichess_{usernames[ga2.on_move]}",
+                                    data=f"Game {state.id} finished by pat".encode(
+                                        "utf-8"
+                                    ),
+                                    headers={
+                                        "Click": f"https://trichess.mykuna.eu/playlx/{state.id}"
+                                    },
+                                )
+                        else:
+                            # notify next player
+                            requests.post(
+                                f"https://ntfy.mykuna.eu/trichess_{usernames[ga2.on_move]}",
+                                data=f"It's your turn in game {state.id}".encode(
+                                    "utf-8"
+                                ),
+                                headers={
+                                    "Click": f"https://trichess.mykuna.eu/playlx/{state.id}"
+                                },
+                            )
                         db.session.commit()
                     else:
                         managerapi.abort(

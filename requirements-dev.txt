@@ -11,6 +11,7 @@ email_validator
 flask-jwt-extended
 gunicorn
 pyyaml
+requests
 pytest
 black
 ruff
