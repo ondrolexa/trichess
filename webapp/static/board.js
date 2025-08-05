@@ -1,8 +1,6 @@
 const canvas = document.getElementById('canvas');
 canvas.addEventListener('mouseclick', Click_Board);
 const ctx = canvas.getContext('2d');
-ctx.fillStyle = theme["canvas"]["background"];
-ctx.fillRect(0, 0, canvas.width, canvas.height);
 //const url = 'https://trichess.mykuna.eu';
 const url = `${window.location.protocol}//${window.location.host}`;
 const r = 30; // radius
@@ -97,13 +95,7 @@ class llines {
         var c = -1
         if (this.align == 'left') {
             c = 1}
-        ctx.save();
-        //ctx.clearRect(this.pos_x,this.pos_y+12, c*this.length+12, (this.text_high+10)*(-1));
-        ctx.fillStyle = theme["canvas"]["background"];
-        ctx.rect(this.pos_x,this.pos_y+10, c*this.length, (this.text_high+10)*(-1));
-        ctx.fill()
-        ctx.restore()
-
+        ctx.clearRect(this.pos_x,this.pos_y+10, c*this.length, (this.text_high+10)*(-1));
         this.text = ''
   }
   write() {
@@ -292,6 +284,7 @@ hex.prototype.draw = function () {
     //ctx.stroke();
 }
 hex.prototype.draw_piece = function () {
+        ctx.save()
         ctx.font = "38px "+theme["pieces"]["font-family"];
         ctx.textAlign = "left";
         ctx.fillStyle = theme["pieces"]["color"][(this.piece.player_id+2)%3]  //piece_color[];      //todo
@@ -301,6 +294,7 @@ hex.prototype.draw_piece = function () {
         ctx.strokeText(pcs_map[this.piece.piece],this.x-17, this.y+13); // todo
         ctx.fillText(pcs_map[this.piece.piece],this.x-17,this.y+13); // todo
         ctx.strokeStyle = theme["pieces"]["stroke-color"]
+        ctx.restore()
 }
 hex.prototype.draw_mark = function (i_kind) {
     this.show_flag = true;
