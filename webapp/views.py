@@ -35,10 +35,16 @@ def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
 
 def render_template(*args, **kwargs):
     navailable = TriBoard.query.filter_by(status=0).count()
-    theme_file = os.path.join(
-        os.path.abspath(os.path.dirname(__file__)),
-        f"static/themes/{g.user.theme}.yaml",
-    )
+    if g.user is not None and g.user.is_authenticated:
+        theme_file = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            f"static/themes/{g.user.theme}.yaml",
+        )
+    else:
+        theme_file = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            "static/themes/default.yaml",
+        )
     with open(theme_file) as f:
         theme = yaml.safe_load(f)
 
