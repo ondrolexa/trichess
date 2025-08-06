@@ -3,7 +3,10 @@ canvas.addEventListener('mouseclick', Click_Board);
 const ctx = canvas.getContext('2d');
 //const url = 'https://trichess.mykuna.eu';
 const url = `${window.location.protocol}//${window.location.host}`;
-const r = 30; // radius
+const r = 17; // radius
+const piece_size = "28px";
+const mame_size = "24px";
+const info_size = r.toString()+"px";
 // colors
 const button_color = '#919595';
 const pcs_map = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
@@ -29,7 +32,8 @@ fetchData.prototype.fetchPOST = function(iurl, ijson , icallback) {
     if (!response.ok) {
         if (response.status == 401) {
             window.alert('Token expired. Reload the page');
-            throw new Error(`EEEExpire: ${response.status}`);
+            location.reload();
+            //throw new Error(`Token expired. Reload the page: ${response.status}`);
         }
         else {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -95,7 +99,9 @@ class llines {
         var c = -1
         if (this.align == 'left') {
             c = 1}
-        ctx.clearRect(this.pos_x,this.pos_y+10, c*this.length, (this.text_high+10)*(-1));
+        //ctx.fillStyle = "balck"
+        ctx.clearRect(this.pos_x-5*c,this.pos_y+5, c*this.length, (this.text_high+10)*(-1));
+        //ctx.fill()
         this.text = ''
   }
   write() {
@@ -121,8 +127,8 @@ class ssel {
     constructor(){
         this.active = false
         this.line = []
-        this.line[0] = new llines('Select piece:', 550, 350, 'center', 200, "35px "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
-        this.line[1] = new llines(' ♛  ♜  ♝  ♞ ', 550, 400, 'center', 200, "38px "+theme["pieces"]["font-family"] , '#ff00ff', 2, theme["pieces"]["stroke-color"])
+        this.line[0] = new llines('Select piece:', 550, 350, 'center', 200, "15px "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
+        this.line[1] = new llines(' ♛  ♜  ♝  ♞ ', 550, 400, 'center', 200, piece_size+" "+theme["pieces"]["font-family"] , '#ff00ff', 2, theme["pieces"]["stroke-color"])
     }
     getpromo(ix,iy) {
     const possx = [475, 525, 575, 625]
@@ -150,25 +156,28 @@ class ssel {
 // iinfo  ///////////////////////////////////////////////////
 class iinfo {
     constructor(iinfo_id, ipos_x, ipos_y, ialign, ivert) {
-        var line_len = 310
-        var line_high = 45
+        var line_len = 260
+        var line_high = 1.5*r
         const width = ctx.canvas.width
         const height = ctx.canvas.height
         this.text = []
         this.lines  = []
-        // player name
-        this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, "35px "+theme["canvas"]["font-family"] , theme["canvas"]["name"] )
         line_len  = line_len - 30
         // info plock
         if (iinfo_id == 3) {
-            this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, "35px "+theme["canvas"]["font-family"], theme["canvas"]["info"])}
+            this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+        }
         // player info
-        else
-            {this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, "25px "+theme["canvas"]["font-family"], theme["canvas"]["info"])}
+        else {
+            // player name
+            this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, mame_size+" "+theme["canvas"]["font-family"] , theme["canvas"]["name"] )
+            this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+        }
         // elimited
         for (let i = 2; i < 7; i++) {
-            line_len  = line_len-25//10 - 60/i
-            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, "38px "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+            line_len  = line_len-18//10 - 60/i
+            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, piece_size+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
         }
     }
     write() {
@@ -188,10 +197,10 @@ class iinfos {
     this.panel = []
     this.players = []
     this.index = []
-    this.panel[0] = new iinfo(0, 1100   , 675   , 'right', -1)
-    this.panel[1] = new iinfo(1, 0      , 45    , 'left' ,  1)
-    this.panel[2] = new iinfo(2, 1100   , 45    , 'right',  1)
-    this.panel[3] = new iinfo(3, 0      , 675   , 'left' , -1)
+    this.panel[0] = new iinfo(0, 780   , 380   , 'right', -1)
+    this.panel[1] = new iinfo(1, 20    , 1.5*r    , 'left' ,  1)
+    this.panel[2] = new iinfo(2, 780   , 1.5*r    , 'right',  1)
+    this.panel[3] = new iinfo(3, 20    , 380   , 'left' , -1)
     }
     set (idata) {
         this.index = rotateArray([0,1,2], B.view_player)
@@ -238,29 +247,30 @@ class iinfos {
     }
 }
 // hex ///////////////////////////////////////////////////
-function hex(a, b, id) {
-    this.x =  (a +b*(0.5 ))*(r * Math.sqrt(3))+8;
-    this.y =  (1 + b * 1.5) * r;
-    this.id = id;
-    this.piece = {"piece":"" , "player_id":-1};
-    this.hex_color =  theme["board"]["hex_color"][(a+2*b)%3] ;
-    this.lumi = undefined  // R,G,B, luminiscence
-    this.show_flag = true; // true means to redraw the hex
-    this.valid_flag = false;
-    this.promo_flag = false;
-}
-hex.prototype.set = function (ipiece) {
+class  hex {
+    constructor(a, b, id) {
+        this.x =  (a +b*(0.5 ))*(r * Math.sqrt(3))+91;
+        this.y =  (1 + b * 1.5) * r;
+        this.id = id;
+        this.piece = {"piece":"" , "player_id":-1};
+        this.hex_color =  theme["board"]["hex_color"][(a+2*b)%3] ;
+        this.lumi = undefined  // R,G,B, luminiscence
+        this.show_flag = true; // true means to redraw the hex
+        this.valid_flag = false;
+        this.promo_flag = false;
+    }
+    set(ipiece) {
     if (ipiece.piece !=  this.piece.piece || ipiece.player_id !=  this.piece.player_id) {
         this.show_flag = true;
         }
     this.piece.piece  = ipiece.piece;
     this.piece.player_id = ipiece.player_id;
     }
-hex.prototype.setlumi = function (ilumi) {
+    setlumi(ilumi) {
    this.lumi = ilumi
    this.show_flag = true
     }
-hex.prototype.draw = function () {
+    draw() {
     ctx.beginPath();
     ctx.lineWidth = 0;
     for (let i = 0; i < 6; i++) { //draw hex tile
@@ -283,26 +293,26 @@ hex.prototype.draw = function () {
         }
     //ctx.stroke();
 }
-hex.prototype.draw_piece = function () {
+    draw_piece() {
         ctx.save()
-        ctx.font = "38px "+theme["pieces"]["font-family"];
-        ctx.textAlign = "left";
+        ctx.font = piece_size+" "+theme["pieces"]["font-family"];
+        ctx.textAlign = "center";
         ctx.fillStyle = theme["pieces"]["color"][(this.piece.player_id+2)%3]  //piece_color[];      //todo
-        ctx.miterLimit = 2;
+        ctx.miterLimit = 1;
         ctx.lineJoin = 'circle';
-        ctx.lineWidth = 2;
-        ctx.strokeText(pcs_map[this.piece.piece],this.x-17, this.y+13); // todo
-        ctx.fillText(pcs_map[this.piece.piece],this.x-17,this.y+13); // todo
+        ctx.lineWidth = 1;
+        ctx.strokeText(pcs_map[this.piece.piece],this.x-0, this.y+r/2); // todo
+        ctx.fillText(pcs_map[this.piece.piece],this.x-0,this.y+r/2); // todo
         ctx.strokeStyle = theme["pieces"]["stroke-color"]
         ctx.restore()
 }
-hex.prototype.draw_mark = function (i_kind) {
+    draw_mark(i_kind) {
     this.show_flag = true;
     ctx.save();
 
     ctx.strokeStyle = theme["board"]["valid_move"]
 
-    ctx.lineWidth = 3
+    ctx.lineWidth = 2
     if (i_kind == 'safe') {
        ctx.beginPath();
        ctx.arc(this.x, this.y, r/2, 0, 2 * Math.PI);
@@ -323,63 +333,65 @@ hex.prototype.draw_mark = function (i_kind) {
     }
     ctx.restore();
 }
+}
 // board /////////////////////////////////////////////////
-function board() {
-    this.hexs    = [];
-    this.gid_old = 85;
-    this.gid_new = 85;
-    this.slog = "";
-    this.view_player =  0;
-    this.move_number =  -1;
-    this.move_number_org =  -1;
-    this.move_number_max =  -1;
-    this.onmove =  0;
-    this.finished =  false;
-    this.hist_changed =  false;
-}
-board.prototype.set = function(idata) {
-    const jdata = idata;
-    this.move_number =  jdata.move_number;
-    this.finished = jdata.finished;
-    this.onmove = jdata.onmove;
-    if (this.move_number_org == -1) {
-        this.move_number_org = jdata.move_number;
+class board {
+    constructor() {
+        this.hexs    = [];
+        this.gid_old = 85;
+        this.gid_new = 85;
+        this.slog = "";
+        this.view_player =  0;
+        this.move_number =  -1;
+        this.move_number_org =  -1;
+        this.move_number_max =  -1;
+        this.onmove =  0;
+        this.finished =  false;
+        this.hist_changed =  false;
     }
-    if (this.move_number_max == -1) {
-        this.move_number_max = jdata.move_number;
-    }
-    for (let z= 0; z < 169; z++) {   // clear
-        this.hexs[z].set({"piece":"", "player_id":-1})
-        //this.hexs[z].piece.piece = undefined
-        this.hexs[z].setlumi(undefined)
-    }
-    for (let player_id  in jdata.pieces) {// set pieses
-         for (let j in jdata.pieces[player_id]) {
-             const pcs =jdata.pieces[player_id][j];
-             this.hexs[pcs.gid].set({"piece":pcs.piece, "player_id":Number(player_id)})
+    set(idata) {
+        const jdata = idata;
+        this.move_number =  jdata.move_number;
+        this.finished = jdata.finished;
+        this.onmove = jdata.onmove;
+        if (this.move_number_org == -1) {
+            this.move_number_org = jdata.move_number;
         }
-    }
-    // mark last move
-    if (jdata.last_move != undefined ) {
-        this.hexs[jdata.last_move.from].setlumi(theme["board"]["last_move"] + theme["board"]["hex_alpha"])
-        this.hexs[jdata.last_move.to].setlumi(theme["board"]["last_move"] + theme["board"]["hex_alpha"])
-    }
-    // set chess by
-    for (let player_id  in jdata.chess_by) {
-         for (let j in jdata.chess_by[player_id]) {
-             const pcs =jdata.chess_by[player_id][j];
-             this.hexs[pcs.gid].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
+        if (this.move_number_max == -1) {
+            this.move_number_max = jdata.move_number;
         }
+        for (let z= 0; z < 169; z++) {   // clear
+            this.hexs[z].set({"piece":"", "player_id":-1})
+            //this.hexs[z].piece.piece = undefined
+            this.hexs[z].setlumi(undefined)
+        }
+        for (let player_id  in jdata.pieces) {// set pieses
+             for (let j in jdata.pieces[player_id]) {
+                 const pcs =jdata.pieces[player_id][j];
+                 this.hexs[pcs.gid].set({"piece":pcs.piece, "player_id":Number(player_id)})
+            }
+        }
+        // mark last move
+        if (jdata.last_move != undefined ) {
+            this.hexs[jdata.last_move.from].setlumi(theme["board"]["last_move"] + theme["board"]["hex_alpha"])
+            this.hexs[jdata.last_move.to].setlumi(theme["board"]["last_move"] + theme["board"]["hex_alpha"])
+        }
+        // set chess by
+        for (let player_id  in jdata.chess_by) {
+             for (let j in jdata.chess_by[player_id]) {
+                 const pcs =jdata.chess_by[player_id][j];
+                 this.hexs[pcs.gid].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
+            }
+        }
+        //king_pos
+        if (!(jdata.chess_by[0].length == 0 && jdata.chess_by[1].length == 0 && jdata.chess_by[2].length == 0)) {
+            this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
+        }
+       if (jdata.king_pos != 0) {
+           //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
+       }
     }
-    //king_pos
-    if (!(jdata.chess_by[0].length == 0 && jdata.chess_by[1].length == 0 && jdata.chess_by[2].length == 0)) {
-        this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
-    }
-   if (jdata.king_pos != 0) {
-       //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
-   }
-}
-board.prototype.init  = function () {
+    init() {
   let cnt = 0;
   for (let i = 0; i < 15; i++) {
     for (let j = 0; j < 15 ; j++) {
@@ -390,7 +402,7 @@ board.prototype.init  = function () {
     }
   }
 };
-board.prototype.draw  = function () {
+    draw() {
     for (let i = 0; i < 169; i++) {
         if (this.hexs[i].show_flag) {
             this.hexs[i].draw()
@@ -398,7 +410,7 @@ board.prototype.draw  = function () {
         }
     }
 };
-board.prototype.getGid  = function (ix,iy) {
+    getGid(ix,iy) {
     let d = 0;
     let d_min = 99999999;
     let r_x = 0;
@@ -417,6 +429,7 @@ board.prototype.getGid  = function (ix,iy) {
     this.gid_new = r_i;
     return r_i;
 };
+}
 // move ---------------------------------------------
 board.prototype.moveValid = async function() {
     if (!(this.hexs[this.gid_new].piece.piece != undefined && this.hexs[this.gid_new].piece.player_id == this.onmove)) {
@@ -531,11 +544,12 @@ function butt(iid, icolor) {
 }
 butt.prototype.update = function() {
     if (this.disabled) {
-        document.getElementById(this.id).style.backgroundColor = button_color;
+        document.getElementById(this.id).style.backgroundColor = '#d9d9d9'//button_color;
         document.getElementById(this.id).disabled = true;
+        //document.getElementById(this.id).cursor = 'not-allowed';
     }
     else {
-        document.getElementById(this.id).style.backgroundColor = this.color_enable;
+        document.getElementById(this.id).style.backgroundColor = button_color;//'#d9d9d9' //this.color_enable;
         document.getElementById(this.id).disabled = false;
     }
 };
@@ -627,6 +641,14 @@ var II = new iinfos()
 var SS = new ssel()
 
 B.init();
+
+//    ctx.strokeStyle = "green"
+//    ctx.lineWidth = 3
+//    ctx.beginPath();
+//    ctx.arc(400, 2, 2, 0, 2 * Math.PI);
+//    ctx.stroke();
+
+
 B.draw();
 II.write()
 

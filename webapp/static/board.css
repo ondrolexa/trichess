@@ -6,16 +6,19 @@
     font-size: 14px;
     cursor: pointer;
     border-radius: 8px;
-    width: 75px;
+    width: 200px;
     height: 40px;
     min-width: 50px;
+}
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 .divbutt {
     width: 10%;
     display: flex;
     flex-wrap: wrap;
-    margin: 7% 0px;
-    min-width: 40px;
+    min-width: 50px;
     max-width: 1200px;
     justify-content: center;
 }
@@ -43,7 +46,6 @@
     high: 190px;
     top: 15%;
     text-align: center;
-
         text-shadow:
           -2px -2px 0 #000,
           2px -2px 0 #000,
