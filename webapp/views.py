@@ -143,21 +143,18 @@ def new():
                     owner_id=g.user.id,
                     player_0_id=g.user.id,
                     player_0_accepted=True,
-                    slog=form.slog.data,
                 )
             case "Player 2":
                 board = TriBoard(
                     owner_id=g.user.id,
                     player_1_id=g.user.id,
                     player_1_accepted=True,
-                    slog=form.slog.data,
                 )
             case "Player 3":
                 board = TriBoard(
                     owner_id=g.user.id,
                     player_2_id=g.user.id,
                     player_2_accepted=True,
-                    slog=form.slog.data,
                 )
         db.session.add(board)
         db.session.commit()
