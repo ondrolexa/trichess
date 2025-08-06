@@ -18,7 +18,6 @@
 }
 
 .sidebar {
-    background-color: white;
     border-left: 1px solid #dee2e6;
     min-height: calc(100vh - 56px);
     padding: 20px;

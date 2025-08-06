@@ -35,7 +35,20 @@ def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
 
 def render_template(*args, **kwargs):
     navailable = TriBoard.query.filter_by(status=0).count()
-    return real_render_template(*args, **kwargs, navailable=navailable)
+    if g.user is not None and g.user.is_authenticated:
+        theme_file = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            f"static/themes/{g.user.theme}.yaml",
+        )
+    else:
+        theme_file = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            "static/themes/default.yaml",
+        )
+    with open(theme_file) as f:
+        theme = yaml.safe_load(f)
+
+    return real_render_template(*args, **kwargs, navailable=navailable, theme=theme)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -130,21 +143,18 @@ def new():
                     owner_id=g.user.id,
                     player_0_id=g.user.id,
                     player_0_accepted=True,
-                    slog=form.slog.data,
                 )
             case "Player 2":
                 board = TriBoard(
                     owner_id=g.user.id,
                     player_1_id=g.user.id,
                     player_1_accepted=True,
-                    slog=form.slog.data,
                 )
             case "Player 3":
                 board = TriBoard(
                     owner_id=g.user.id,
                     player_2_id=g.user.id,
                     player_2_accepted=True,
-                    slog=form.slog.data,
                 )
         db.session.add(board)
         db.session.commit()
@@ -171,19 +181,11 @@ def play(id):
         }
         view_pid = pid[g.user.username]
 
-        theme_file = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            f"static/themes/{g.user.theme}.yaml",
-        )
-        with open(theme_file) as f:
-            theme = yaml.safe_load(f)
-
         return render_template(
             "play.html",
             id=id,
             view_pid=view_pid,
             access_token=access_token,
-            theme=theme,
         )
     else:
         flash("You have no access to this game", "error")
@@ -201,18 +203,10 @@ def playlx(id):
     )
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
-        theme_file = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            f"static/themes/{g.user.theme}.yaml",
-        )
-        with open(theme_file) as f:
-            theme = yaml.safe_load(f)
-
         return render_template(
             "playlx.html",
             id=id,
             access_token=access_token,
-            theme=theme,
         )
     else:
         flash("You have no access to this game", "error")

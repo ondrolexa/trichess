@@ -3,14 +3,12 @@ import os
 from flask_wtf import FlaskForm
 from wtforms import (
     EmailField,
-    HiddenField,
     PasswordField,
     SelectField,
     StringField,
     SubmitField,
 )
 from wtforms.validators import DataRequired, Email, Length, Optional
-from wtforms.widgets import TextArea
 
 
 class NewGameForm(FlaskForm):
@@ -19,7 +17,6 @@ class NewGameForm(FlaskForm):
         validators=[DataRequired()],
         choices=["Player 1", "Player 2", "Player 3"],
     )
-    slog = StringField("Game log", widget=TextArea())
     submit = SubmitField("Create")
 
 
@@ -44,11 +41,13 @@ class ProfileForm(FlaskForm):
     themes_dir = os.path.join(
         os.path.abspath(os.path.dirname(__file__)), "static/themes"
     )
-    theme_files = [
-        os.path.splitext(f)[0]
-        for f in os.listdir(themes_dir)
-        if os.path.splitext(f)[1] == ".yaml"
-    ]
+    theme_files = sorted(
+        [
+            os.path.splitext(f)[0]
+            for f in os.listdir(themes_dir)
+            if os.path.splitext(f)[1] == ".yaml"
+        ]
+    )
     theme = SelectField(
         "Theme",
         validators=[DataRequired()],

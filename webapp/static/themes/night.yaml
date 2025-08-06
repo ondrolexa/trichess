@@ -1,9 +1,12 @@
+app:
+  theme: "dark"
+
 canvas:
   info: "#ffffff"
   name: "#ffffff"
   name_inchess: "red"
   name_onmove: "green"
-  background: "#000000"
+  background: "#212529"
   font-family: "Georgia"
   game_over: "black"
 
@@ -20,8 +23,8 @@ board:
 
 pieces:
   font-family: "Verdana"
-  stroke-color: "black"
+  stroke-color: "#212529"
   color:
     - "#ffd11a"
-    - "#009933"
+    - "#13c848"
     - "#1a53ff"

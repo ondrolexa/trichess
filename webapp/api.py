@@ -15,6 +15,25 @@ authorizations = {
     "jsonWebToken": {"type": "apiKey", "in": "header", "name": "Authorization"}
 }
 
+
+# notifications
+def post_notification(username, text, title, gameid):
+    try:
+        requests.post(
+            f"https://ntfy.mykuna.eu/trichess_{username}",
+            data=text.encode("utf-8"),
+            headers={
+                "Title": title,
+                "Click": f"https://trichess.mykuna.eu/playlx/{gameid}",
+            },
+        )
+    except requests.exceptions.ConnectionError:
+        pass
+
+    except Exception as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+
+
 # move API
 
 moveapi = api.namespace(
@@ -394,36 +413,26 @@ class GameBoard(Resource):
                                 tb.player_1.score = tb.player_1.score + score[1]
                                 tb.player_2.score = tb.player_2.score + score[2]
                                 # notify
-                                requests.post(
-                                    f"https://ntfy.mykuna.eu/trichess_{usernames[ga2.on_move]}",
-                                    data=f"You lost in game {state.id}".encode("utf-8"),
-                                    headers={
-                                        "Title": "Game over",
-                                        "Click": f"https://trichess.mykuna.eu/playlx/{state.id}",
-                                    },
+                                post_notification(
+                                    usernames[ga2.on_move],
+                                    f"You lost in game {state.id}",
+                                    "Game over",
+                                    state.id,
                                 )
                             else:
-                                requests.post(
-                                    f"https://ntfy.mykuna.eu/trichess_{usernames[ga2.on_move]}",
-                                    data=f"The game {state.id} ended in a stalemate".encode(
-                                        "utf-8"
-                                    ),
-                                    headers={
-                                        "Title": "Game over",
-                                        "Click": f"https://trichess.mykuna.eu/playlx/{state.id}",
-                                    },
+                                post_notification(
+                                    usernames[ga2.on_move],
+                                    f"The game {state.id} ended in a stalemate",
+                                    "Game over",
+                                    state.id,
                                 )
                         else:
                             # notify next player
-                            requests.post(
-                                f"https://ntfy.mykuna.eu/trichess_{usernames[ga2.on_move]}",
-                                data=f"It's your turn in game {state.id}".encode(
-                                    "utf-8"
-                                ),
-                                headers={
-                                    "Title": "Your turn",
-                                    "Click": f"https://trichess.mykuna.eu/playlx/{state.id}",
-                                },
+                            post_notification(
+                                usernames[ga2.on_move],
+                                f"It's your turn in game {state.id}",
+                                "Your turn",
+                                state.id,
                             )
                         db.session.commit()
                     else:

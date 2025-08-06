@@ -1,10 +1,13 @@
+app:
+  theme: "light"
+
 canvas:
   info: "#000000"
   name: "black"
   name_inchess: "red"
   name_onmove: "green"
   background: "#ffffff"
-  font-family: "Arial"
+  font-family: "Roboto"
   game_over: "black"
 
 board:

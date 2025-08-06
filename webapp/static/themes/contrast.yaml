@@ -1,3 +1,6 @@
+app:
+  theme: "light"
+
 canvas:
   info: "#000000"
   name: "black"
