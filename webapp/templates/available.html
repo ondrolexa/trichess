@@ -30,7 +30,7 @@
         </td>
         <td>{% if game.player_1 is none %}
                 {% if not_in %}
-                    <button type="submit" class="btn btn-success btn-sm" name="seat" value="0">Join</button>
+                    <button type="submit" class="btn btn-success btn-sm" name="seat" value="1">Join</button>
                 {% endif %}
             {% else %}
                 {{game.player_1.username}} ({{ '%.2g' % game.player_1.score|float }})
@@ -38,7 +38,7 @@
         </td>
         <td>{% if game.player_2 is none %}
                 {% if not_in %}
-                    <button type="submit" class="btn btn-success btn-sm" name="seat" value="0">Join</button>
+                    <button type="submit" class="btn btn-success btn-sm" name="seat" value="2">Join</button>
                 {% endif %}
             {% else %}
                 {{game.player_2.username}} ({{ '%.2g' % game.player_2.score|float }})
