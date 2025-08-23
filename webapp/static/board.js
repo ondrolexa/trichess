@@ -1,4 +1,4 @@
-const canvas0 = document.getElementById('layer0');
+const canvas0 = document.getElementById('canvas');
 canvas0.addEventListener('mouseclick', Click_Board);
 const ctx0 = canvas0.getContext('2d');
 //const url = 'https://trichess.mykuna.eu';
@@ -617,12 +617,12 @@ function butt(iid, icolor) {
 }
 butt.prototype.update = function() {
     if (this.disabled) {
-        document.getElementById(this.id).style.backgroundColor = '#d9d9d9'//button_color;
+        document.getElementById(this.id).style.backgroundColor = '#c9c9d9'//button_color;
         document.getElementById(this.id).disabled = true;
         //document.getElementById(this.id).cursor = 'not-allowed';
     }
     else {
-        document.getElementById(this.id).style.backgroundColor = button_color;//'#d9d9d9' //this.color_enable;
+        document.getElementById(this.id).style.backgroundColor = this.color_enable;//'#d9d9d9' //this.color_enable;
         document.getElementById(this.id).disabled = false;
     }
 };
