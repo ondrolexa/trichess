@@ -1,10 +1,11 @@
-const canvas = document.getElementById('canvas');
-canvas.addEventListener('mouseclick', Click_Board);
-const ctx = canvas.getContext('2d');
+const canvas0 = document.getElementById('layer0');
+canvas0.addEventListener('mouseclick', Click_Board);
+const ctx0 = canvas0.getContext('2d');
 //const url = 'https://trichess.mykuna.eu';
 const url = `${window.location.protocol}//${window.location.host}`;
 const r = 17; // radius
 const piece_size = "28px";
+const pawn_size = "24px";
 const mame_size = "24px";
 const info_size = r.toString()+"px";
 // colors
@@ -16,113 +17,60 @@ let SemaforGreen = true
 function debug(itext) {
         window.alert("Debug:"+itext);
 }
-// fetchData /////////////////////////////////////////////
-function fetchData() {
-    this.headers=  {"accept" : "application/json","Content-Type" : "application/json", "Authorization":""};
-}
-fetchData.prototype.fetchPOST = function(iurl, ijson , icallback) {
-    const jsonData = JSON.stringify(ijson)
-    const z = this.headers
-    fetch(iurl, {
-    method: "POST",
-    headers: this.headers,
-    body: jsonData
-  })
-    .then(response => {
-    if (!response.ok) {
-        if (response.status == 401) {
-            window.alert('Token expired. Reload the page');
-            location.reload();
-            //throw new Error(`Token expired. Reload the page: ${response.status}`);
-        }
-        else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-    }
-    return response.json();
-    })
-    .then(data => {
-                    icallback(data);
-    })
-    .catch(error => { debug('Error:'+error+' url:'+iurl)
-    })
-};
-fetchData.prototype.fetchGET = function(iurl,  icallback) {
-    //const jsonData = JSON.stringify(ijson)
-    fetch(iurl, {
-    method: 'GET',
-    headers: this.headers,
-  })
-    .then(response => {
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return response.json();
-    })
-    .then(data => {
-                    icallback(data);
-})
-  .catch(error => { debug('Error:'+error+' url:'+iurl);
-  })
-};
 function rotateArray(arr, rotateBy) {
     const n = arr.length;
     rotateBy %= n;
     return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
 }
-
-// llines ///////////////////////////////////////////////////
-class llines {
-  constructor( itext, ipos_x, ipos_y, ialign, ilength, ifont, icolor, istrokeLine, istrokeColor ) {
-    this.text        = itext;
-    this.pos_x       = ipos_x;
-    this.pos_y       = ipos_y;
-    this.align       = ialign;
-    this.length      = ilength
-    this.font        = ifont;
-    this.color       = icolor;
-    this.strokeLine = istrokeLine
-    this.strokeColor = istrokeColor
-    ctx.font = ifont
-    var text_width = ctx.measureText(this.text).width
-    var l = this.text.length
-    while (text_width > ilength) {
-        l--;
-        this.text = this.text.substr(0,l);
-        text_width = ctx.measureText(this.text).width
+// fetchData /////////////////////////////////////////////
+class fetchData {
+    constructor() {
+        this.headers=  {"accept" : "application/json","Content-Type" : "application/json", "Authorization":""}
     }
-    this.text_width = text_width;
-    this.text_hi  = ifont.substring(0,2);
-    this.text_high  = Number(this.font.substring(0,2));
-  }
-  clear() {
-        var c = -1
-        if (this.align == 'left') {
-            c = 1}
-        //ctx.fillStyle = "balck"
-        ctx.clearRect(this.pos_x-5*c,this.pos_y+5, c*this.length, (this.text_high+10)*(-1));
-        //ctx.fill()
-        this.text = ''
-  }
-  write() {
-        ctx.save();
-        ctx.beginPath();
-        ctx.font = this.font;
-        ctx.textAlign = this.align;
-        ctx.fillStyle = this.color;
-        ctx.lineWidth = this.strokeLine
-        ctx.lineJoin = 'circle';
-        ctx.strokeStyle = this.strokeColor
-        if (this.strokeLine != undefined) {
-            ctx.lineWidth = undefined
-            ctx.strokeStyle = undefined
-            ctx.strokeText(this.text,this.pos_x, this.pos_y);
-        }
-        ctx.fillText(this.text,this.pos_x,this.pos_y);
-        ctx.restore()
+    fetchPOST(iurl, ijson , icallback) {
+        const jsonData = JSON.stringify(ijson)
+        const z = this.headers
+        fetch(iurl, {
+            method: "POST",
+            headers: this.headers,
+            body: jsonData
+        })
+            .then(response => {
+            if (!response.ok) {
+                if (response.status == 401) {
+                    window.alert('Token expired. Reload the page');
+                    location.reload();
+                    //throw new Error(`Token expired. Reload the page: ${response.status}`);
+                }
+                else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            }
+            return response.json();
+            })
+            .then(data => {
+                            icallback(data);
+            })
+            .catch(error => { debug('Error:'+error+' url:'+iurl)
+            })
     }
+    fetchGET(iurl,  icallback) {
+    //const jsonData = JSON.stringify(ijson)
+        fetch(iurl, {
+            method: 'GET',
+            headers: this.headers,
+        })
+            .then(response => {
+                if (!response.ok) {
+                  throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => { icallback(data) })
+            .catch(error => { debug('Error:'+error+' url:'+iurl) })
+    };
 }
-// ssel ////////////////////////////////////////////////////////
+// ssel //////////////////////////////////////////////////
 class ssel {
     constructor(){
         this.active = false
@@ -145,25 +93,76 @@ class ssel {
     return ""
     }
     write() {
-        ctx.fillStyle =  theme["canvas"]["background"];
-        ctx.rect(400,300, 307, 130);
-        ctx.fill();
+        ctx0.fillStyle =  theme["canvas"]["background"];
+        ctx0.rect(400,300, 307, 130);
+        ctx0.fill();
         this.line[0].write()
         this.line[1].write()
         this.active = true
     }
 }
-// iinfo  ///////////////////////////////////////////////////
+// llines ////////////////////////////////////////////////
+class llines {
+  constructor( itext, ipos_x, ipos_y, ialign, ilength, ifont, icolor, istrokeLine, istrokeColor ) {
+    this.text        = itext;
+    this.pos_x       = ipos_x;
+    this.pos_y       = ipos_y;
+    this.align       = ialign;
+    this.length      = ilength
+    this.font        = ifont;
+    this.color       = icolor;
+    this.strokeLine = istrokeLine
+    this.strokeColor = istrokeColor
+    ctx0.font = ifont
+    var text_width = ctx0.measureText(this.text).width
+    var l = this.text.length
+    while (text_width > ilength) {
+        l--;
+        this.text = this.text.substr(0,l);
+        text_width = ctx0.measureText(this.text).width
+    }
+    this.text_width = text_width;
+    this.text_hi  = ifont.substring(0,2);
+    this.text_high  = Number(this.font.substring(0,2));
+  }
+  clear() {
+        var c = -1
+        if (this.align == 'left') {
+            c = 1}
+        //ctx0.fillStyle = "balck"
+        ctx0.clearRect(this.pos_x-5*c,this.pos_y+5, c*this.length, (this.text_high+10)*(-1));
+        //ctx0.fill()
+        this.text = ''
+  }
+  write() {
+        ctx0.save();
+        ctx0.beginPath();
+        ctx0.font = this.font;
+        ctx0.textAlign = this.align;
+        ctx0.fillStyle = this.color;
+        ctx0.lineWidth = this.strokeLine
+        ctx0.lineJoin = 'circle';
+        ctx0.strokeStyle = this.strokeColor
+        if (this.strokeLine != undefined) {
+            ctx0.lineWidth = undefined
+            ctx0.strokeStyle = undefined
+            ctx0.strokeText(this.text,this.pos_x, this.pos_y);
+        }
+        ctx0.fillText(this.text,this.pos_x,this.pos_y);
+        ctx0.restore()
+    }
+}
+// iinfo  ////////////////////////////////////////////////
 class iinfo {
     constructor(iinfo_id, ipos_x, ipos_y, ialign, ivert) {
         var line_len = 260
         var line_high = 1.5*r
-        const width = ctx.canvas.width
-        const height = ctx.canvas.height
+        const width = ctx0.canvas.width
+        const height = ctx0.canvas.height
         this.text = []
         this.lines  = []
         line_len  = line_len - 30
-        // info plock
+        // info block
         if (iinfo_id == 3) {
             this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
             this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
@@ -177,7 +176,12 @@ class iinfo {
         // elimited
         for (let i = 2; i < 7; i++) {
             line_len  = line_len-18//10 - 60/i
-            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, piece_size+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+            if (i == 2 || i == 5) {
+                this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, pawn_size+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+            }
+            else {
+                this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, piece_size+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+            }
         }
     }
     write() {
@@ -271,68 +275,121 @@ class  hex {
    this.show_flag = true
     }
     draw() {
-    ctx.beginPath();
-    ctx.lineWidth = 0;
-    for (let i = 0; i < 6; i++) { //draw hex tile
-        ctx.lineTo(this.x + r * Math.cos((i  + 0.5)*(Math.PI / 3 )),
-                   this.y + r * Math.sin((i  + 0.5)*(Math.PI / 3 )));
-    }
-    ctx.closePath();
-    ctx.fillStyle = this.hex_color
-    if (this.lumi != undefined) {
-        ctx.fillStyle = this.hex_color
-        ctx.fill();
-        ctx.fillStyle = this.lumi
+        ctx0.beginPath();
+        ctx0.lineWidth = 0;
+        for (let i = 0; i < 6; i++) { //draw hex tile
+            ctx0.lineTo(this.x + r * Math.cos((i  + 0.5)*(Math.PI / 3 )),
+                       this.y + r * Math.sin((i  + 0.5)*(Math.PI / 3 )));
         }
-    else
-    {ctx.fillStyle = this.hex_color
-    }
-    ctx.fill();
-    if (this.piece.piece != undefined) {
-        this.draw_piece()
+        ctx0.closePath();
+        ctx0.fillStyle = this.hex_color
+        if (this.lumi != undefined) {
+            ctx0.fillStyle = this.hex_color
+            ctx0.fill();
+            ctx0.fillStyle = this.lumi
+            }
+        else
+        {ctx0.fillStyle = this.hex_color
         }
-    //ctx.stroke();
-}
+        ctx0.fill();
+    }
     draw_piece() {
-        ctx.save()
-        ctx.font = piece_size+" "+theme["pieces"]["font-family"];
-        ctx.textAlign = "center";
-        ctx.fillStyle = theme["pieces"]["color"][(this.piece.player_id+2)%3]  //piece_color[];      //todo
-        ctx.miterLimit = 1;
-        ctx.lineJoin = 'circle';
-        ctx.lineWidth = 1;
-        ctx.strokeText(pcs_map[this.piece.piece],this.x-0, this.y+r/2); // todo
-        ctx.fillText(pcs_map[this.piece.piece],this.x-0,this.y+r/2); // todo
-        ctx.strokeStyle = theme["pieces"]["stroke-color"]
-        ctx.restore()
+        if (this.piece.piece != undefined) {
+            ctx0.save()
+            if (this.piece.piece == 'P' ||this.piece.piece == 'R') {
+                ctx0.font = pawn_size+" "+theme["pieces"]["font-family"];
+            }
+            else {
+                ctx0.font = piece_size+" "+theme["pieces"]["font-family"];
+            }
+            ctx0.textAlign = "center";
+            ctx0.fillStyle = theme["pieces"]["color"][(this.piece.player_id+2)%3]  //piece_color[];      //todo
+            ctx0.miterLimit = 1;
+            ctx0.lineJoin = 'circle';
+            ctx0.lineWidth = 1;
+            ctx0.strokeText(pcs_map[this.piece.piece],this.x-0, this.y+r/2); // todo
+            ctx0.fillText(pcs_map[this.piece.piece],this.x-0,this.y+r/2); // todo
+            ctx0.strokeStyle = theme["pieces"]["stroke-color"]
+            ctx0.restore()
+        }
 }
-    draw_mark(i_kind) {
-    this.show_flag = true;
-    ctx.save();
+    line_intersect2(ax,bo) {
+       if (ax.u2/ax.u1 == bo.z2/bo.z1) {
+            return
+        }
+        if (ax.u2 == 0 ) {
+            var s = (ax.a2 - bo.b2) / bo.z2
+        }
+        else {
+            var s = (ax.u1 / ax.u2 * (bo.b2 - ax.a2) + ax.a1 - bo.b1)/(bo.z1 - ax.u1 / ax.u2 * bo.z2)
+        }
+        var t = (bo.b1+s*bo.z1-ax.a1)/ax.u1
+        var x = ax.a1+t*ax.u1
+        var y = ax.a2+t*ax.u2
+        B.hexs[84].x, B.hexs[84].y
+        var dist = Math.sqrt(Math.pow((B.hexs[84].x - x),2) + Math.pow((B.hexs[84].y - y),2))
+        if (dist < r*12.3) {
 
-    ctx.strokeStyle = theme["board"]["valid_move"]
-
-    ctx.lineWidth = 2
-    if (i_kind == 'safe') {
-       ctx.beginPath();
-       ctx.arc(this.x, this.y, r/2, 0, 2 * Math.PI);
-       ctx.stroke();
-    } else if (i_kind == 'rect') {
-       ctx.beginPath();
-       ctx.rect(this.x-r/2, this.y-r/2, r, r);
-       ctx.stroke();
-    } else if (i_kind == 'attack') {
-        ctx.beginPath();
-        ctx.moveTo(this.x-r/1.6, this.y-r/1.6);
-        ctx.lineTo(this.x+r/1.6, this.y+r/1.6);
-        ctx.moveTo(this.x+r/1.6, this.y-r/1.6);
-        ctx.lineTo(this.x-r/1.6, this.y+r/1.6);
-       ctx.stroke();
-    } else {
-        const a = 0;
+            return {"x": Math.round(x), "y":Math.round(y) }
+        }
+        return
     }
-    ctx.restore();
-}
+    draw_mark(i_kind) {
+        this.show_flag = true;
+        ctx0.save();
+        ctx0.strokeStyle = theme["board"]["valid_move"]
+
+        ctx0.lineWidth = 2
+        if (i_kind == 'safe') {
+           ctx0.beginPath();
+           ctx0.arc(this.x, this.y, r/2, 0, 2 * Math.PI);
+           ctx0.stroke()
+        } else if (i_kind == 'rect') {
+            ctx0.beginPath();
+            for (let i = 0; i < 6; i++) { //draw hex
+                ctx0.lineTo(this.x + r*0.8 * Math.cos((i  + 0.5)*(Math.PI / 3 )),
+                this.y + r*0.8 * Math.sin((i  + 0.5)*(Math.PI / 3 )));
+            }
+            ctx0.closePath();
+            ctx0.stroke();
+            ctx0.lineWidth = 0.5
+            var axis = []
+            axis[0] =  {"a1":this.x  ,"a2":this.y   ,   "u1":B.hexs[0].x    ,"u2":0 }
+            axis[1] =  {"a1":this.x  ,"a2":this.y   ,   "u1":1/2            ,"u2":Math.sqrt(3)/2 }
+            axis[2] =  {"a1":this.x  ,"a2":this.y   ,   "u1":-1/2           ,"u2":Math.sqrt(3)/2 }
+            var point = []
+            var j = 0
+            for (let k= 0; k < 3; k++) {
+                for (let i= 0; i < 6; i++) {
+                    var ret = this.line_intersect2(axis[k], B.border[i])
+                    if (ret != undefined) {
+                        //point[j] = ret
+                        if  ( point[j-1] == undefined  || !(ret.x == point[j-1].x && ret.y == point[j-1].y )) {
+                                point.push(ret)
+                                j++
+                        }
+                    }
+                }
+
+                ctx0.moveTo(point[0].x, point[0].y)
+                ctx0.lineTo(point[1].x, point[1].y)
+                ctx0.stroke()
+                j = 0
+                point = []
+            }
+            ctx0.stroke();
+        } else if (i_kind == 'attack') {
+            ctx0.beginPath();
+            ctx0.moveTo(this.x-r/1.6, this.y-r/1.6);
+            ctx0.lineTo(this.x+r/1.6, this.y+r/1.6);
+            ctx0.moveTo(this.x+r/1.6, this.y-r/1.6);
+            ctx0.lineTo(this.x-r/1.6, this.y+r/1.6);
+           ctx0.stroke();
+        } else {
+            const a = 0;
+        }
+        ctx0.restore();
+    }
 }
 // board /////////////////////////////////////////////////
 class board {
@@ -348,6 +405,24 @@ class board {
         this.onmove =  0;
         this.finished =  false;
         this.hist_changed =  false;
+        this.border = []
+    }
+    init() {
+        let cnt = 0;
+        for (let i = 0; i < 15; i++) {
+            for (let j = 0; j < 15 ; j++) {
+                if ((j + i > 6) && (j < 15)&& (i < 15)&& (j+i < 22)) {
+                    this.hexs[cnt] = new hex(j, i, cnt);
+                    cnt = ++ cnt;
+                }
+            }
+        }
+        this.border[0] =  {"b1":this.hexs[0].x  ,"b2":this.hexs[0].y   ,   "z1":this.hexs[0].x    ,"z2":0 }
+        this.border[1] =  {"b1":this.hexs[7].x  ,"b2":this.hexs[7].y   ,   "z1":1/2               ,"z2":Math.sqrt(3)/2 }
+        this.border[2] =  {"b1":this.hexs[91].x ,"b2":this.hexs[91].y  ,   "z1":-1/2              ,"z2":Math.sqrt(3)/2 }
+        this.border[3] =  {"b1":this.hexs[168].x,"b2":this.hexs[168].y ,   "z1":-this.hexs[168].y ,"z2":0 }
+        this.border[4] =  {"b1":this.hexs[161].x,"b2":this.hexs[161].y ,   "z1":-1/2              ,"z2":-Math.sqrt(3)/2 }
+        this.border[5] =  {"b1":this.hexs[77].x ,"b2":this.hexs[77].y  ,   "z1":1/2                ,"z2":-Math.sqrt(3)/2 }
     }
     set(idata) {
         const jdata = idata;
@@ -391,21 +466,18 @@ class board {
            //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
        }
     }
-    init() {
-  let cnt = 0;
-  for (let i = 0; i < 15; i++) {
-    for (let j = 0; j < 15 ; j++) {
-      if ((j + i > 6) && (j < 15)&& (i < 15)&& (j+i < 22)) {
-        this.hexs[cnt] = new hex(j, i, cnt);
-        cnt = ++ cnt;
-      }
+    draw_tile() {
+        for (let i = 0; i < 169; i++) {
+            if (this.hexs[i].show_flag) {
+                this.hexs[i].draw()
+                //this.hexs[i].lumi = 0
+            }
+        }
     }
-  }
-};
-    draw() {
+    draw_piece() {
     for (let i = 0; i < 169; i++) {
         if (this.hexs[i].show_flag) {
-            this.hexs[i].draw()
+            this.hexs[i].draw_piece()
             //this.hexs[i].lumi = 0
         }
     }
@@ -429,23 +501,23 @@ class board {
     this.gid_new = r_i;
     return r_i;
 };
-}
-// move ---------------------------------------------
-board.prototype.moveValid = async function() {
-    if (!(this.hexs[this.gid_new].piece.piece != undefined && this.hexs[this.gid_new].piece.player_id == this.onmove)) {
-        return
-    }
-    F.fetchPOST(url+'/api/v1/move/valid', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_new}, Step_valid_moves);
-}
-board.prototype.moveMake = async function(inew_piece = "") {
-    if (this.gid_old == -1 || this.gid_old == this.gid_new)  {return}
-    if (!(this.hexs[this.gid_old].piece.piece != undefined && this.hexs[this.gid_old].piece.player_id == this.onmove)) {
-        return;
+    // move ---------------------------------------------
+    moveValid() {
+        if (!(this.hexs[this.gid_new].piece.piece != undefined && this.hexs[this.gid_new].piece.player_id == this.onmove)) {
+            return
         }
-    if (!(this.hexs[this.gid_new].valid_flag)) {
-        return;
+        F.fetchPOST(url+'/api/v1/move/valid', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_new}, Step_valid_moves);
     }
-    F.fetchPOST(url+'/api/v1/move/make', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new, "new_piece": inew_piece}, Step_make_move);
+    moveMake(inew_piece = "") {
+        if (this.gid_old == -1 || this.gid_old == this.gid_new)  {return}
+        if (!(this.hexs[this.gid_old].piece.piece != undefined && this.hexs[this.gid_old].piece.player_id == this.onmove)) {
+            return;
+            }
+        if (!(this.hexs[this.gid_new].valid_flag)) {
+            return;
+        }
+        F.fetchPOST(url+'/api/v1/move/make', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new, "new_piece": inew_piece}, Step_make_move);
+    }
 }
 //----------------------------------------------------
 function elim2array(idata) {
@@ -492,7 +564,8 @@ function Step_2_setplayers(idata) {
 }
 function Step_3_setelim_board_and_draw(idata) {
     B.set(idata);
-    B.draw();
+    B.draw_tile();
+    B.draw_piece();
     B.set(idata);
     II.clear()
     II.set(idata);
@@ -586,14 +659,14 @@ function Click_Rotate() {
 }
 function Click_Board(event) {
     function getMouesPosition(e) {
-        var mouseX = e.offsetX * canvas.width / canvas.clientWidth | 0;
-        var mouseY = e.offsetY * canvas.height / canvas.clientHeight | 0;
+        var mouseX = e.offsetX * canvas0.width / canvas0.clientWidth | 0;
+        var mouseY = e.offsetY * canvas0.height / canvas0.clientHeight | 0;
         return {x: mouseX, y: mouseY};
     }
     const pos = getMouesPosition(event)
     if (SemaforGreen) {
         SemaforGreen = false;
-        const bounds = canvas.getBoundingClientRect()
+        const bounds = canvas0.getBoundingClientRect()
         document.getElementById("myModal").style.display = "none";
         let x = pos.x
         let y = pos.y
@@ -605,7 +678,8 @@ function Click_Board(event) {
             a = SS.getpromo(x,y)
             if (a == "") { // ked klikne do prdele
                 SemaforGreen = true
-                B.draw();
+                B.draw_tile();
+                B.draw_piece();
                 return
             }
             B.moveMake(a)
@@ -616,8 +690,9 @@ function Click_Board(event) {
         else        {
             B.getGid(x,y)
         }
-        B.draw();
+        B.draw_tile()
         B.hexs[B.gid_new].draw_mark('rect'); // show cursor
+        B.draw_piece()
         //if new piece promotion
         if (B.hexs[B.gid_new].promo_flag) {
             SS.line[1].color = theme["pieces"]["color"][B.onmove]
@@ -642,14 +717,14 @@ var SS = new ssel()
 
 B.init();
 
-//    ctx.strokeStyle = "green"
-//    ctx.lineWidth = 3
-//    ctx.beginPath();
-//    ctx.arc(400, 2, 2, 0, 2 * Math.PI);
-//    ctx.stroke();
+//    ctx0.strokeStyle = "green"
+//    ctx0.lineWidth = 3
+//    ctx0.beginPath();
+//    ctx0.arc(400, 2, 2, 0, 2 * Math.PI);
+//    ctx0.stroke();
 
 
-B.draw();
+B.draw_tile();
 II.write()
 
 Step_1_settoken()
