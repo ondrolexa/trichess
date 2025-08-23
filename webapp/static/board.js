@@ -5,7 +5,7 @@ const ctx0 = canvas0.getContext('2d');
 const url = `${window.location.protocol}//${window.location.host}`;
 const r = 17; // radius
 const piece_size = "28px";
-const pawn_size = "24px";
+const pawn_size = "22px";
 const mame_size = "24px";
 const info_size = r.toString()+"px";
 // colors
