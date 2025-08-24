@@ -11,9 +11,10 @@ canvas:
   game_over: "gold"
 
 board:
-  last_move: "#04D410"
+  last_move: "#04d410"
   valid_move: "#ffffff"
-  attack_move: "orangered"
+  selection: "#ffffff"
+  attack_move: "#32cd32"
   hex_color:
     - "#cc0000"
     - "#000000"

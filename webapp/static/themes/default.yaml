@@ -13,6 +13,7 @@ canvas:
 board:
   last_move: "#000000"
   valid_move: "green"
+  selection: "#ffffff"
   attack_move: "red"
   hex_color:
     - "#a8baf0"

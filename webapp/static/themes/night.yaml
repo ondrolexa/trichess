@@ -11,12 +11,13 @@ canvas:
   game_over: "black"
 
 board:
-  last_move: "#04D410"
+  last_move: "lightblue"
   valid_move: "#ffffff"
-  attack_move: "orangered"
+  selection: "#ffffff"
+  attack_move: "lime"
   hex_color:
     - "#cc0000"
-    - "#ffffff"
+    - "#000000"
     - "#737373"
   hex_inchess: "#9966ff"
   hex_alpha: "a8"
@@ -25,6 +26,6 @@ pieces:
   font-family: "Verdana"
   stroke-color: "#212529"
   color:
-    - "#ffd11a"
-    - "#13c848"
-    - "#1a53ff"
+    - "#ffe47f"
+    - "#64c882"
+    - "#7f9fff"

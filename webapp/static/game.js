@@ -1,7 +1,7 @@
-const gid2xy = {};
-const gid2color = {};
 const gid2hex = {};
 const gid2high = {};
+const gid2valid = {};
+const gid2attack = {};
 const gid2piece = {};
 const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
 var stageWidth = 20;
@@ -223,6 +223,42 @@ function createHexHigh(xy) {
   return hex;
 }
 
+function createHexValid(xy) {
+  let hex = new Konva.Circle({
+    x: xy[0],
+    y: xy[1],
+    sides: 6,
+    radius: 0.25,
+    fillEnabled: false,
+    stroke: "black",
+    strokeWidth: 0.07,
+    visible: false,
+    listening: false,
+  });
+  return hex;
+}
+
+function createHexAttack(xy) {
+  let hex = new Konva.Shape({
+    x: xy[0],
+    y: xy[1],
+    sceneFunc: function (context, shape) {
+      context.beginPath();
+      context.moveTo(-0.3, -0.3);
+      context.lineTo(0.3, 0.3);
+      context.moveTo(-0.3, 0.3);
+      context.lineTo(0.3, -0.3);
+      context.fillStrokeShape(shape);
+    },
+    fillEnabled: false,
+    stroke: "black",
+    strokeWidth: 0.07,
+    visible: false,
+    listening: false,
+  });
+  return hex;
+}
+
 function createHexLabel(gid, xy, color, text) {
   let label = new Konva.Text({
     id: gid,
@@ -271,6 +307,8 @@ function promotePiece(label) {
 function cleanHigh() {
   for (let gid = 0; gid < 169; gid++) {
     gid2high[gid].visible(false);
+    gid2valid[gid].visible(false);
+    gid2attack[gid].visible(false);
   }
 }
 
@@ -303,6 +341,8 @@ function cleanMove() {
   gid2high[movestage].visible(false);
   for (let tgid of targets) {
     gid2high[tgid].visible(false);
+    gid2valid[tgid].visible(false);
+    gid2attack[tgid].visible(false);
   }
   if (target != -1) {
     gid2piece[target].text(gid2piece[movestage].text());
@@ -384,15 +424,16 @@ function validMoves(gid) {
     })
     .then((data) => {
       gid2high[gid].visible(true);
-      gid2high[gid].stroke("black");
+      gid2high[gid].stroke(theme["board"]["selection"]);
       for (let i in data.targets) {
         let tgid = data.targets[i].tgid;
         targets.add(tgid);
-        gid2high[tgid].visible(true);
         if (data.targets[i].kind == "attack") {
-          gid2high[tgid].stroke(theme["board"]["attack_move"]);
+          gid2attack[tgid].stroke(theme["board"]["attack_move"]);
+          gid2attack[tgid].visible(true);
         } else {
-          gid2high[tgid].stroke(theme["board"]["valid_move"]);
+          gid2valid[tgid].stroke(theme["board"]["valid_move"]);
+          gid2valid[tgid].visible(true);
         }
         if (data.targets[i].promotion) {
           promotions.add(tgid);
@@ -605,7 +646,6 @@ function boardInfo() {
           if (s >= -7 && s <= 7) {
             const x = q + 0.5 * r;
             const y = (r * Math.sqrt(3)) / 2;
-            gid2xy[gid] = [x, y];
             const colorid = (((2 * q + r) % 3) + 3) % 3;
             gid2hex[gid] = createHexPatch(
               gid,
@@ -613,6 +653,8 @@ function boardInfo() {
               theme["board"]["hex_color"][colorid],
             );
             gid2high[gid] = createHexHigh([x, y]);
+            gid2valid[gid] = createHexValid([x, y]);
+            gid2attack[gid] = createHexAttack([x, y]);
             gid2piece[gid] = createHexLabel(gid, [x, y], "#ffffff", "");
             gid++;
           }
@@ -624,6 +666,8 @@ function boardInfo() {
         layer.add(gid2hex[gid]);
         layer.add(gid2piece[gid]);
         layer.add(gid2high[gid]);
+        layer.add(gid2valid[gid]);
+        layer.add(gid2attack[gid]);
       }
       // set colors eliminated
       p0el.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
