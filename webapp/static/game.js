@@ -3,6 +3,7 @@ const gid2high = {};
 const gid2valid = {};
 const gid2attack = {};
 const gid2piece = {};
+const pos2gid = {};
 const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
 var stageWidth = 20;
 var stageHeight = 18;
@@ -171,6 +172,33 @@ var gameover = new Konva.Text({
   listening: false,
 });
 
+var qline = new Konva.Line({
+  points: [],
+  stroke: theme["board"]["hint_lines"],
+  strokeWidth: 0.05,
+  dash: [0.05, 0.05],
+  visible: false,
+  listening: false,
+});
+
+var rline = new Konva.Line({
+  points: [],
+  stroke: theme["board"]["hint_lines"],
+  strokeWidth: 0.05,
+  dash: [0.05, 0.05],
+  visible: false,
+  listening: false,
+});
+
+var sline = new Konva.Line({
+  points: [],
+  stroke: theme["board"]["hint_lines"],
+  strokeWidth: 0.05,
+  dash: [0.05, 0.05],
+  visible: false,
+  listening: false,
+});
+
 // responsive canvas
 function fitStageIntoDiv() {
   const container = document.querySelector("#canvas");
@@ -194,7 +222,7 @@ function fitStageIntoDiv() {
   stage.draw();
 }
 
-function createHexPatch(gid, xy, color) {
+function createHexPatch(gid, xy, color, qr) {
   let hex = new Konva.RegularPolygon({
     id: gid,
     x: xy[0],
@@ -204,6 +232,8 @@ function createHexPatch(gid, xy, color) {
     fill: color,
     stroke: "black",
     strokeWidth: 0.05,
+    q: qr[0],
+    r: qr[1],
   });
   return hex;
 }
@@ -278,6 +308,7 @@ function createHexLabel(gid, xy, color, text) {
 function manageMove(gid) {
   if (ready) {
     if (movestage == -1) {
+      setCoordHints(gid);
       validMoves(gid);
     } else {
       if (targets.has(gid)) {
@@ -290,8 +321,10 @@ function manageMove(gid) {
       } else {
         if (gid == movestage) {
           cleanMove();
+          cleanHigh();
         } else {
           cleanMove();
+          setCoordHints(gid);
           validMoves(gid);
         }
       }
@@ -310,6 +343,9 @@ function cleanHigh() {
     gid2valid[gid].visible(false);
     gid2attack[gid].visible(false);
   }
+  qline.visible(false);
+  rline.visible(false);
+  sline.visible(false);
 }
 
 function backMove() {
@@ -333,6 +369,7 @@ function forwardMove() {
 }
 
 function boardReset() {
+  cleanHigh();
   stage.destroyChildren();
   boardInfo();
 }
@@ -401,6 +438,38 @@ function updateStats(eliminated, value, move_number) {
   movelabel.text(
     `Game ID: ${id}\nMove: ${move_number}/${game_slog.length / 4}`,
   );
+}
+
+function setCoordHints(gid) {
+  let q = gid2hex[gid].getAttr("q");
+  let r = gid2hex[gid].getAttr("r");
+  gid_l11 = pos2gid[[Math.max(-7 - r, -7), r]];
+  gid_l12 = pos2gid[[Math.min(7 - r, 7), r]];
+  gid_l21 = pos2gid[[q, Math.max(-7 - q, -7)]];
+  gid_l22 = pos2gid[[q, Math.min(7 - q, 7)]];
+  gid_l31 = pos2gid[[q + Math.min(7 - q, r + 7), r - Math.min(7 - q, r + 7)]];
+  gid_l32 = pos2gid[[q - Math.min(q + 7, 7 - r), r + Math.min(q + 7, 7 - r)]];
+  qline.points([
+    gid2hex[gid_l11].x(),
+    gid2hex[gid_l11].y(),
+    gid2hex[gid_l12].x(),
+    gid2hex[gid_l12].y(),
+  ]);
+  rline.points([
+    gid2hex[gid_l21].x(),
+    gid2hex[gid_l21].y(),
+    gid2hex[gid_l22].x(),
+    gid2hex[gid_l22].y(),
+  ]);
+  sline.points([
+    gid2hex[gid_l31].x(),
+    gid2hex[gid_l31].y(),
+    gid2hex[gid_l32].x(),
+    gid2hex[gid_l32].y(),
+  ]);
+  qline.visible(true);
+  rline.visible(true);
+  sline.visible(true);
 }
 
 function validMoves(gid) {
@@ -647,10 +716,12 @@ function boardInfo() {
             const x = q + 0.5 * r;
             const y = (r * Math.sqrt(3)) / 2;
             const colorid = (((2 * q + r) % 3) + 3) % 3;
+            pos2gid[[q, r]] = gid;
             gid2hex[gid] = createHexPatch(
               gid,
               [x, y],
               theme["board"]["hex_color"][colorid],
+              [q, r],
             );
             gid2high[gid] = createHexHigh([x, y]);
             gid2valid[gid] = createHexValid([x, y]);
@@ -683,6 +754,10 @@ function boardInfo() {
       layer.add(p2el);
       // game over
       layer.add(gameover);
+      // lines
+      layer.add(qline);
+      layer.add(rline);
+      layer.add(sline);
 
       layer.on("click touchenter", function (evt) {
         const shape = evt.target;

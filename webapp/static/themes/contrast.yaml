@@ -21,6 +21,7 @@ board:
     - "#737373"
   hex_inchess: "#9966ff"
   hex_alpha: "90"
+  hint_lines: "#ffffff"
 
 pieces:
   font-family: "Verdana"
