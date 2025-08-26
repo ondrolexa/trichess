@@ -157,26 +157,42 @@ var p2el = new Konva.Text({
   listening: false,
 });
 
-var gameover = new Konva.Text({
-  x: -7.75,
+const gameover = new Konva.Group({
+  visible: false,
+});
+const gameover_bg = new Konva.Rect({
+  x: -8,
+  y: -3,
+  width: 16,
+  height: 7,
+  opacity: 0.65,
+  fill: theme["canvas"]["background"],
+  listening: false,
+});
+var gameover_text = new Konva.Text({
+  x: -7,
   y: -2,
   text: "GAME OVER",
   fontFamily: theme["canvas"]["font-family"],
   fill: theme["canvas"]["game_over"],
   fontSize: 2.5,
   fontStyle: "bold",
-  opacity: 0.95,
   align: "center",
   verticalAlign: "middle",
-  visible: false,
+  opacity: 0.65,
   listening: false,
 });
+gameover.add(gameover_bg);
+gameover.add(gameover_text);
+
+var line_dash = [0.2, 0.25];
+var line_width = 0.05;
 
 var qline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
-  strokeWidth: 0.05,
-  dash: [0.05, 0.05],
+  strokeWidth: line_width,
+  dash: line_dash,
   visible: false,
   listening: false,
 });
@@ -184,8 +200,8 @@ var qline = new Konva.Line({
 var rline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
-  strokeWidth: 0.05,
-  dash: [0.05, 0.05],
+  strokeWidth: line_width,
+  dash: line_dash,
   visible: false,
   listening: false,
 });
@@ -193,8 +209,8 @@ var rline = new Konva.Line({
 var sline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
-  strokeWidth: 0.05,
-  dash: [0.05, 0.05],
+  strokeWidth: line_width,
+  dash: line_dash,
   visible: false,
   listening: false,
 });
@@ -301,6 +317,7 @@ function createHexLabel(gid, xy, color, text) {
     align: "center",
     verticalAlign: "middle",
     name: "piece",
+    listening: false,
   });
   return label;
 }
@@ -435,9 +452,7 @@ function updateStats(eliminated, value, move_number) {
   }
   p2el.text(pp2.join(""));
   slogtext.innerHTML = slog;
-  movelabel.text(
-    `Game ID: ${id}\nMove: ${move_number}/${game_slog.length / 4}`,
-  );
+  movelabel.text(`Move\n${move_number}/${game_slog.length / 4}`);
 }
 
 function setCoordHints(gid) {
@@ -646,7 +661,7 @@ function gameInfo(init = false, redraw = false) {
         backmove.className = "btn btn-secondary mb-2 col-12";
       }
       if (data.finished) {
-        gameover.text(
+        gameover_text.text(
           "GAME OVER\n" + seat[(data.onmove + 3 - view_pid) % 3] + " lost",
         );
         gameover.visible(true);
@@ -703,9 +718,14 @@ function boardInfo() {
       server_slog = data.slog;
       game_slog = data.slog;
       gameInfo(true, true);
-      var layer = new Konva.Layer();
-      stage.add(layer);
-      layer.add(background);
+      var board_layer = new Konva.Layer();
+      var interactive_layer = new Konva.Layer();
+      var pieces_layer = new Konva.Layer();
+      var top_layer = new Konva.Layer();
+      stage.add(board_layer);
+      stage.add(interactive_layer);
+      stage.add(pieces_layer);
+      stage.add(top_layer);
 
       // Create mappings
       let gid = 0;
@@ -732,39 +752,43 @@ function boardInfo() {
         }
       }
 
+      board_layer.add(background);
       // Add board hexes
       for (let gid = 0; gid <= 168; gid++) {
-        layer.add(gid2hex[gid]);
-        layer.add(gid2piece[gid]);
-        layer.add(gid2high[gid]);
-        layer.add(gid2valid[gid]);
-        layer.add(gid2attack[gid]);
+        board_layer.add(gid2hex[gid]);
+        pieces_layer.add(gid2piece[gid]);
+        interactive_layer.add(gid2high[gid]);
+        interactive_layer.add(gid2valid[gid]);
+        interactive_layer.add(gid2attack[gid]);
       }
       // set colors eliminated
       p0el.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
       p1el.fill(theme["pieces"]["color"][(1 + view_pid) % 3]);
       p2el.fill(theme["pieces"]["color"][(2 + view_pid) % 3]);
 
-      layer.add(movelabel);
-      layer.add(p0name);
-      layer.add(p0el);
-      layer.add(p1name);
-      layer.add(p1el);
-      layer.add(p2name);
-      layer.add(p2el);
+      board_layer.add(movelabel);
+      board_layer.add(p0name);
+      board_layer.add(p0el);
+      board_layer.add(p1name);
+      board_layer.add(p1el);
+      board_layer.add(p2name);
+      board_layer.add(p2el);
       // game over
-      layer.add(gameover);
+      top_layer.add(gameover);
       // lines
-      layer.add(qline);
-      layer.add(rline);
-      layer.add(sline);
+      interactive_layer.add(qline);
+      interactive_layer.add(rline);
+      interactive_layer.add(sline);
 
-      layer.on("click touchenter", function (evt) {
+      board_layer.on("click touchenter", function (evt) {
         const shape = evt.target;
         manageMove(shape.id());
       });
 
-      layer.draw();
+      board_layer.draw();
+      interactive_layer.draw();
+      pieces_layer.draw();
+      top_layer.draw();
 
       fitStageIntoDiv();
       submit.disabled = true;

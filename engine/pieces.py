@@ -151,41 +151,54 @@ class Piece:
                             else:
                                 break
                 if castling and move.kind == "c":
-                    pos = self.player.pos_from_move(self.pos, move)
-                    overmove = Move(move.steps[0])
-                    overpos = self.player.pos_from_move(self.pos, overmove)
-                    if (
-                        pos in self.hex.board
-                        and not self.hex.board[self.pos].piece.used
-                    ):
-                        if not self.hex.board[overpos].has_piece:
-                            if not self.hex.board[pos].has_piece:
-                                inchess, _, _ = self.hex.board.pos_in_chess(
-                                    self.player, overpos
-                                )
-                                if not inchess:
-                                    if move.steps[0] == "SL":
-                                        rpos = self.player.pos_from_move(pos, overmove)
-                                        if rpos in self.hex.board:
-                                            if self.hex.board[rpos].has_piece:
-                                                rp = self.hex.board[rpos].piece
-                                                if isinstance(rp, Rook) and not rp.used:
-                                                    res.append(pos)
-                                    else:
-                                        fpos = self.player.pos_from_move(pos, overmove)
-                                        if fpos in self.hex.board:
-                                            if not self.hex.board[fpos].has_piece:
-                                                rpos = self.player.pos_from_move(
-                                                    fpos, overmove
-                                                )
-                                                if rpos in self.hex.board:
-                                                    if self.hex.board[rpos].has_piece:
-                                                        rp = self.hex.board[rpos].piece
-                                                        if (
-                                                            isinstance(rp, Rook)
-                                                            and not rp.used
-                                                        ):
-                                                            res.append(pos)
+                    inchess, _, _ = self.hex.board.pos_in_chess(self.player, self.pos)
+                    if not inchess:
+                        pos = self.player.pos_from_move(self.pos, move)
+                        overmove = Move(move.steps[0])
+                        overpos = self.player.pos_from_move(self.pos, overmove)
+                        if (
+                            pos in self.hex.board
+                            and not self.hex.board[self.pos].piece.used
+                        ):
+                            if not self.hex.board[overpos].has_piece:
+                                if not self.hex.board[pos].has_piece:
+                                    inchess, _, _ = self.hex.board.pos_in_chess(
+                                        self.player, overpos
+                                    )
+                                    if not inchess:
+                                        if move.steps[0] == "SL":
+                                            rpos = self.player.pos_from_move(
+                                                pos, overmove
+                                            )
+                                            if rpos in self.hex.board:
+                                                if self.hex.board[rpos].has_piece:
+                                                    rp = self.hex.board[rpos].piece
+                                                    if (
+                                                        isinstance(rp, Rook)
+                                                        and not rp.used
+                                                    ):
+                                                        res.append(pos)
+                                        else:
+                                            fpos = self.player.pos_from_move(
+                                                pos, overmove
+                                            )
+                                            if fpos in self.hex.board:
+                                                if not self.hex.board[fpos].has_piece:
+                                                    rpos = self.player.pos_from_move(
+                                                        fpos, overmove
+                                                    )
+                                                    if rpos in self.hex.board:
+                                                        if self.hex.board[
+                                                            rpos
+                                                        ].has_piece:
+                                                            rp = self.hex.board[
+                                                                rpos
+                                                            ].piece
+                                                            if (
+                                                                isinstance(rp, Rook)
+                                                                and not rp.used
+                                                            ):
+                                                                res.append(pos)
             return res
 
 

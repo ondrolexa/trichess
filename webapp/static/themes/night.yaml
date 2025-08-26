@@ -7,8 +7,8 @@ canvas:
   name_inchess: "red"
   name_onmove: "green"
   background: "#212529"
-  font-family: "Georgia"
-  game_over: "black"
+  font-family: "Roboto"
+  game_over: "LightYellow"
 
 board:
   last_move: "lightblue"
