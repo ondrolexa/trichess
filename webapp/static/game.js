@@ -759,7 +759,7 @@ function boardInfo() {
         pieces_layer.add(gid2piece[gid]);
         interactive_layer.add(gid2high[gid]);
         interactive_layer.add(gid2valid[gid]);
-        interactive_layer.add(gid2attack[gid]);
+        pieces_layer.add(gid2attack[gid]);
       }
       // set colors eliminated
       p0el.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
