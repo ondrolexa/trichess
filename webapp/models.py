@@ -8,7 +8,8 @@ class User(db.Model):
     password = db.Column(db.String(500))
     email = db.Column(db.String(120))
     score = db.Column(db.Float)
-    theme = db.Column(db.Integer)
+    theme = db.Column(db.String())
+    board = db.Column(db.String())
 
     def is_authenticated(self):
         return True

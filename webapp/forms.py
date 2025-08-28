@@ -53,6 +53,11 @@ class ProfileForm(FlaskForm):
         validators=[DataRequired()],
         choices=theme_files,
     )
+    board = SelectField(
+        "Board",
+        validators=[DataRequired()],
+        choices=["filio", "ondro"],
+    )
     submit = SubmitField("Save")
 
 

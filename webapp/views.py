@@ -1,3 +1,12 @@
+"""
+When changed update migrations
+
+flask --app=webapp/main.py db migrate -m "Added board to User"
+flask --app=webapp/main.py db upgrade
+
+Rerun flask --app=webapp/main.py db upgrade with production database
+"""
+
 import os
 from zoneinfo import ZoneInfo
 
@@ -77,7 +86,9 @@ def active():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    return render_template("games.html", games=active, uid=g.user.id)
+    return render_template(
+        "games.html", games=active, uid=g.user.id, board=g.user.board
+    )
 
 
 @app.route("/archive")
@@ -94,7 +105,7 @@ def archive():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    return render_template("archive.html", games=archive)
+    return render_template("archive.html", games=archive, board=g.user.board)
 
 
 @app.route("/join", methods=["GET", "POST"])
@@ -216,11 +227,14 @@ def playlx(id):
 @app.route("/profile", methods=["GET", "POST"])
 @login_required
 def profile():
-    form_profile = ProfileForm(email=g.user.email, theme=g.user.theme)
+    form_profile = ProfileForm(
+        email=g.user.email, theme=g.user.theme, board=g.user.board
+    )
     form_password = PasswordForm(username=g.user.username)
     if form_profile.validate_on_submit():
         g.user.email = form_profile.email.data
         g.user.theme = form_profile.theme.data
+        g.user.board = form_profile.board.data
         db.session.commit()
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active"))

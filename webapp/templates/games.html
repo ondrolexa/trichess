@@ -54,8 +54,11 @@
         <td><span>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score|float }})</span></td>
         {% endif %}
         <td>
-            <a class="btn btn-warning btn-sm mt-0" href="{{ url_for('play', id=game.id) }}" role="button">Play</a>
-            <a class="btn btn-success btn-sm mt-1 mt-md-0" href="{{ url_for('playlx', id=game.id) }}" role="button">Play</a>
+            {% if board == "ondro" %}
+            <a class="btn btn-success btn-sm mt-0" href="{{ url_for('playlx', id=game.id) }}" role="button">Play</a>
+            {% else %}
+            <a class="btn btn-success btn-sm mt-0" href="{{ url_for('play', id=game.id) }}" role="button">Play</a>
+            {% endif %}
         </td>
         <td>{{game.modified_at|strftime}}</td>
         <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
