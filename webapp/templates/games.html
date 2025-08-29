@@ -3,7 +3,7 @@
 {%block content%}
 <h2>Active games</h2>
 <div class="table-responsive-sm">
-    <table class="table table-hover table-sm">
+    <table class="table table-hover table-sm align-middle">
     <thead>
         <tr>
         <th scope="col">#</th>
@@ -55,9 +55,9 @@
         {% endif %}
         <td>
             {% if board == "ondro" %}
-            <a class="btn btn-success btn-sm mt-0" href="{{ url_for('playlx', id=game.id) }}" role="button">Play</a>
+            <a class="btn btn-success btn-sm" href="{{ url_for('playlx', id=game.id) }}" role="button">Play</a>
             {% else %}
-            <a class="btn btn-success btn-sm mt-0" href="{{ url_for('play', id=game.id) }}" role="button">Play</a>
+            <a class="btn btn-success btn-sm" href="{{ url_for('play', id=game.id) }}" role="button">Play</a>
             {% endif %}
         </td>
         <td>{{game.modified_at|strftime}}</td>
