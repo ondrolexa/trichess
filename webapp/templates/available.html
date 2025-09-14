@@ -15,10 +15,10 @@
         </tr>
     </thead>
     <tbody>
-        <form action=""{{ url_for('available') }}"" method="post" class="form" role="form">
         {% for game in games %}
         {% set not_in = (game.player_0.id != player_id) and (game.player_1.id != player_id) and (game.player_2.id != player_id) %}
         <tr>
+        <form action=""{{ url_for('available') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}<input type="hidden" id="board" name="board" value="{{game.id}}"/></th>
         <td>{% if game.player_0 is none %}
                 {% if not_in %}
@@ -50,9 +50,9 @@
             <button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button>
             {% endif %}
         </td>
+        </form>
         </tr>
         {% endfor %}
-        </form>
     </tbody>
     </table>
 </div>

@@ -114,7 +114,7 @@ def available():
     if request.method == "POST":
         delete = request.form.get("delete", None)
         if delete is None:
-            board = TriBoard.query.filter_by(id=request.form.get("board")).first()
+            board = TriBoard.query.filter_by(id=int(request.form.get("board"))).first()
             match request.form.get("seat"):
                 case "0":
                     board.player_0_id = g.user.id
