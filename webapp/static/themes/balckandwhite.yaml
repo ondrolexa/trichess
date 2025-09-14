@@ -1,0 +1,30 @@
+app:
+  theme: "dark"
+
+canvas:
+  info: "#ffffff"
+  name: "#ffffff"
+  name_inchess: "red"
+  name_onmove: "green"
+  background: "#212529"
+  font-family: "Georgia"
+  game_over: "black"
+
+board:
+  last_move: "#04D410"
+  valid_move: "#4FEE2F"
+  attack_move: "orangered"
+  hex_color:
+    - "#000000"
+    - "#ffffff"
+    - "#737373"
+  hex_inchess: "#9966ff"
+  hex_alpha: "a8"
+
+pieces:
+  font-family: "Verdana"
+  stroke-color: "#000000"
+  color:
+    - "#E538A9"
+    - "#F5F825"
+    - "#40DDDD"

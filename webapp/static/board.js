@@ -176,12 +176,7 @@ class iinfo {
         // elimited
         for (let i = 2; i < 7; i++) {
             line_len  = line_len-18//10 - 60/i
-            if (i == 2 || i == 5) {
-                this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, pawn_size+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
-            }
-            else {
-                this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, piece_size+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
-            }
+            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, piece_size+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
         }
     }
     write() {
@@ -234,6 +229,12 @@ class iinfos {
                 {
                 for (let j = 0; j < e.length; j++) {
                     this.panel[i].lines[j+2].color= theme["pieces"]["color"][(this.index[i]+2)%3]
+                    if (e[j].indexOf("♟") >= 0 || e[j].indexOf("♜")  >=  0) {
+                        this.panel[i].lines[j+2].font = pawn_size+" "+theme["pieces"]["font-family"]
+                        }
+                    else {
+                        this.panel[i].lines[j+2].font = piece_size+" "+theme["pieces"]["font-family"];
+                        }
                     this.panel[i].lines[j+2].text= e[j]
                     }
                 }
@@ -638,7 +639,8 @@ function Click_Forward() {
     F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Click_OK() {
-    if (B.move_number_org == B.move_number-1 && B.view_player == (B.onmove+2)%3 ) {
+    //if (B.move_number_org == B.move_number-1 && B.view_player == (B.onmove+2)%3 ) {
+    if (B.move_number_org == B.move_number-1 && 0 == (B.onmove+2)%3 ) {
         F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.slog.substring(0,B.move_number*4)},function () {} );
     }
     B.move_number_org = -1
@@ -654,7 +656,7 @@ function Click_Refresh()    {
     F.fetchGET(url+'/api/v1/manager/board?id='+ID.toString(), Step_2_setplayers)
 };
 function Click_Rotate() {
-    B.view_player = (B.view_player+1)%3
+    B.view_player = (B.view_player+2)%3
     F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Click_Board(event) {
