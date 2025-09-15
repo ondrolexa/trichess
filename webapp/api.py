@@ -17,14 +17,18 @@ authorizations = {
 
 
 # notifications
-def post_notification(username, text, title, gameid):
+def post_notification(username, text, title, gameid, board):
+    if board == "ondro":
+        click = f"https://trichess.mykuna.eu/playlx/{gameid}"
+    else:
+        click = f"https://trichess.mykuna.eu/play/{gameid}"
     try:
         requests.post(
             f"https://ntfy.mykuna.eu/trichess_{username}",
             data=text.encode("utf-8"),
             headers={
                 "Title": title,
-                "Click": f"https://trichess.mykuna.eu/playlx/{gameid}",
+                "Click": click,
             },
         )
     except requests.exceptions.ConnectionError:
@@ -403,6 +407,9 @@ class GameBoard(Resource):
                     same = ga2.slog.startswith(ga1.slog)
                     if poster & oneadded & same:
                         tb.slog = state.slog
+                        user = User.query.filter_by(
+                            username=usernames[ga2.on_move]
+                        ).first()
                         if not ga2.move_possible():
                             tb.status = 2
                             in_chess, gid, who = ga2.in_chess
@@ -418,6 +425,7 @@ class GameBoard(Resource):
                                     f"You lost in game {state.id}",
                                     "Game over",
                                     state.id,
+                                    user.board,
                                 )
                             else:
                                 post_notification(
@@ -425,6 +433,7 @@ class GameBoard(Resource):
                                     f"The game {state.id} ended in a stalemate",
                                     "Game over",
                                     state.id,
+                                    user.board,
                                 )
                         else:
                             # notify next player
@@ -433,6 +442,7 @@ class GameBoard(Resource):
                                 f"It's your turn in game {state.id}",
                                 "Your turn",
                                 state.id,
+                                user.board,
                             )
                         db.session.commit()
                     else:
