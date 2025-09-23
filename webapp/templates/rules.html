@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {%block content%}
-    <h1>Trichess rules (Three-Player Chess)</h1>
+    <h1>Trichess rules</h1>
     <p>Trichess is a three-player variation of chess played on a hexagonal board. The board has three colors, which define the diagonals (blue lines), while straight lines (yellow lines) run across the flat sides of the hexagons. Because of the three-colored design, each player begins with three knights instead of two.</p>
     <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/directions.png') }}">
         <figcaption class="figure-caption">Straight and diagonal directions on board</figcaption>
@@ -45,12 +45,21 @@
     </figure>
     <h2>Check</h2>
     <p>A king is considered in check when an opposing piece threatens to capture it on the opponent’s next turn. When in check, a player must respond by moving the king out of check, capturing the attacking piece, or placing another piece in the way to block the attack. A king may never move into a position where it would be in check.</p>
+    <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/check.png') }}">
+        <figcaption class="figure-caption">Castling</figcaption>
+    </figure>
+    <h2>Checkmate</h2>
+    <p>Putting an opponent’s king in checkmate is the only way to win the game.</p>
+    <p>Checkmate occurs when a king is in check and cannot escape. In this case, the attacking players earn two points total, split according to how many of their pieces contribute to the checkmate. For example, if one player delivers the checkmate, they earn two points, while if two player’s pieces both contribute to the checkmate, each receives one point.</p>
+    <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/checkmate.png') }}">
+        <figcaption class="figure-caption">Castling</figcaption>
+    </figure>
     <p>In the illustration, the blue queen and yellow knight have the green king in check, and all the spaces where the king can move can be attacked by the queen or knight. The king cannot take the queen, because the other queen is protecting the queen. This is checkmate and 2 points are shared between blue and yellow players according to the number of their pieces giving check. So 1 point for blue (blue queen) and 1 point for yellow (yellow knight).</p>
     <p>If a player had another piece somewhere on the board that is not blocked, it would have to move. The game would continue.</p>
     <h2>Basic Strategy</h2>
     <p>Trichess is an incredibly complex strategic game, and it is impossible to go into all the possible tactics one could use to win. Here are some hints for new players.</p>
     <p>As in traditional chess, pieces in Trichess have relative values that help guide strategy. Queens are worth nine points, rooks five, bishops and knights three each, and pawns one. However, pawns become more valuable as they approach promotion. Because pawn promotion is such a powerful opportunity, it is almost always best to promote a pawn into a queen.</p>
     <p>Effective play in Trichess requires both strong offense and solid defense. Players should try to maintain balance across the board, keeping their forces spread out to control key areas. Attacks are most successful when supported by multiple pieces, as lone pieces are easily cut off and captured. At the same time, players must guard their king carefully while also preparing to exploit weaknesses in the defenses of their two opponents.</p>
-    <p>The ultimate objective of Trichess is to checkmate an opponent's king. Once checkmate is achieved, the winning players are awarded points according pieces involved in chessmate.</p>
+    <p>The ultimate objective of Trichess is to checkmate an opponent’s king. Once checkmate is achieved, the winning players are awarded points according to pieces involved in checkmate.</p>
     <p>Enjoy the game.</p>
 {%endblock%}
