@@ -11,8 +11,8 @@
     min-width: 50px;
 }
 .disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 .divbutt {
     width: 10%;
@@ -27,8 +27,8 @@
     justify-content: left;
     min-width: 200px;
     max-width: 1600px;
-    min-high: 200px;
-    max-high: 1600px;
+    min-height: 200px;
+    max-height: 1600px;
 }
 .divmain {
     display: flex;
@@ -41,20 +41,20 @@
     justify-content: left;
     min-width: 200px;
     max-width: 1600px;
-    min-high: 190px;
-    max-high: 19    00px;
-    high: 190px;
+    min-height: 190px;
+    max-height: 19 00px;
+    height: 190px;
     top: 15%;
     text-align: center;
-        text-shadow:
-          -2px -2px 0 #000,
-          2px -2px 0 #000,
-          -2px 2px 0 #000,
-          2px 2px 0 #000,
-          -3px 0px 0 #000,
-          3px 0px 0 #000,
-          0px -3px 0 #000,
-          0px 3px 0 #000;
+    text-shadow:
+        -2px -2px 0 #000,
+        2px -2px 0 #000,
+        -2px 2px 0 #000,
+        2px 2px 0 #000,
+        -3px 0px 0 #000,
+        3px 0px 0 #000,
+        0px -3px 0 #000,
+        0px 3px 0 #000;
     overflow: auto; /* Enable scroll if needed */
     background-color: #ffffffc8;
     font-size: 60px;
@@ -63,23 +63,22 @@
 
 /* Modal Content */
 .modal-content {
-  background-color: #fefefe;
-  margin: auto;
-  padding: 20px;
-  border: 1px solid #888;
-  width: 80%;
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
 }
 /* The Close Button */
 .close {
-  color: #aaaaaa;
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
+    color: #aaaaaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
 }
 .close:hover,
 .close:focus {
-  color: #000;
-  text-decoration: none;
-  cursor: pointer;
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
 }
-

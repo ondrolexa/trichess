@@ -269,6 +269,12 @@ def password():
     )
 
 
+@app.route("/help")
+@login_required
+def help():
+    return render_template("rules.html")
+
+
 # === Admin section ===
 
 
