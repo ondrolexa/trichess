@@ -8,6 +8,7 @@ Rerun flask --app=webapp/main.py db upgrade with production database
 """
 
 import os
+import requests
 from zoneinfo import ZoneInfo
 
 import yaml
@@ -131,6 +132,24 @@ def available():
                 and (board.player_2_id is not None)
             ):
                 board.status = 1
+                # send notification to first player
+                if board.player_0.board == "ondro":
+                    click = f"https://trichess.mykuna.eu/playlx/{board.id}"
+                else:
+                    click = f"https://trichess.mykuna.eu/play/{board.id}"
+                try:
+                    requests.post(
+                        f"https://ntfy.mykuna.eu/trichess_{board.player_0.username}",
+                        data=f"The game {board.id} just started, it's your turn".encode(
+                            "utf-8"
+                        ),
+                        headers={
+                            "Title": "Game started",
+                            "Click": click,
+                        },
+                    )
+                except requests.exceptions.ConnectionError:
+                    pass
             db.session.commit()
             return redirect(url_for("active"))
         else:
