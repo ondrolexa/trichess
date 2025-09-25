@@ -23,7 +23,7 @@
                 <li>Across flat sides = <strong>straight lines</strong>.</li>
             </ul>
 
-            <h3>🔄 Turn order</h3>
+            <h3>🔄 Taking turns</h3>
             <ul>
                 <li>Player 1 starts.</li>
                 <li>Turns go <strong>clockwise</strong>.</li>
@@ -33,7 +33,7 @@
             <h3>⚔️ Capturing</h3>
             <ul>
                 <li>Move onto an opponent’s piece to capture it.</li>
-                <li>Pawns: move forward, capture diagonally forward.</li>
+                <li>Pawns: move along straight line, capture diagonally forward.</li>
                 <li>Cannot move through or capture your own pieces.</li>
             </ul>
 
@@ -96,16 +96,16 @@
             <h2>Phone notifications</h2>
             <p>During a game, players can receive a notification whenever it is their turn to move. To enable these notifications on your phone, you need to install the <strong>ntfy</strong> app.</p>
             <ul>
-                <li><strong>Install</strong> the ntfy app<br/>Download and install the ntfy application from your app store (available on both Android and iOS).
-                    <div class="mt-8 flex flex-wrap gap-x-3 gap-y-4">
-                        <a target="_blank" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy"><img alt="Get it on Google Play" src="{{ url_for('static', filename='badge-google.png') }}" width="168" height="50" loading="lazy" style="color:transparent"></a>
-                        <a target="_blank" href="https://f-droid.org/en/packages/io.heckel.ntfy/"><img alt="Get it on F-Droid" src="{{ url_for('static', filename='badge-fdroid.png') }}" width="168" height="50" loading="lazy" style="color:transparent"></a>
-                        <a target="_blank" href="https://apps.apple.com/us/app/ntfy/id1625396347"><img alt="Download on the App Store" src="{{ url_for('static', filename='badge-apple.png') }}" width="168" height="50" loading="lazy" style="color:transparent"></a>
+                <li><strong>Install the ntfy app</strong><br/>Download and install the ntfy application from your app store (available on both Android and iOS).
+                    <div class="d-flex flex-column flex-md-row">
+                        <div class="p-1"><a target="_blank" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy"><img alt="Get it on Google Play" src="{{ url_for('static', filename='badge-google.png') }}" width="168" height="50"></a></div>
+                        <div class="p-1"><a target="_blank" href="https://f-droid.org/en/packages/io.heckel.ntfy/"><img alt="Get it on F-Droid" src="{{ url_for('static', filename='badge-fdroid.png') }}" width="168" height="50"></a></div>
+                        <div class="p-1"><a target="_blank" href="https://apps.apple.com/us/app/ntfy/id1625396347"><img alt="Download on the App Store" src="{{ url_for('static', filename='badge-apple.png') }}" width="168" height="50"></a></div>
                     </div>
                 </li>
-                <li><strong>Configure</strong> the server<br/>After installation, open the app and set the server to: <code>https://ntfy.mykuna.eu</code></li>
+                <li><strong>Configure the server</strong><br/>After installation, open the app and set the server to: <code>https://ntfy.mykuna.eu</code></li>
                 Subscribe to your personal topic
-                <li><strong>Subscribe</strong> to a topic with the following name format: <code>trichess_username</code><br/>Here, replace username with your actual Trichess username. For example, if your username is johny, the topic would be: <code>trichess_johny</code></li>
+                <li><strong>Subscribe to a topic</strong> with the following name format: <code>trichess_username</code><br/>Here, replace username with your actual Trichess username. For example, if your username is johny, the topic would be: <code>trichess_johny</code></li>
             </ul>
             <p>Once this setup is complete, you will automatically receive a notification on your phone whenever it’s your turn to move in Trichess.</p>
             <p>Enjoy your games and never miss a move again with Trichess!</p>
