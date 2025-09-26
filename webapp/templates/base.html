@@ -26,6 +26,7 @@
                             <li class="nav-item"><a class="nav-item nav-link" href="{{ url_for('available') }}">Available{% if navailable>0 %}<span class="badge bg-danger ps-1 ms-1">{{navailable}}</span>{% endif %}</a></li>
                             <li class="nav-item">{{ render_nav_item('archive', 'Archive') }}</li>
                             <li class="nav-item">{{ render_nav_item('new', 'New game') }}</li>
+                            <li class="nav-item">{{ render_nav_item('help', 'Help') }}</li>
                             {% if current_user.is_authenticated %}
                             <li class="nav-item">{{ render_nav_item('profile', 'Profile') }}</li>
                             {% endif %}

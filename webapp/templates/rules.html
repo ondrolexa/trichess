@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{%block content%}
+    <ul class="nav nav-tabs" id="helpTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="quick-tab" data-bs-toggle="tab" data-bs-target="#quick" type="button" role="tab" aria-controls="quick" aria-selected="true">Quick-Reference</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="notify-tab" data-bs-toggle="tab" data-bs-target="#notify" type="button" role="tab" aria-controls="notify" aria-selected="false">Notifications</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab" aria-controls="rules" aria-selected="false">Rules</button>
+        </li>
+    </ul>
+    <div class="tab-content mt-3" id="helpTabContent">
+        <div class="tab-pane fade show active" id="quick" role="tabpanel" aria-labelledby="quick-tab">
+            <h2>Trichess quick-reference</h2>
+            <h3>🎲 Board setup</h3>
+            <ul>
+                <li>3 players on a <strong>hexagonal board</strong> (3 colors).</li>
+                <li>Each player has: King, Queen, 2 Rooks, 3 Knights, 2 Bishops, 8 Pawns.</li>
+                <li>Same-color spaces = <strong>diagonals</strong>.</li>
+                <li>Across flat sides = <strong>straight lines</strong>.</li>
+            </ul>
+
+            <h3>🔄 Taking turns</h3>
+            <ul>
+                <li>Player 1 starts.</li>
+                <li>Turns go <strong>clockwise</strong>.</li>
+                <li>Move 1 piece per turn, except when castling.</li>
+            </ul>
+
+            <h3>⚔️ Capturing</h3>
+            <ul>
+                <li>Move onto an opponent’s piece to capture it.</li>
+                <li>Pawns: move along straight line, capture diagonally forward.</li>
+                <li>Cannot move through or capture your own pieces.</li>
+            </ul>
+
+            <h3>♟️ Piece moves</h3>
+            <ul>
+                <li><strong>Pawn</strong> → 1 forward (2 on first move). Capture diagonal. Promote on opponent's side.</li>
+                <li><strong>Rook</strong> → Straight lines, any distance.</li>
+                <li><strong>Knight</strong> → Jumps in “L” (2 + 1). Can jump over pieces.</li>
+                <li><strong>Bishop</strong> → Diagonals, any distance.</li>
+                <li><strong>Queen</strong> → Straight + diagonal, any distance.</li>
+                <li><strong>King</strong> → 1 space in any direction. Cannot move into check.</li>
+            </ul>
+
+            <h3>🏰 Castling</h3>
+            <ul>
+                <li>King moves 2 spaces toward rook, rook jumps to other side.</li>
+                <li>✅ Conditions:</li>
+                <ul>
+                    <li>King & rook never moved.</li>
+                    <li>No pieces between them.</li>
+                    <li>King not in check, doesn’t pass through check.</li>
+                </ul>
+            </ul>
+
+            <h3>👑 Check & Checkmate</h3>
+            <ul>
+                <li><strong>Check</strong>: King threatened → must move, block, or capture.</li>
+                <li><strong>Checkmate</strong>: King trapped → game won.</li>
+                <li>Points: 2 total to checkmating players (split if 2 attackers).</li>
+            </ul>
+
+            <h3>✋ Stalemate</h3>
+            <ul>
+                <li>No legal moves, but king not in check = tie.</li>
+            </ul>
+
+            <h3>📊 Piece values</h3>
+            <ul>
+                <li>Queen = 9</li>
+                <li>Rook = 5</li>
+                <li>Bishop = 3</li>
+                <li>Knight = 3</li>
+                <li>Pawn = 1 (more if near promotion)</li>
+            </ul>
+
+            <h3>💡 Tips</h3>
+            <ul>
+                <li>Promote pawns (usually → queen).</li>
+                <li>Keep pieces connected, don’t attack alone.</li>
+                <li>Spread out to <strong>control space</strong>.</li>
+                <li>Balance <strong>defense & offense</strong>.</li>
+            </ul>
+
+            <h3>👉 Goal</h3>
+            <ul>
+                <li><strong>Checkmate an opponent’s king</strong>.</li>
+            </ul>
+        </div>
+        <div class="tab-pane fade" id="notify" role="tabpanel" aria-labelledby="notify-tab">
+            <h2>Phone notifications</h2>
+            <p>During a game, players can receive a notification whenever it is their turn to move. To enable these notifications on your phone, you need to install the <strong>ntfy</strong> app.</p>
+            <ul>
+                <li><strong>Install the ntfy app</strong><br/>Download and install the ntfy application from your app store (available on both Android and iOS).
+                    <div class="d-flex flex-column flex-md-row">
+                        <div class="p-1"><a target="_blank" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy"><img alt="Get it on Google Play" src="{{ url_for('static', filename='badge-google.png') }}" width="168" height="50"></a></div>
+                        <div class="p-1"><a target="_blank" href="https://f-droid.org/en/packages/io.heckel.ntfy/"><img alt="Get it on F-Droid" src="{{ url_for('static', filename='badge-fdroid.png') }}" width="168" height="50"></a></div>
+                        <div class="p-1"><a target="_blank" href="https://apps.apple.com/us/app/ntfy/id1625396347"><img alt="Download on the App Store" src="{{ url_for('static', filename='badge-apple.png') }}" width="168" height="50"></a></div>
+                    </div>
+                </li>
+                <li><strong>Configure the server</strong><br/>After installation, open the app and set the server to: <code>https://ntfy.mykuna.eu</code></li>
+                Subscribe to your personal topic
+                <li><strong>Subscribe to a topic</strong> with the following name format: <code>trichess_username</code><br/>Here, replace username with your actual Trichess username. For example, if your username is johny, the topic would be: <code>trichess_johny</code></li>
+            </ul>
+            <p>Once this setup is complete, you will automatically receive a notification on your phone whenever it’s your turn to move in Trichess.</p>
+            <p>Enjoy your games and never miss a move again with Trichess!</p>
+        </div>
+        <div class="tab-pane fade" id="rules" role="tabpanel" aria-labelledby="rules-tab">
+            <h2>Trichess rules</h2>
+            <p>Trichess is a three-player variation of chess played on a hexagonal board. The board has three colors, which define the diagonals (blue lines), while straight lines (yellow lines) run across the flat sides of the hexagons. Because of the three-colored design, each player begins with three knights instead of two.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/directions.png') }}">
+                <figcaption class="figure-caption">Straight and diagonal directions on board</figcaption>
+            </figure>
+            <h3>Play</h3>
+            <p>At the start of the game, Player 1 always makes the first move, and turns rotate clockwise among the three players. On each turn, a player may move only one piece, with the sole exception of castling, which involves moving both the king and rook together.</p>
+            <p>Capturing follows the standard principle: a player removes an opponent’s piece by moving onto its square. A player may not move through or capture their own pieces. Pawns are the only exception to the general rule of moving and capturing in the same way, as pawns move forward but capture diagonally forward.</p>
+            <h3>Turns</h3>
+            <p>In Trichess, all pieces move as in traditional chess, adapted to the hexagonal board's straight and diagonal directions.</p>
+            <p>Pawns move one space forward at a time, but on their very first move they may advance two spaces. Captures are made diagonally forward (see A symbols on figure). If a pawn reaches the one of the opponent side of the board, it is promoted to a stronger piece of the player’s choice, except for the king. Any number of pawns can be promoted during the game.</p>
+            <p><strong>Note:</strong> The en passant capture, which normally allows a pawn to capture an enemy pawn that has advanced two spaces, is not yet implemented in Trichess.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/pawn_first.png') }}">
+                <figcaption class="figure-caption">Pawn can move one or two spaces on first move</figcaption>
+            </figure>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/pawn_other.png') }}">
+                <figcaption class="figure-caption">Pawn can move one space on subsequent moves or move diagonally (A) to take opponents</figcaption>
+            </figure>
+            <p>Rooks move any number of spaces in straight lines, whether forward, backward, or sideways.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/rook_move.png') }}">
+                <figcaption class="figure-caption">Rook moves</figcaption>
+            </figure>
+            <p>Knights are unique in that they jump over intervening pieces. A knight’s movement follows an L-shape: two spaces in one direction, either forward, backward, or sideways, followed by a one-space turn left or right.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/knight_move.png') }}">
+                <figcaption class="figure-caption">Knight moves</figcaption>
+            </figure>
+            <p>Bishops move any number of spaces along diagonals.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/bishop_move.png') }}">
+                <figcaption class="figure-caption">Bishop moves</figcaption>
+            </figure>
+            <p>Queens combine the powers of rook and bishop, moving any number of spaces in straight or diagonal directions.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/queen_move.png') }}">
+                <figcaption class="figure-caption">Queen moves</figcaption>
+            </figure>
+            <p>The king moves only one space at a time in any direction, but may never move into a square that is under attack.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/king_move.png') }}">
+                <figcaption class="figure-caption">King moves</figcaption>
+            </figure>
+            <p>Castling is the only move in which two pieces may move simultaneously. To castle, the king moves two spaces toward a rook, and the rook jumps over the king to land on the other side. Castling is permitted only if the king has not previously moved, the rook has not moved, no pieces stand between them, and the king is not in check, does not pass through a checked square, and does not land in check. It does not matter if the king was in check earlier in the game, or if the rook itself is under attack before castling.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/king_castling.png') }}">
+                <figcaption class="figure-caption">Castling</figcaption>
+            </figure>
+            <h3>Check</h3>
+            <p>A king is considered in check when an opposing piece threatens to capture it on the opponent’s next turn. When in check, a player must respond by moving the king out of check, capturing the attacking piece, or placing another piece in the way to block the attack. A king may never move into a position where it would be in check.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/check.png') }}">
+                <figcaption class="figure-caption">Castling</figcaption>
+            </figure>
+            <h3>Checkmate</h3>
+            <p>Putting an opponent’s king in checkmate is the only way to win the game.</p>
+            <p>Checkmate occurs when a king is in check and cannot escape. In this case, the attacking players earn two points total, split according to how many of their pieces contribute to the checkmate. For example, if one player delivers the checkmate, they earn two points, while if two player’s pieces both contribute to the checkmate, each receives one point.</p>
+            <figure class="figure text-center"><img class="img-fluid figure-img w-75" width="899" height="800" src="{{ url_for('static', filename='img/checkmate.png') }}">
+                <figcaption class="figure-caption">Castling</figcaption>
+            </figure>
+            <p>In the illustration, the blue queen and yellow knight have the green king in check, and all the spaces where the king can move can be attacked by the queen or knight. The king cannot take the queen, because the other queen is protecting the queen. This is checkmate and 2 points are shared between blue and yellow players according to the number of their pieces giving check. So 1 point for blue (blue queen) and 1 point for yellow (yellow knight).</p>
+            <p>If a player had another piece somewhere on the board that is not blocked, it would have to move. The game would continue.</p>
+            <h3>Basic Strategy</h3>
+            <p>Trichess is an incredibly complex strategic game, and it is impossible to go into all the possible tactics one could use to win. Here are some hints for new players.</p>
+            <p>As in traditional chess, pieces in Trichess have relative values that help guide strategy. Queens are worth nine points, rooks five, bishops and knights three each, and pawns one. However, pawns become more valuable as they approach promotion. Because pawn promotion is such a powerful opportunity, it is almost always best to promote a pawn into a queen.</p>
+            <p>Effective play in Trichess requires both strong offense and solid defense. Players should try to maintain balance across the board, keeping their forces spread out to control key areas. Attacks are most successful when supported by multiple pieces, as lone pieces are easily cut off and captured. At the same time, players must guard their king carefully while also preparing to exploit weaknesses in the defenses of their two opponents.</p>
+            <p>The ultimate objective of Trichess is to checkmate an opponent’s king. Once checkmate is achieved, the winning players are awarded points according to pieces involved in checkmate.</p>
+            <p>Enjoy the game.</p>
+        </div>
+    </div>
+
+
+{%endblock%}
