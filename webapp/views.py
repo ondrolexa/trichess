@@ -8,7 +8,7 @@ Rerun flask --app=webapp/main.py db upgrade with production database
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
@@ -275,6 +275,10 @@ def profile():
         recent_score=g.user.recent_score(),
         active=len(active),
         archive=len(archive),
+        avg_length=str(
+            sum([t.modified_at - t.started_at for t in archive], timedelta(0))
+            / len(archive)
+        ),
     )
 
 
