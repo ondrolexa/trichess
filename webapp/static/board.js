@@ -335,24 +335,30 @@ class  hex {
         }
         return
     }
+    draw_hex(i_width, i_color) {
+        ctx0.save()
+        ctx0.lineWidth = i_width
+        ctx0.strokeStyle = i_color
+        ctx0.beginPath()
+        for (let i = 0; i < 6; i++) { //draw hex
+           ctx0.lineTo(this.x + r*0.7 * Math.cos((i  + 0.5)*(Math.PI / 3 )),
+           this.y + r*0.7 * Math.sin((i  + 0.5)*(Math.PI / 3 )));
+        }
+        ctx0.closePath();
+        ctx0.stroke();
+        ctx0.restore()
+    }
     draw_mark(i_kind) {
         this.show_flag = true;
         ctx0.save();
         ctx0.strokeStyle = theme["board"]["valid_move"]
-
         ctx0.lineWidth = 2
         if (i_kind == 'safe') {
            ctx0.beginPath();
            ctx0.arc(this.x, this.y, r/2, 0, 2 * Math.PI);
            ctx0.stroke()
         } else if (i_kind == 'rect') {
-            ctx0.beginPath();
-            for (let i = 0; i < 6; i++) { //draw hex
-                ctx0.lineTo(this.x + r*0.8 * Math.cos((i  + 0.5)*(Math.PI / 3 )),
-                this.y + r*0.8 * Math.sin((i  + 0.5)*(Math.PI / 3 )));
-            }
-            ctx0.closePath();
-            ctx0.stroke();
+            this.draw_hex(1,theme["board"]["valid_move"])
             ctx0.lineWidth = 0.5
             var axis = []
             axis[0] =  {"a1":this.x  ,"a2":this.y   ,   "u1":B.hexs[0].x    ,"u2":0 }
@@ -400,6 +406,7 @@ class board {
         this.gid_new = 85;
         this.slog = "";
         this.view_player =  0;
+        this.view_player_org =  0;
         this.move_number =  -1;
         this.move_number_org =  -1;
         this.move_number_max =  -1;
@@ -407,6 +414,8 @@ class board {
         this.finished =  false;
         this.hist_changed =  false;
         this.border = []
+        this.last_move_from =  -1
+        this.last_move_to =  -1
     }
     init() {
         let cnt = 0;
@@ -430,6 +439,8 @@ class board {
         this.move_number =  jdata.move_number;
         this.finished = jdata.finished;
         this.onmove = jdata.onmove;
+        this.last_move_from =  jdata.last_move.from
+        this.last_move_to =  jdata.last_move.to
         if (this.move_number_org == -1) {
             this.move_number_org = jdata.move_number;
         }
@@ -446,11 +457,6 @@ class board {
                  const pcs =jdata.pieces[player_id][j];
                  this.hexs[pcs.gid].set({"piece":pcs.piece, "player_id":Number(player_id)})
             }
-        }
-        // mark last move
-        if (jdata.last_move != undefined ) {
-            this.hexs[jdata.last_move.from].setlumi(theme["board"]["last_move"] + theme["board"]["hex_alpha"])
-            this.hexs[jdata.last_move.to].setlumi(theme["board"]["last_move"] + theme["board"]["hex_alpha"])
         }
         // set chess by
         for (let player_id  in jdata.chess_by) {
@@ -476,13 +482,26 @@ class board {
         }
     }
     draw_piece() {
-    for (let i = 0; i < 169; i++) {
-        if (this.hexs[i].show_flag) {
-            this.hexs[i].draw_piece()
-            //this.hexs[i].lumi = 0
+        // mark last move
+        if (this.last_move_from != -1 ) {
+            this.hexs[this.last_move_from].draw_hex(3, theme["board"]["last_move"] )
+            this.hexs[this.last_move_to].draw_hex(3, theme["board"]["last_move"])
+            //ctx0.save()
+            //ctx0.lineWidth = 1
+            //ctx0.strokeStyle = theme["board"]["last_move"]
+            //ctx0.beginPath();
+            //ctx0.moveTo(this.hexs[this.last_move_from].x, this.hexs[this.last_move_from].y )
+            //ctx0.lineTo(this.hexs[this.last_move_to].x, this.hexs[this.last_move_to].y )
+            //ctx0.stroke();
+            //ctx0.restore()
         }
-    }
-};
+        for (let i = 0; i < 169; i++) {
+            if (this.hexs[i].show_flag) {
+                this.hexs[i].draw_piece()
+                //this.hexs[i].lumi = 0
+            }
+        }
+    };
     getGid(ix,iy) {
     let d = 0;
     let d_min = 99999999;

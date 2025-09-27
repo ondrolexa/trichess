@@ -19,14 +19,14 @@ board:
     - "#cc0000"
     - "#000000"
     - "#737373"
-  hex_inchess: "#9966ff"
-  hex_alpha: "90"
+  hex_inchess: "#8900b5"
+  hex_alpha: "ff"
   hint_lines: "#ffffff"
 
 pieces:
   font-family: "Verdana"
   stroke-color: "black"
   color:
-    - "#ffd11a"
+    - "#ffff0a"
     - "#00ffff"
     - "#ffffff"
