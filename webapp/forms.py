@@ -64,11 +64,11 @@ class ProfileForm(FlaskForm):
 class PasswordForm(FlaskForm):
     username = StringField("Username", render_kw={"disabled": True})
     password = PasswordField(
-        "Old password",
+        "Old",
         validators=[DataRequired(), Length(min=6, max=20)],
     )
     password_new = PasswordField(
-        "New password",
+        "New",
         validators=[DataRequired(), Length(min=6, max=20)],
     )
     submit = SubmitField("Change password")

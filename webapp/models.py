@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from webapp.main import db
 
 
@@ -13,6 +15,15 @@ class User(db.Model):
 
     def score(self):
         return sum([score.score for score in self.scores])
+
+    def recent_score(self):
+        return sum(
+            [
+                score.score
+                for score in self.scores
+                if score.created_at > (datetime.today() - timedelta(days=30))
+            ]
+        )
 
     def is_authenticated(self):
         return True
