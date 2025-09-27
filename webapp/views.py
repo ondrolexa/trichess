@@ -8,9 +8,9 @@ Rerun flask --app=webapp/main.py db upgrade with production database
 """
 
 import os
-import requests
 from zoneinfo import ZoneInfo
 
+import requests
 import yaml
 from flask import abort, flash, g, jsonify, redirect
 from flask import render_template as real_render_template
@@ -262,7 +262,7 @@ def profile():
         form_profile=form_profile,
         form_password=form_password,
         username=g.user.username,
-        score=g.user.score,
+        score=g.user.score(),
     )
 
 
@@ -284,7 +284,7 @@ def password():
         form_profile=form_profile,
         form_password=form_password,
         username=g.user.username,
-        score=g.user.score,
+        score=g.user.score(),
     )
 
 
@@ -308,7 +308,6 @@ def register():
                 username=form.username.data,
                 password=hashed_password,
                 theme="default",
-                score=0.0,
             )
             db.session.add(new_user)
             db.session.commit()

@@ -25,7 +25,7 @@
                     <button type="submit" class="btn btn-success btn-sm" name="seat" value="0">Join</button>
                 {% endif %}
             {% else %}
-                {{game.player_0.username}} ({{ '%.2g' % game.player_0.score|float }})
+                {{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})
             {% endif %}
         </td>
         <td>{% if game.player_1 is none %}
@@ -33,7 +33,7 @@
                     <button type="submit" class="btn btn-success btn-sm" name="seat" value="1">Join</button>
                 {% endif %}
             {% else %}
-                {{game.player_1.username}} ({{ '%.2g' % game.player_1.score|float }})
+                {{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})
             {% endif %}
         </td>
         <td>{% if game.player_2 is none %}
@@ -41,7 +41,7 @@
                     <button type="submit" class="btn btn-success btn-sm" name="seat" value="2">Join</button>
                 {% endif %}
             {% else %}
-                {{game.player_2.username}} ({{ '%.2g' % game.player_2.score|float }})
+                {{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})
             {% endif %}
         </td>
         <td>{{game.created_at|strftime}}</td>

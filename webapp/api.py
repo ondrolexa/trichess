@@ -5,7 +5,7 @@ from flask_restx import Api, Resource, fields, reqparse
 
 from engine import GameAPI
 from webapp.main import db
-from webapp.models import TriBoard, User
+from webapp.models import Score, TriBoard, User
 
 blueprint = Blueprint("api", __name__)
 
@@ -397,10 +397,10 @@ class GameBoard(Resource):
                         tb.player_1.username: 1,
                         tb.player_2.username: 2,
                     }
-                    usernames = {
-                        0: tb.player_0.username,
-                        1: tb.player_1.username,
-                        2: tb.player_2.username,
+                    players = {
+                        0: tb.player_0,
+                        1: tb.player_1,
+                        2: tb.player_2,
                     }
                     poster = ga1.on_move == pid[username]
                     oneadded = ga2.move_number - ga1.move_number == 1
@@ -408,20 +408,24 @@ class GameBoard(Resource):
                     if poster & oneadded & same:
                         tb.slog = state.slog
                         user = User.query.filter_by(
-                            username=usernames[ga2.on_move]
+                            username=players[ga2.on_move].username
                         ).first()
                         if not ga2.move_possible():
                             tb.status = 2
                             in_chess, gid, who = ga2.in_chess
                             if in_chess:
                                 tot = [len(p) for p in who.values()]
-                                score = [v * 2 / sum(tot) for v in tot]
-                                tb.player_0.score = tb.player_0.score + score[0]
-                                tb.player_1.score = tb.player_1.score + score[1]
-                                tb.player_2.score = tb.player_2.score + score[2]
+                                for uid, v in enumerate(tot):
+                                    score = v * 2 / sum(tot)
+                                    if score > 0:
+                                        new_score = Score(
+                                            player_id=players[uid].id,
+                                            score=score,
+                                        )
+                                        db.session.add(new_score)
                                 # notify
                                 post_notification(
-                                    usernames[ga2.on_move],
+                                    players[ga2.on_move].username,
                                     f"You lost in game {state.id}",
                                     "Game over",
                                     state.id,
@@ -429,7 +433,7 @@ class GameBoard(Resource):
                                 )
                             else:
                                 post_notification(
-                                    usernames[ga2.on_move],
+                                    players[ga2.on_move].username,
                                     f"The game {state.id} ended in a stalemate",
                                     "Game over",
                                     state.id,
@@ -438,7 +442,7 @@ class GameBoard(Resource):
                         else:
                             # notify next player
                             post_notification(
-                                usernames[ga2.on_move],
+                                players[ga2.on_move].username,
                                 f"It's your turn in game {state.id}",
                                 "Your turn",
                                 state.id,
