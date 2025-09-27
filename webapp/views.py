@@ -317,7 +317,9 @@ def register():
             new_user = User(
                 username=form.username.data,
                 password=hashed_password,
+                email=form.email.data,
                 theme="default",
+                board="ondro",
             )
             db.session.add(new_user)
             db.session.commit()
@@ -333,24 +335,32 @@ def register():
 @login_required
 def admin():
     if g.user.id == 1:
-        available = (
-            TriBoard.query.filter_by(status=0)
-            .order_by(TriBoard.modified_at.desc())
-            .all()
-        )
-        active = (
-            TriBoard.query.filter_by(status=1)
-            .order_by(TriBoard.modified_at.desc())
-            .all()
-        )
-        archive = (
-            TriBoard.query.filter_by(status=2)
-            .order_by(TriBoard.modified_at.desc())
-            .all()
-        )
-        return render_template(
-            "admin.html", available=available, active=active, archive=archive
-        )
+        if request.method == "POST":
+            delete = request.form.get("delete", None)
+            if delete is not None:
+                board = TriBoard.query.filter_by(id=delete).first()
+                db.session.delete(board)
+                db.session.commit()
+                return redirect(url_for("admin"))
+        else:
+            available = (
+                TriBoard.query.filter_by(status=0)
+                .order_by(TriBoard.modified_at.desc())
+                .all()
+            )
+            active = (
+                TriBoard.query.filter_by(status=1)
+                .order_by(TriBoard.modified_at.desc())
+                .all()
+            )
+            archive = (
+                TriBoard.query.filter_by(status=2)
+                .order_by(TriBoard.modified_at.desc())
+                .all()
+            )
+            return render_template(
+                "admin.html", available=available, active=active, archive=archive
+            )
     else:
         flash("You are not admin.", "error")
         return redirect(url_for("active"))
