@@ -8,6 +8,7 @@ Rerun flask --app=webapp/main.py db upgrade with production database
 """
 
 import os
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import requests
@@ -132,6 +133,7 @@ def available():
                 and (board.player_2_id is not None)
             ):
                 board.status = 1
+                board.started_at = datetime.now()
                 # send notification to first player
                 if board.player_0.board == "ondro":
                     click = f"https://trichess.mykuna.eu/playlx/{board.id}"
