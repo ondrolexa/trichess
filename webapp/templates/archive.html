@@ -21,19 +21,19 @@
         <tr>
         <th scope="row">{{game.id}}</th>
         {% if onmove == 0 %}
-        <td><span style="color:#FF0000";>{{game.player_0.username}} ({{ '%.2g' % game.player_0.score|float }})</span></td>
+        <td><span style="color:#FF0000";>{{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})</span></td>
         {% else %}
-        <td><span>{{game.player_0.username}} ({{ '%.2g' % game.player_0.score|float }})</span></td>
+        <td><span>{{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})</span></td>
         {% endif %}
         {% if onmove == 1 %}
-        <td><span style="color:#FF0000";>{{game.player_1.username}} ({{ '%.2g' % game.player_1.score|float }})</span></td>
+        <td><span style="color:#FF0000";>{{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})</span></td>
         {% else %}
-        <td><span>{{game.player_1.username}} ({{ '%.2g' % game.player_1.score|float }})</span></td>
+        <td><span>{{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})</span></td>
         {% endif %}
         {% if onmove == 2 %}
-        <td><span style="color:#FF0000";>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score|float }})</span></td>
+        <td><span style="color:#FF0000";>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})</span></td>
         {% else %}
-        <td><span>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score|float }})</span></td>
+        <td><span>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})</span></td>
         {% endif %}
         <td>
             {% if board == "ondro" %}

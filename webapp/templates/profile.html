@@ -2,21 +2,51 @@
 {% from 'bootstrap5/form.html' import render_form %}
 
 {%block content%}
-    <h2 class="mb-4">Profile <span class="badge bg-secondary">Score: {{ score if score is not none else 0 }}</span></h2>
-    <ul class="nav nav-tabs" id="profileTab" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="true">Profile</button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pasword-tab" data-bs-toggle="tab" data-bs-target="#password" type="button" role="tab" aria-controls="password" aria-selected="false">Change password</button>
-        </li>
-    </ul>
-    <div class="tab-content mt-3" id="profileTabContent">
-        <div class="tab-pane fade show active" id="profile" role="tabpanel" aria-labelledby="profile-tab">
-            {{ render_form(form_profile, action=url_for("profile"), form_type='horizontal', horizontal_columns=('lg', 1, 3)) }}
-        </div>
-        <div class="tab-pane fade" id="password" role="tabpanel" aria-labelledby="pasword-tab">
-            {{ render_form(form_password, action=url_for("password"), form_type='horizontal', horizontal_columns=('lg', 1, 3)) }}
+    <h2 class="mb-4">Profile</h2>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-lg p-2">
+                <div class="card h-100">
+                    <h5 class="card-header">Statistics</h5>
+                    <div class="card-body">
+                        <table class="table">
+                            <tr>
+                              <th scope="row">Total score</th>
+                              <td>{{ score }}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">30 days score</th>
+                              <td>{{ recent_score }}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">Finished games</th>
+                              <td>{{ archive }}</td>
+                            </tr>
+                            <tr>
+                              <th scope="row">Active games</th>
+                              <td>{{ active }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg p-2">
+                <div class="card h-100">
+                    <h5 class="card-header">Settings</h5>
+                    <div class="card-body">
+                        {{ render_form(form_profile, action=url_for("profile"), form_type='horizontal', horizontal_columns=('lg', 3, 9)) }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg p-2">
+                <div class="card h-100">
+                    <h5 class="card-header">Password</h5>
+                    <div class="card-body">
+                        {{ render_form(form_password, action=url_for("password"), form_type='horizontal', horizontal_columns=('lg', 3, 9)) }}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 {%endblock%}

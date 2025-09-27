@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from webapp.main import db
 
 
@@ -7,9 +9,21 @@ class User(db.Model):
     username = db.Column(db.String(64), unique=True)
     password = db.Column(db.String(500))
     email = db.Column(db.String(120))
-    score = db.Column(db.Float)
     theme = db.Column(db.String())
     board = db.Column(db.String())
+    scores = db.relationship("Score", backref="player")
+
+    def score(self):
+        return sum([score.score for score in self.scores])
+
+    def recent_score(self):
+        return sum(
+            [
+                score.score
+                for score in self.scores
+                if score.created_at > (datetime.today() - timedelta(days=30))
+            ]
+        )
 
     def is_authenticated(self):
         return True
@@ -47,6 +61,14 @@ class TriBoard(db.Model):
     player_0 = db.relationship(User, foreign_keys=[player_0_id])
     player_1 = db.relationship(User, foreign_keys=[player_1_id])
     player_2 = db.relationship(User, foreign_keys=[player_2_id])
+
+
+class Score(db.Model):
+    __tablename__ = "score"
+    id = db.Column(db.Integer, primary_key=True)
+    player_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    score = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
 
 
 db.event.listen(

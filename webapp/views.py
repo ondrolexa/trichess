@@ -8,9 +8,9 @@ Rerun flask --app=webapp/main.py db upgrade with production database
 """
 
 import os
-import requests
 from zoneinfo import ZoneInfo
 
+import requests
 import yaml
 from flask import abort, flash, g, jsonify, redirect
 from flask import render_template as real_render_template
@@ -257,12 +257,22 @@ def profile():
         db.session.commit()
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active"))
+    user_in = db.or_(
+        TriBoard.player_0_id == g.user.id,
+        TriBoard.player_1_id == g.user.id,
+        TriBoard.player_2_id == g.user.id,
+    )
+    active = TriBoard.query.filter_by(status=1).filter(user_in).all()
+    archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
     return render_template(
         "profile.html",
         form_profile=form_profile,
         form_password=form_password,
         username=g.user.username,
-        score=g.user.score,
+        score=g.user.score(),
+        recent_score=g.user.recent_score(),
+        active=len(active),
+        archive=len(archive),
     )
 
 
@@ -272,9 +282,7 @@ def password():
     form_profile = ProfileForm(email=g.user.email, theme=g.user.theme)
     form_password = PasswordForm(username=g.user.username)
     if form_password.validate_on_submit():
-        print("B")
         if check_password_hash(g.user.password, form_password.password.data):
-            # user = User.query.filter_by(username=g.user.username).first()
             g.user.password = generate_password_hash(form_password.password_new.data)
             db.session.commit()
             flash("Password changed successfuly!", "success")
@@ -284,7 +292,7 @@ def password():
         form_profile=form_profile,
         form_password=form_password,
         username=g.user.username,
-        score=g.user.score,
+        score=g.user.score(),
     )
 
 
@@ -308,7 +316,6 @@ def register():
                 username=form.username.data,
                 password=hashed_password,
                 theme="default",
-                score=0.0,
             )
             db.session.add(new_user)
             db.session.commit()
