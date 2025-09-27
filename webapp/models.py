@@ -21,7 +21,7 @@ class User(db.Model):
             [
                 score.score
                 for score in self.scores
-                if score.created_at > (datetime.today() - timedelta(days=30))
+                if score.board.modified_at > (datetime.today() - timedelta(days=30))
             ]
         )
 
@@ -54,6 +54,7 @@ class TriBoard(db.Model):
     status = db.Column(db.Integer, nullable=False, default=0)
     slog = db.Column(db.Text, default="")
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+    started_at = db.Column(db.DateTime, server_default=db.func.now())
     modified_at = db.Column(
         db.DateTime, server_default=db.func.now(), onupdate=db.func.now()
     )
@@ -61,14 +62,15 @@ class TriBoard(db.Model):
     player_0 = db.relationship(User, foreign_keys=[player_0_id])
     player_1 = db.relationship(User, foreign_keys=[player_1_id])
     player_2 = db.relationship(User, foreign_keys=[player_2_id])
+    scores = db.relationship("Score", backref="board")
 
 
 class Score(db.Model):
     __tablename__ = "score"
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+    board_id = db.Column(db.Integer, db.ForeignKey("triboard.id"))
     score = db.Column(db.Float)
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
 
 
 db.event.listen(
