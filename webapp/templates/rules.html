@@ -95,46 +95,72 @@
         <div class="tab-pane fade" id="notify" role="tabpanel" aria-labelledby="notify-tab">
             <h2>Phone notifications</h2>
             <p>During a game, players can receive a notification whenever it is their turn to move. To enable these notifications on your phone, you need to install the <strong>ntfy</strong> app.</p>
-            <ul>
-                <li><strong>Install the ntfy app</strong><br/>Download and install the ntfy application from your app store (available on both Android and iOS).
-                    <div class="d-flex flex-column flex-md-row">
-                        <div class="p-1"><a target="_blank" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy"><img alt="Get it on Google Play" src="{{ url_for('static', filename='badge-google.png') }}" width="168" height="50"></a></div>
-                        <div class="p-1"><a target="_blank" href="https://f-droid.org/en/packages/io.heckel.ntfy/"><img alt="Get it on F-Droid" src="{{ url_for('static', filename='badge-fdroid.png') }}" width="168" height="50"></a></div>
-                        <div class="p-1"><a target="_blank" href="https://apps.apple.com/us/app/ntfy/id1625396347"><img alt="Download on the App Store" src="{{ url_for('static', filename='badge-apple.png') }}" width="168" height="50"></a></div>
+            <div class="container pt-2">
+                <div class="row">
+                    <div class="col-sm-12 col-md-6 col-lg-3">
+                        <h6>1. Install the ntfy app</h6>
+                        <p>Download and install the ntfy application from your app store (available on both Android and iOS).</p>
+                        <div class="row m-4">
+                            <a target="_blank" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy"><img alt="Get it on Google Play" src="{{ url_for('static', filename='badge-google.png') }}" width="168" height="50"></a>
+                        </div>
+                        <div class="row m-4">
+                            <a target="_blank" href="https://f-droid.org/en/packages/io.heckel.ntfy/"><img alt="Get it on F-Droid" src="{{ url_for('static', filename='badge-fdroid.png') }}" width="168" height="50"></a>
+                        </div>
+                        <div class="row m-4">
+                            <a target="_blank" href="https://apps.apple.com/us/app/ntfy/id1625396347"><img alt="Download on the App Store" src="{{ url_for('static', filename='badge-apple.png') }}" width="168" height="50"></a>
+                        </div>
                     </div>
-                </li>
-                <p><strong>Step 1: </strong>Click on the install button.</p>
-                <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_1.png') }}">
-                </figure>
-
-                <p><strong>Step 2: </strong>Open the application. Click on the open button.</p>
-                <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_2.png') }}">
-                </figure>
-
-                </figure>
-                <p><strong>Step 3: </strong>Click on the allow button</p>
-                <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_3.png') }}">
-                </figure>
-                <li><strong>Subscribe to a topic and configure the server </strong> </li>
-                <p><strong>Step 4: </strong>Click on the plus button.</p>
-                <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_4.png') }}">
-                </figure>
-                <p><strong>Step 5: </strong>Tick use another server.</p>
-                <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_5.png') }}">
-                </figure>
-
-                <p><strong>Step 6: </strong>Here, replace username with your actual Trichess username. For example, if your username is johny, the topic would be: <code>trichess_johny</code>.<br/> Configure a server to: <code>https://ntfy.mykuna.eu</code></p>
-                <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_6.png') }}">
-                </figure>
-                <p><strong>Step 7: </strong>After you clicked to on <code>SUBSCRIBE</code>, you will see something like that: </p>
-                <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_7.png') }}">
-                </figure>
-                <p><strong>Step 8: </strong>Incoming notification you will see as shown in the following image </p>
-                <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_7.png') }}">
-                </figure>
-            </ul>
-            <p>Once this setup is complete, you will automatically receive a notification on your phone whenever it’s your turn to move in Trichess.</p>
-            <p>Enjoy your games and never miss a move again with Trichess!</p>
+                    <div class="col-sm-12 col-md-6 col-lg-3">
+                        <h6>2. Click on the install button.</h6>
+                        <figure class="figure">
+                            <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_1.png') }}">
+                        </figure>
+                    </div>
+                    <div class="col-sm-12 col-md-6 col-lg-3">
+                        <h6>3. Open the application. Click on the open button.</h6>
+                        <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_2.png') }}">
+                        </figure>
+                    </div>
+                    <div class="col-sm-12 col-md-6 col-lg-3">
+                        <h6>4. Click on the allow button.</h6>
+                        <figure class="figure">
+                            <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_3.png') }}">
+                        </figure>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-12 col-md-6 col-lg-3">
+                        <h6>5. Click on the plus button to subscribe.</h6>
+                        <figure class="figure">
+                            <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_4.png') }}">
+                        </figure>
+                    </div>
+                    <div class="col-sm-12 col-md-6 col-lg-3">
+                        <h6>6. Tick use another server and provide service URL.</h6>
+                        <p>Set server to: <code>https://ntfy.mykuna.eu</code></p>
+                        <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_5.png') }}">
+                        </figure>
+                    </div>
+                    <div class="col-sm-12 col-md-6 col-lg-3">
+                        <h6>7. Provide topic name</h6>
+                        <p>Set topic name in format: <code>trichess_username</code>, where username is your actual Trichess username.<br/>For example, if your username is johny, the topic would be: <code>trichess_johny</code>.</p>
+                        <p>Click <code>SUBSCRIBE</code></p>
+                        <figure class="figure">
+                            <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_6.png') }}">
+                        </figure>
+                    </div>
+                    <div class="col-sm-12 col-md-6 col-lg-3">
+                        <h6>8. All done!</h6>
+                        <figure class="figure">
+                            <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_7.png') }}">
+                        </figure>
+                        <p>Now you will automatically receive a notification on your phone whenever it’s your turn in Trichess.</p>
+                        <figure class="figure">
+                            <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_8.png') }}">
+                        </figure>
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="tab-pane fade" id="rules" role="tabpanel" aria-labelledby="rules-tab">
             <h2>Trichess rules</h2>
