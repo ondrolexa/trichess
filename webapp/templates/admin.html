@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 
 {%block content%}
-<h2>Available games</h2>
 <div class="table-responsive-sm">
     <table class="table table-hover table-sm">
     <thead>
@@ -10,187 +9,163 @@
         <th scope="col">Player 1</th>
         <th scope="col">Player 2</th>
         <th scope="col">Player 3</th>
+        <th scope="col">Actions</th>
         <th scope="col">Last move</th>
         <th class="d-none d-sm-table-cell" scope="col">Created</th>
         </tr>
     </thead>
+    {% if available|length > 0 %}
+    <thead>
+        <tr>
+        <th colspan="7"><h2>Available games</h2></th>
+        </tr>
+    </thead>
     <tbody>
         {% for game in available %}
-        {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
+        <form action=""{{ url_for('admin') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
-        {% if onmove == 0 %}
-        <td><strong style="color:#FF0000";>{{game.player_0.username}}</strong></td>
-        {% else %}
         <td><strong>{{game.player_0.username}}</strong></td>
-        {% endif %}
-        {% else %}
-        {% if onmove == 0 %}
-        <td><span style="color:#FF0000";>{{game.player_0.username}}</span></td>
         {% else %}
         <td><span>{{game.player_0.username}}</span></td>
         {% endif %}
-        {% endif %}
         {% if game.player_1.id == game.owner_id %}
-        {% if onmove == 1 %}
-        <td><strong style="color:#FF0000";>{{game.player_1.username}}</strong></td>
-        {% else %}
         <td><strong>{{game.player_1.username}}</strong></td>
-        {% endif %}
-        {% else %}
-        {% if onmove == 1 %}
-        <td><span style="color:#FF0000";>{{game.player_1.username}}</span></td>
         {% else %}
         <td><span>{{game.player_1.username}}</span></td>
         {% endif %}
-        {% endif %}
         {% if game.player_2.id == game.owner_id %}
-        {% if onmove == 2 %}
-        <td><strong style="color:#FF0000";>{{game.player_2.username}}</strong></td>
-        {% else %}
         <td><strong>{{game.player_2.username}}</strong></td>
-        {% endif %}
-        {% else %}
-        {% if onmove == 2 %}
-        <td><span style="color:#FF0000";>{{game.player_2.username}}</span></td>
         {% else %}
         <td><span>{{game.player_2.username}}</span></td>
         {% endif %}
-        {% endif %}
+        <td><button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button></td>
         <td>{{game.modified_at|strftime}}</td>
         <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
+        </form>
         </tr>
         {% endfor %}
-   </tbody>
-   </table>
-</div>
-<h2>Active games</h2>
-<div class="table-responsive-sm">
-    <table class="table table-hover table-sm">
+    </tbody>
+    {% endif %}
+    {% if active|length > 0 %}
     <thead>
         <tr>
-        <th scope="col">#</th>
-        <th scope="col">Player 1</th>
-        <th scope="col">Player 2</th>
-        <th scope="col">Player 3</th>
-        <th scope="col">Last move</th>
-        <th class="d-none d-sm-table-cell" scope="col">Created</th>
+        <th colspan="7"><h2>Active games</h2></th>
         </tr>
     </thead>
     <tbody>
         {% for game in active %}
         {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
+        <form action=""{{ url_for('admin') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}
-        <td><strong style="color:#FF0000";>{{game.player_0.username}}</strong></td>
+        <td><strong class="text-success">{{game.player_0.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_0.username}}</strong></td>
         {% endif %}
         {% else %}
         {% if onmove == 0 %}
-        <td><span style="color:#FF0000";>{{game.player_0.username}}</span></td>
+        <td><span class="text-success">{{game.player_0.username}}</span></td>
         {% else %}
         <td><span>{{game.player_0.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_1.id == game.owner_id %}
         {% if onmove == 1 %}
-        <td><strong style="color:#FF0000";>{{game.player_1.username}}</strong></td>
+        <td><strong class="text-success">{{game.player_1.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_1.username}}</strong></td>
         {% endif %}
         {% else %}
         {% if onmove == 1 %}
-        <td><span style="color:#FF0000";>{{game.player_1.username}}</span></td>
+        <td><span class="text-success">{{game.player_1.username}}</span></td>
         {% else %}
         <td><span>{{game.player_1.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_2.id == game.owner_id %}
         {% if onmove == 2 %}
-        <td><strong style="color:#FF0000";>{{game.player_2.username}}</strong></td>
+        <td><strong class="text-success">{{game.player_2.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_2.username}}</strong></td>
         {% endif %}
         {% else %}
         {% if onmove == 2 %}
-        <td><span style="color:#FF0000";>{{game.player_2.username}}</span></td>
+        <td><span class="text-success">{{game.player_2.username}}</span></td>
         {% else %}
         <td><span>{{game.player_2.username}}</span></td>
         {% endif %}
         {% endif %}
+        <td><button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button></td>
         <td>{{game.modified_at|strftime}}</td>
         <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
+        </form>
         </tr>
         {% endfor %}
-   </tbody>
-   </table>
-</div>
-<h2>Archived games</h2>
-<div class="table-responsive-sm">
-    <table class="table table-hover table-sm">
+    </tbody>
+    {% endif %}
+    {% if archive|length > 0 %}
     <thead>
         <tr>
-        <th scope="col">#</th>
-        <th scope="col">Player 1</th>
-        <th scope="col">Player 2</th>
-        <th scope="col">Player 3</th>
-        <th scope="col">Last move</th>
-        <th class="d-none d-sm-table-cell" scope="col">Created</th>
+        <th colspan="7"><h2>Archived games</h2></th>
         </tr>
     </thead>
     <tbody>
         {% for game in archive %}
         {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
+        <form action=""{{ url_for('admin') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}
-        <td><strong style="color:#FF0000";>{{game.player_0.username}}</strong></td>
+        <td><strong class="text-danger">{{game.player_0.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_0.username}}</strong></td>
         {% endif %}
         {% else %}
         {% if onmove == 0 %}
-        <td><span style="color:#FF0000";>{{game.player_0.username}}</span></td>
+        <td><span class="text-danger">{{game.player_0.username}}</span></td>
         {% else %}
         <td><span>{{game.player_0.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_1.id == game.owner_id %}
         {% if onmove == 1 %}
-        <td><strong style="color:#FF0000";>{{game.player_1.username}}</strong></td>
+        <td><strong class="text-danger">{{game.player_1.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_1.username}}</strong></td>
         {% endif %}
         {% else %}
         {% if onmove == 1 %}
-        <td><span style="color:#FF0000";>{{game.player_1.username}}</span></td>
+        <td><span class="text-danger">{{game.player_1.username}}</span></td>
         {% else %}
         <td><span>{{game.player_1.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_2.id == game.owner_id %}
         {% if onmove == 2 %}
-        <td><strong style="color:#FF0000";>{{game.player_2.username}}</strong></td>
+        <td><strong class="text-danger">{{game.player_2.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_2.username}}</strong></td>
         {% endif %}
         {% else %}
         {% if onmove == 2 %}
-        <td><span style="color:#FF0000";>{{game.player_2.username}}</span></td>
+        <td><span class="text-danger">{{game.player_2.username}}</span></td>
         {% else %}
         <td><span>{{game.player_2.username}}</span></td>
         {% endif %}
         {% endif %}
+        <td><button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button></td>
         <td>{{game.modified_at|strftime}}</td>
         <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
+        </form>
         </tr>
         {% endfor %}
    </tbody>
+   {% endif %}
    </table>
 </div>
 {%endblock%}
