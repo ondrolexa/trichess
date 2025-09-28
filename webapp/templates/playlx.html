@@ -79,6 +79,6 @@ var access_token = "Bearer {{ access_token }}";
 var id = parseInt("{{ id }}");
 const theme = JSON.parse('{{ theme|tojson }}');
 </script>
-<script src="https://unpkg.com/konva@10/konva.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/konva/8.4.3/konva.min.js" integrity="sha512-LClrzHn1DRAV9zKBENA3zogBYvIYp0VVT+/pbguTlzLW8o/cTDl1f+fYnzN4tGjEcIE9vdGqEnobBAMM2fc0mA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='game.js') }}"></script>
 {% endblock %}
