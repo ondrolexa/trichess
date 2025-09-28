@@ -784,7 +784,7 @@ function boardInfo() {
       interactive_layer.add(rline);
       interactive_layer.add(sline);
 
-      board_layer.on("click touchenter", function (evt) {
+      board_layer.on("click tap", function (evt) {
         const shape = evt.target;
         manageMove(shape.id());
       });
