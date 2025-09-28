@@ -58,8 +58,16 @@ def render_template(*args, **kwargs):
         )
     with open(theme_file) as f:
         theme = yaml.safe_load(f)
+    pieces_file = os.path.join(
+        os.path.abspath(os.path.dirname(__file__)),
+        "static/pieces/default.yaml",
+    )
+    with open(pieces_file) as f:
+        pieces_paths = yaml.safe_load(f)
 
-    return real_render_template(*args, **kwargs, navailable=navailable, theme=theme)
+    return real_render_template(
+        *args, **kwargs, navailable=navailable, theme=theme, pieces_paths=pieces_paths
+    )
 
 
 @app.route("/", methods=["GET", "POST"])

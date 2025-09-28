@@ -4,6 +4,13 @@ const gid2valid = {};
 const gid2attack = {};
 const gid2piece = {};
 const pos2gid = {};
+const p0el = {};
+const p1el = {};
+const p2el = {};
+const player_names = { 0: "", 1: "", 2: "" };
+const player_names_font = { 0: "", 1: "", 2: "" };
+var movelabel_text = "";
+const player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
 const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
 var stageWidth = 20;
 var stageHeight = 18;
@@ -73,91 +80,74 @@ stage.on("wheel", function (e) {
   stage.batchDraw();
 });
 
-var movelabel = new Konva.Text({
-  x: -9,
+var movelabel = new Konva.Shape({
+  x: -7,
   y: 4,
-  text: "",
-  fontFamily: theme["canvas"]["font-family"],
-  fontSize: 0.6,
-  fill: theme["canvas"]["info"],
-  align: "center",
-  offsetX: 1.25,
-  width: 5,
-  listening: false,
+  width: 3.5,
+  height: 1,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+  sceneFunc: function (context, shape) {
+    context.font = theme["canvas"]["font-family"];
+    context.fillStyle = theme["canvas"]["info"];
+    context.textAlign = "center";
+    var lines = movelabel_text.split("\n");
+    for (var i = 0; i < lines.length; i++)
+      context.fillText(lines[i], 0, i * 10);
+  },
 });
-var p0name = new Konva.Text({
-  x: -3,
-  y: 7,
-  text: "",
-  fontFamily: theme["canvas"]["font-family"],
-  fontSize: 0.6,
-  align: "center",
-  width: 6,
-  listening: false,
+
+var p0name = new Konva.Shape({
+  x: 0,
+  y: 7.4,
+  width: 8,
+  height: 1,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+  sceneFunc: function (context, shape) {
+    context.font = player_names_font[0];
+    context.fillStyle = player_names_color[0];
+    context.textAlign = "center";
+    context.fillText(player_names[0], 0, 0);
+  },
 });
-var p0el = new Konva.Text({
-  x: 6.5,
-  y: 2,
-  text: "",
-  fontFamily: theme["pieces"]["font-family"],
-  fontSize: 0.7,
-  stroke: theme["pieces"]["stroke-color"],
-  strokeWidth: 0.15,
-  fillAfterStrokeEnabled: true,
-  width: 2.5,
-  align: "center",
-  wrap: "char",
-  listening: false,
+
+var p1name = new Konva.Shape({
+  x: -9.2,
+  y: -6.9,
+  width: 8,
+  height: 1,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+  sceneFunc: function (context, shape) {
+    context.font = player_names_font[1];
+    context.fillStyle = player_names_color[1];
+    context.textAlign = "left";
+    context.fillText(player_names[1], 0, 0);
+  },
 });
-var p1name = new Konva.Text({
-  x: -9,
-  y: -7.25,
-  text: "",
-  fontFamily: theme["canvas"]["font-family"],
-  fontSize: 0.6,
-  align: "center",
-  offsetX: 1.25,
-  width: 5,
-  listening: false,
-});
-var p1el = new Konva.Text({
-  x: -9,
-  y: -6.5,
-  text: "",
-  fontFamily: theme["pieces"]["font-family"],
-  fontSize: 0.7,
-  stroke: theme["pieces"]["stroke-color"],
-  strokeWidth: 0.15,
-  fillAfterStrokeEnabled: true,
-  width: 2.5,
-  align: "center",
-  wrap: "char",
-  listening: false,
-});
-var p2name = new Konva.Text({
-  x: 6.5,
-  y: -7.25,
-  text: "",
-  fontFamily: theme["canvas"]["font-family"],
-  fontSize: 0.6,
-  align: "center",
-  offsetX: 1.25,
-  width: 5,
-  listening: false,
-});
-var p2el = new Konva.Text({
-  x: 6.5,
-  y: -6.5,
-  text: "",
-  fontFamily: theme["pieces"]["font-family"],
-  fontSize: 0.7,
-  stroke: theme["pieces"]["stroke-color"],
-  strokeWidth: 0.15,
-  fillAfterStrokeEnabled: true,
-  width: 2.5,
-  align: "center",
-  wrap: "char",
-  listening: false,
+
+var p2name = new Konva.Shape({
+  x: 9.2,
+  y: -6.9,
+  width: 8,
+  height: 1,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+  sceneFunc: function (context, shape) {
+    context.font = player_names_font[2];
+    context.fillStyle = player_names_color[2];
+    context.textAlign = "right";
+    context.fillText(player_names[2], 0, 0);
+  },
 });
 
 const gameover = new Konva.Group({
@@ -308,18 +298,19 @@ function createHexAttack(xy) {
   return hex;
 }
 
-function createHexLabel(gid, xy, color, text) {
-  let label = new Konva.Text({
+function createHexLabel(gid, xy, color, data) {
+  let label = new Konva.Path({
     id: gid,
     x: xy[0],
     y: xy[1],
-    offsetX: 0.3,
-    offsetY: 0.4,
-    fontFamily: theme["pieces"]["font-family"],
-    fontSize: 0.75,
-    text: text,
+    data: data,
     fill: color,
-    align: "center",
+    lineCap: "round",
+    lineJoin: "round",
+    scale: {
+      x: 0.075,
+      y: 0.075,
+    },
     name: "piece",
     listening: false,
   });
@@ -403,9 +394,9 @@ function cleanMove() {
     gid2attack[tgid].visible(false);
   }
   if (target != -1) {
-    gid2piece[target].text(gid2piece[movestage].text());
+    gid2piece[target].data(gid2piece[movestage].data());
     gid2piece[target].fill(gid2piece[movestage].fill());
-    gid2piece[movestage].text("");
+    gid2piece[movestage].data("");
     gid2piece[movestage].fill("#ffffff");
   }
   targets.clear();
@@ -418,13 +409,12 @@ function cleanMove() {
 
 function drawPieces(pieces) {
   for (let gid = 0; gid <= 168; gid++) {
-    gid2piece[gid].text("");
-    gid2piece[gid].fill("#ffffff");
+    gid2piece[gid].data("");
   }
   for (let pid in pieces) {
     for (let pcs in pieces[pid]) {
-      gid2piece[pieces[pid][pcs].gid].text(
-        pieces_symbols[pieces[pid][pcs].piece],
+      gid2piece[pieces[pid][pcs].gid].data(
+        pieces_paths["pieces"][pieces[pid][pcs].piece],
       );
       gid2piece[pieces[pid][pcs].gid].fill(theme["pieces"]["color"][pid]);
     }
@@ -432,31 +422,35 @@ function drawPieces(pieces) {
 }
 
 function updateStats(eliminated, value, move_number) {
-  p0name.text(`${seat[0]} (${value[(0 + view_pid) % 3]})`);
-  let pp0 = [];
+  player_names[0] = `${seat[0]} (${value[(0 + view_pid) % 3]})`;
   el = eliminated[(0 + view_pid) % 3];
   for (let pcs in el) {
-    pp0.push(pieces_symbols[el[pcs]]);
+    p0el[pcs].data(pieces_paths["pieces"][el[pcs]]);
   }
-  p0el.text(pp0.join(" "));
+  for (let i = el.length; i < 23; i++) {
+    p0el[i].data("");
+  }
 
-  p1name.text(`${seat[1]} (${value[(1 + view_pid) % 3]})`);
-  let pp1 = [];
+  player_names[1] = `${seat[1]} (${value[(1 + view_pid) % 3]})`;
   el = eliminated[(1 + view_pid) % 3];
   for (let pcs in el) {
-    pp1.push(pieces_symbols[el[pcs]]);
+    p1el[pcs].data(pieces_paths["pieces"][el[pcs]]);
   }
-  p1el.text(pp1.join(" "));
+  for (let i = el.length; i < 23; i++) {
+    p1el[i].data("");
+  }
 
-  p2name.text(`${seat[2]} (${value[(2 + view_pid) % 3]})`);
-  let pp2 = [];
+  player_names[2] = `${seat[2]} (${value[(2 + view_pid) % 3]})`;
   el = eliminated[(2 + view_pid) % 3];
   for (let pcs in el) {
-    pp2.push(pieces_symbols[el[pcs]]);
+    p2el[pcs].data(pieces_paths["pieces"][el[pcs]]);
   }
-  p2el.text(pp2.join(""));
+  for (let i = el.length; i < 23; i++) {
+    p2el[i].data("");
+  }
+
   slogtext.innerHTML = slog;
-  movelabel.text(`Move\n${move_number}/${game_slog.length / 4}`);
+  movelabel_text = `Move\n${move_number}/${game_slog.length / 4}`;
 }
 
 function setCoordHints(gid) {
@@ -562,7 +556,7 @@ function makeMove(gid, tgid, new_piece = "") {
     })
     .then((data) => {
       if (new_piece != "") {
-        gid2piece[gid].text(pieces_symbols[new_piece]);
+        gid2piece[gid].data(pieces_paths["pieces"][new_piece]);
       }
       slog = data.slog;
       if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
@@ -604,32 +598,38 @@ function gameInfo(init = false, redraw = false) {
         drawPieces(data.pieces);
       }
 
-      p0name.fontStyle("normal");
-      p0name.fill(theme["canvas"]["name"]);
-      p1name.fontStyle("normal");
-      p1name.fill(theme["canvas"]["name"]);
-      p2name.fontStyle("normal");
-      p2name.fill(theme["canvas"]["name"]);
+      player_names_font[0] =
+        "400 10px " + theme["canvas"]["font-family"] + ", sans-serif";
+      player_names_color[0] = theme["canvas"]["name"];
+      player_names_font[1] =
+        "400 10px " + theme["canvas"]["font-family"] + ", sans-serif";
+      player_names_color[1] = theme["canvas"]["name"];
+      player_names_font[2] =
+        "400 10px " + theme["canvas"]["font-family"] + ", sans-serif";
+      player_names_color[2] = theme["canvas"]["name"];
       if ((data.onmove + 3 - view_pid) % 3 == 0) {
-        p0name.fontStyle("bold");
+        player_names_font[0] =
+          "900 10px " + theme["canvas"]["font-family"] + ", sans-serif";
         if (data.in_chess) {
-          p0name.fill(theme["canvas"]["name_inchess"]);
+          player_names_color[0] = theme["canvas"]["name_inchess"];
         } else {
-          p0name.fill(theme["canvas"]["name_onmove"]);
+          player_names_color[0] = theme["canvas"]["name_onmove"];
         }
       } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
-        p1name.fontStyle("bold");
+        player_names_font[1] =
+          "900 10px " + theme["canvas"]["font-family"] + ", sans-serif";
         if (data.in_chess) {
-          p1name.fill(theme["canvas"]["name_inchess"]);
+          player_names_color[1] = theme["canvas"]["name_inchess"];
         } else {
-          p1name.fill(theme["canvas"]["name_onmove"]);
+          player_names_color[1] = theme["canvas"]["name_onmove"];
         }
       } else {
-        p2name.fontStyle("bold");
+        player_names_font[2] =
+          "900 10px " + theme["canvas"]["font-family"] + ", sans-serif";
         if (data.in_chess) {
-          p2name.fill(theme["canvas"]["name_inchess"]);
+          player_names_color[2] = theme["canvas"]["name_inchess"];
         } else {
-          p2name.fill(theme["canvas"]["name_onmove"]);
+          player_names_color[2] = theme["canvas"]["name_onmove"];
         }
       }
       if (data.in_chess) {
@@ -756,6 +756,53 @@ function boardInfo() {
         }
       }
 
+      // Create mappings for eliminated
+      let q0 = [
+        9, 8, 8, 7, 8, 7, 6, 7, 6, 5, 7, 6, 5, 4, 6, 5, 4, 3, 6, 5, 4, 3, 2,
+      ];
+      let r0 = [
+        1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7,
+      ];
+      let q1 = [
+        -6, -5, -4, -3, -2, -6, -5, -4, -3, -7, -6, -5, -4, -7, -6, -5, -8, -7,
+        -6, -8, -7, -9, -8,
+      ];
+      let r1 = [
+        -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3, -3,
+        -3, -2, -2, -1, -1,
+      ];
+      let q2 = [
+        13, 12, 11, 10, 9, 12, 11, 10, 9, 12, 11, 10, 9, 11, 10, 9, 11, 10, 9,
+        10, 9, 10, 9,
+      ];
+      let r2 = [
+        -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3, -3,
+        -3, -2, -2, -1, -1,
+      ];
+      for (let i = 0; i < 23; i++) {
+        p0el[i] = createHexLabel(
+          0,
+          [q0[i] + 0.5 * r0[i] - 0.5, (r0[i] * Math.sqrt(3)) / 2],
+          theme["pieces"]["color"][(0 + view_pid) % 3],
+          "",
+        );
+        pieces_layer.add(p0el[i]);
+        p1el[i] = createHexLabel(
+          0,
+          [q1[i] + 0.5 * r1[i] + 0.5, (r1[i] * Math.sqrt(3)) / 2],
+          theme["pieces"]["color"][(1 + view_pid) % 3],
+          "",
+        );
+        pieces_layer.add(p1el[i]);
+        p2el[i] = createHexLabel(
+          0,
+          [q2[i] + 0.5 * r2[i] - 0.5, (r2[i] * Math.sqrt(3)) / 2],
+          theme["pieces"]["color"][(2 + view_pid) % 3],
+          "",
+        );
+        pieces_layer.add(p2el[i]);
+      }
+
       board_layer.add(background);
       // Add board hexes
       for (let gid = 0; gid <= 168; gid++) {
@@ -765,18 +812,12 @@ function boardInfo() {
         interactive_layer.add(gid2valid[gid]);
         pieces_layer.add(gid2attack[gid]);
       }
-      // set colors eliminated
-      p0el.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
-      p1el.fill(theme["pieces"]["color"][(1 + view_pid) % 3]);
-      p2el.fill(theme["pieces"]["color"][(2 + view_pid) % 3]);
 
-      board_layer.add(movelabel);
-      board_layer.add(p0name);
-      board_layer.add(p0el);
-      board_layer.add(p1name);
-      board_layer.add(p1el);
-      board_layer.add(p2name);
-      board_layer.add(p2el);
+      pieces_layer.add(movelabel);
+      pieces_layer.add(p0name);
+      pieces_layer.add(p1name);
+      pieces_layer.add(p2name);
+
       // game over
       top_layer.add(gameover);
       // lines
@@ -784,7 +825,7 @@ function boardInfo() {
       interactive_layer.add(rline);
       interactive_layer.add(sline);
 
-      board_layer.on("click touchenter", function (evt) {
+      board_layer.on("click tap", function (evt) {
         const shape = evt.target;
         manageMove(shape.id());
       });
@@ -835,11 +876,9 @@ function boardSubmit() {
       server_slog = slog;
       on_move = false;
       ready = true;
-      setTimeout(() => {
-        submitText.innerHTML = "Submit";
-        submit.className = "btn btn-secondary mb-2 col-12";
-        loader.style.display = "none";
-      }, 2000);
+      submitText.innerHTML = "Submit";
+      submit.className = "btn btn-secondary mb-2 col-12";
+      loader.style.display = "none";
     })
     .catch((error) => {
       submitText.innerHTML = "Submit";
