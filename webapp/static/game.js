@@ -13,11 +13,13 @@ var ready = false;
 var targets = new Set();
 var promotions = new Set();
 var lastmove = { from: -1, to: -1 };
-var slogtext = document.getElementById("log");
-var submit = document.getElementById("submitGame");
-var backmove = document.getElementById("backMove");
-var forwardmove = document.getElementById("forwardMove");
-var modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
+const slogtext = document.getElementById("log");
+const submit = document.getElementById("submitGame");
+const submitText = document.getElementById("submitText");
+const loader = document.getElementById("loader");
+const backmove = document.getElementById("backMove");
+const forwardmove = document.getElementById("forwardMove");
+const modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
 var seat = {};
 var slog = "";
 var server_slog = "";
@@ -104,6 +106,7 @@ var p0el = new Konva.Text({
   fillAfterStrokeEnabled: true,
   width: 2.5,
   align: "center",
+  wrap: "char",
   listening: false,
 });
 var p1name = new Konva.Text({
@@ -308,14 +311,15 @@ function createHexAttack(xy) {
 function createHexLabel(gid, xy, color, text) {
   let label = new Konva.Text({
     id: gid,
-    x: xy[0] - 0.33,
-    y: xy[1] - 0.45,
+    x: xy[0],
+    y: xy[1],
+    offsetX: 0.3,
+    offsetY: 0.4,
     fontFamily: theme["pieces"]["font-family"],
-    fontSize: 0.8,
+    fontSize: 0.75,
     text: text,
     fill: color,
     align: "center",
-    verticalAlign: "middle",
     name: "piece",
     listening: false,
   });
@@ -793,6 +797,7 @@ function boardInfo() {
       fitStageIntoDiv();
       submit.disabled = true;
       submit.className = "btn btn-secondary mb-2 col-12";
+      loader.style.display = "none";
       ready = true;
     })
     .catch((error) => {
@@ -807,6 +812,10 @@ function boardSubmit() {
   headers.append("Content-Type", "application/json");
   headers.append("Authorization", access_token);
   ready = false;
+  submit.disabled = true;
+  submit.className = "btn btn-secondary p-0 mb-0 col-12";
+  submitText.innerHTML = "";
+  loader.style.display = "inline-block";
 
   fetch(url, {
     method: "POST",
@@ -816,17 +825,26 @@ function boardSubmit() {
     .then((response) => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
+        submitText.innerHTML = "Submit";
+        submit.className = "btn btn-secondary mb-2 col-12";
+        loader.style.display = "none";
       }
       return response.json();
     })
     .then((data) => {
       server_slog = slog;
-      submit.disabled = true;
-      submit.className = "btn btn-secondary mb-2 col-12";
       on_move = false;
       ready = true;
+      setTimeout(() => {
+        submitText.innerHTML = "Submit";
+        submit.className = "btn btn-secondary mb-2 col-12";
+        loader.style.display = "none";
+      }, 2000);
     })
     .catch((error) => {
+      submitText.innerHTML = "Submit";
+      submit.className = "btn btn-secondary mb-2 col-12";
+      loader.style.display = "none";
       alert("Error:", error);
     });
 }
