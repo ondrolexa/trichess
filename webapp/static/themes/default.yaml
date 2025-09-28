@@ -24,7 +24,7 @@ board:
   hint_lines: "#ffffff"
 
 pieces:
-  font-family: "Verdana"
+  font-family: "Roboto"
   stroke-color: "white"
   color:
     - "#000599"

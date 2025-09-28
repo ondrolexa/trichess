@@ -22,7 +22,7 @@ board:
   hex_alpha: "FF"
 
 pieces:
-  font-family: "Verdana"
+  font-family: "Roboto"
   stroke-color: "#000000"
   color:
     - "#ff00ff"
