@@ -106,6 +106,7 @@ var p0el = new Konva.Text({
   fillAfterStrokeEnabled: true,
   width: 2.5,
   align: "center",
+  wrap: "char",
   listening: false,
 });
 var p1name = new Konva.Text({
@@ -310,8 +311,10 @@ function createHexAttack(xy) {
 function createHexLabel(gid, xy, color, text) {
   let label = new Konva.Text({
     id: gid,
-    x: xy[0] - 0.33,
-    y: xy[1] - 0.45,
+    x: xy[0],
+    y: xy[1],
+    offsetX: 0.33,
+    offsetY: 0.18,
     fontFamily: theme["pieces"]["font-family"],
     fontSize: 0.8,
     text: text,
