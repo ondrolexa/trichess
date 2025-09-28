@@ -11,24 +11,38 @@ const info_size = r.toString()+"px";
 // colors
 const button_color = '#919595';
 const pcs_map = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
-let SemaforGreen = true
 
+let SemaforGreen = true
+let SemaforWait = false
+
+function setCursorByID(id,cursorStyle) {
+ var elem;
+ if (document.getElementById &&
+    (elem=document.getElementById(id)) ) {
+  if (elem.style) elem.style.cursor=cursorStyle;
+ }
+}
 // tools
 function test(i_flag) {
-    //ctx0.strokeStyle = color
-    //ctx0.lineWidth = 3
-    //ctx0.beginPath();
-    //ctx0.arc(400, 20, 20, 0, 2 * Math.PI);
-    //ctx0.stroke();
     var modal = document.getElementById("myModal")
     if (i_flag != "a") {
-        modal.style.display = "none"
-    }
+        //setCursorByID(id="main","default")
+        setTimeout(function (){
+            modal.style.display = "none";
+            SemaforWait = false
+        }, 10);
+        }
     else {
-        modal.style.color = theme["canvas"]["name_inchess"]
-        modal.innerHTML = "Waiting for connection..."
-        modal.style.fontSize = "20px"
-        modal.style.display = "block";
+        SemaforWait = true
+        setTimeout(function (){
+            if ( SemaforWait ) {
+                //setCursorByID(id="main","progress")
+                modal.style.color = theme["canvas"]["name_inchess"]
+                modal.innerHTML = "Waiting<br/>for<br/>connection..."
+                modal.style.display = "block";
+                modal.style.fontSize = "40px"
+            }
+        }, 500);
     }
     }
 
@@ -362,8 +376,8 @@ class  hex {
         ctx0.strokeStyle = i_color
         ctx0.beginPath()
         for (let i = 0; i < 6; i++) { //draw hex
-           ctx0.lineTo(this.x + r*0.7 * Math.cos((i  + 0.5)*(Math.PI / 3 )),
-           this.y + r*0.7 * Math.sin((i  + 0.5)*(Math.PI / 3 )));
+           ctx0.lineTo(this.x + r*0.9 * Math.cos((i  + 0.5)*(Math.PI / 3 )),
+           this.y + r*0.9 * Math.sin((i  + 0.5)*(Math.PI / 3 )));
         }
         ctx0.closePath();
         ctx0.stroke();
@@ -600,6 +614,7 @@ function Step_1_settoken(idata) {
 function Step_2_setplayers(idata) {
     II.players = [idata.player_0, idata.player_1, idata.player_2]
     B.view_player = (idata.view_pid)%3
+    B.view_player_org = (idata.view_pid)%3
     B.slog = idata.slog
     F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
@@ -629,7 +644,7 @@ function Step_3_setelim_board_and_draw(idata) {
 
 // Button ////////////////////////////////////////////////////////////////////////////////
 function button_control() {
-        if (B.move_number_org == B.move_number-1 && B.view_player == (B.onmove+2)%3 && !(B.hist_changed)  ) {
+        if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 && !(B.hist_changed)  ) {
             b_ok.disabled = false;
         }
         else {
@@ -679,8 +694,8 @@ function Click_Forward() {
     F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Click_OK() {
-    //if (B.move_number_org == B.move_number-1 && B.view_player == (B.onmove+2)%3 ) {
-    if (B.move_number_org == B.move_number-1 && 0 == (B.onmove+2)%3 ) {
+    if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 ) {
+    //if (B.move_number_org == B.move_number-1 && 0 == (B.onmove+2)%3 ) {
         F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.slog.substring(0,B.move_number*4)},function () {} );
     }
     B.move_number_org = -1
@@ -696,7 +711,7 @@ function Click_Refresh()    {
     F.fetchGET(url+'/api/v1/manager/board?id='+ID.toString(), Step_2_setplayers)
 };
 function Click_Rotate() {
-    B.view_player = (B.view_player+2)%3
+    B.view_player = (B.view_player+1)%3
     F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Click_Board(event) {
