@@ -5,7 +5,7 @@ const ctx0 = canvas0.getContext('2d');
 const url = `${window.location.protocol}//${window.location.host}`;
 const r = 17; // radius
 const piece_size = "28px";
-const pawn_size = "22px";
+const pawn_size = "24px";
 const mame_size = "24px";
 const info_size = r.toString()+"px";
 // colors
@@ -14,6 +14,24 @@ const pcs_map = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "
 let SemaforGreen = true
 
 // tools
+function test(i_flag) {
+    //ctx0.strokeStyle = color
+    //ctx0.lineWidth = 3
+    //ctx0.beginPath();
+    //ctx0.arc(400, 20, 20, 0, 2 * Math.PI);
+    //ctx0.stroke();
+    var modal = document.getElementById("myModal")
+    if (i_flag != "a") {
+        modal.style.display = "none"
+    }
+    else {
+        modal.style.color = theme["canvas"]["name_inchess"]
+        modal.innerHTML = "Waiting for connection..."
+        modal.style.fontSize = "20px"
+        modal.style.display = "block";
+    }
+    }
+
 function debug(itext) {
         window.alert("Debug:"+itext);
 }
@@ -36,6 +54,7 @@ class fetchData {
             body: jsonData
         })
             .then(response => {
+            test("a")
             if (!response.ok) {
                 if (response.status == 401) {
                     window.alert('Token expired. Reload the page');
@@ -48,7 +67,7 @@ class fetchData {
             }
             return response.json();
             })
-            .then(data => {
+            .then(data => { test("d");
                             icallback(data);
             })
             .catch(error => { debug('Error:'+error+' url:'+iurl)
@@ -61,12 +80,14 @@ class fetchData {
             headers: this.headers,
         })
             .then(response => {
+                test("a")
                 if (!response.ok) {
                   throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
-            .then(data => { icallback(data) })
+            .then(data => { test("d")
+                        icallback(data) })
             .catch(error => { debug('Error:'+error+' url:'+iurl) })
     };
 }
@@ -737,13 +758,6 @@ var II = new iinfos()
 var SS = new ssel()
 
 B.init();
-
-//    ctx0.strokeStyle = "green"
-//    ctx0.lineWidth = 3
-//    ctx0.beginPath();
-//    ctx0.arc(400, 2, 2, 0, 2 * Math.PI);
-//    ctx0.stroke();
-
 
 B.draw_tile();
 II.write()
