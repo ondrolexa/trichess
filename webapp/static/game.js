@@ -308,18 +308,19 @@ function createHexAttack(xy) {
   return hex;
 }
 
-function createHexLabel(gid, xy, color, text) {
-  let label = new Konva.Text({
+function createHexLabel(gid, xy, color, data) {
+  let label = new Konva.Path({
     id: gid,
     x: xy[0],
     y: xy[1],
-    offsetX: 0.3,
-    offsetY: 0.4,
-    fontFamily: theme["pieces"]["font-family"],
-    fontSize: 0.75,
-    text: text,
+    data: data,
     fill: color,
-    align: "center",
+    lineCap: "round",
+    lineJoin: "round",
+    scale: {
+      x: 0.075,
+      y: 0.075,
+    },
     name: "piece",
     listening: false,
   });
@@ -403,9 +404,9 @@ function cleanMove() {
     gid2attack[tgid].visible(false);
   }
   if (target != -1) {
-    gid2piece[target].text(gid2piece[movestage].text());
+    gid2piece[target].data(gid2piece[movestage].data());
     gid2piece[target].fill(gid2piece[movestage].fill());
-    gid2piece[movestage].text("");
+    gid2piece[movestage].data("");
     gid2piece[movestage].fill("#ffffff");
   }
   targets.clear();
@@ -418,13 +419,12 @@ function cleanMove() {
 
 function drawPieces(pieces) {
   for (let gid = 0; gid <= 168; gid++) {
-    gid2piece[gid].text("");
-    gid2piece[gid].fill("#ffffff");
+    gid2piece[gid].data("");
   }
   for (let pid in pieces) {
     for (let pcs in pieces[pid]) {
-      gid2piece[pieces[pid][pcs].gid].text(
-        pieces_symbols[pieces[pid][pcs].piece],
+      gid2piece[pieces[pid][pcs].gid].data(
+        pieces_paths["pieces"][pieces[pid][pcs].piece],
       );
       gid2piece[pieces[pid][pcs].gid].fill(theme["pieces"]["color"][pid]);
     }
@@ -562,7 +562,7 @@ function makeMove(gid, tgid, new_piece = "") {
     })
     .then((data) => {
       if (new_piece != "") {
-        gid2piece[gid].text(pieces_symbols[new_piece]);
+        gid2piece[gid].data(pieces_paths["pieces"][new_piece]);
       }
       slog = data.slog;
       if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
