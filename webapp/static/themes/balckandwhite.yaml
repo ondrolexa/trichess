@@ -13,6 +13,7 @@ canvas:
 board:
   last_move: "#00ce02"
   valid_move: "#00caff"
+  selection: "#ffffff"
   attack_move: "orangered"
   hex_color:
     - "#000000"
@@ -20,6 +21,7 @@ board:
     - "#737373"
   hex_inchess: "#0600ff"
   hex_alpha: "FF"
+  hint_lines: "#ffffff"
 
 pieces:
   font-family: "Roboto"
