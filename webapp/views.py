@@ -275,7 +275,7 @@ def profile():
     active = TriBoard.query.filter_by(status=1).filter(user_in).all()
     archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
     avg = sum([t.modified_at - t.started_at for t in archive], timedelta(0))
-    if avg > 0:
+    if avg.total_seconds() > 0:
         avg = avg / len(archive)
         avg_length = str(avg - timedelta(microseconds=avg.microseconds)) + " hours"
     else:
