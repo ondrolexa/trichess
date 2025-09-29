@@ -11,7 +11,7 @@ canvas:
   game_over: "LightYellow"
 
 board:
-  last_move: "lightblue"
+  last_move: "deepskyblue"
   valid_move: "#ffffff"
   selection: "#ffffff"
   attack_move: "lime"
@@ -28,5 +28,5 @@ pieces:
   stroke-color: "#212529"
   color:
     - "#ffe47f"
-    - "#64c882"
+    - "#46e476"
     - "#7fe0ff"

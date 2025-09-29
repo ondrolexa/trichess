@@ -16,6 +16,7 @@ var stageWidth = 20;
 var stageHeight = 18;
 var movestage = -1;
 var target = -1;
+var current = -1;
 var ready = false;
 var targets = new Set();
 var promotions = new Set();
@@ -178,8 +179,8 @@ var gameover_text = new Konva.Text({
 gameover.add(gameover_bg);
 gameover.add(gameover_text);
 
-var line_dash = [0.2, 0.25];
-var line_width = 0.05;
+var line_dash = [0.2, 0.1];
+var line_width = 0.04;
 
 var qline = new Konva.Line({
   points: [],
@@ -252,10 +253,10 @@ function createHexHigh(xy) {
     x: xy[0],
     y: xy[1],
     sides: 6,
-    radius: 0.45,
+    radius: Math.sqrt(1 / 3) - 0.075,
     fillEnabled: false,
     stroke: "black",
-    strokeWidth: 0.07,
+    strokeWidth: 0.08,
     visible: false,
     listening: false,
   });
@@ -319,6 +320,7 @@ function createHexLabel(gid, xy, color, data) {
 
 function manageMove(gid) {
   if (ready) {
+    current = gid;
     if (movestage == -1) {
       setCoordHints(gid);
       validMoves(gid);
@@ -328,10 +330,12 @@ function manageMove(gid) {
           target = gid;
           modalPiece.toggle();
         } else {
+          current = -1;
           makeMove(movestage, gid);
         }
       } else {
         if (gid == movestage) {
+          current = -1;
           cleanMove();
           cleanHigh();
         } else {
@@ -679,13 +683,21 @@ function gameInfo(init = false, redraw = false) {
         }
         lastmove["from"] = data.last_move["from"];
         gid2high[lastmove["from"]].visible(true);
-        gid2high[lastmove["from"]].stroke(theme["board"]["last_move"]);
+        if (current == lastmove["from"]) {
+          gid2high[lastmove["from"]].stroke(theme["board"]["selection"]);
+        } else {
+          gid2high[lastmove["from"]].stroke(theme["board"]["last_move"]);
+        }
         if (lastmove["to"] != -1) {
           gid2high[lastmove["to"]].visible(false);
         }
         lastmove["to"] = data.last_move["to"];
         gid2high[lastmove["to"]].visible(true);
-        gid2high[lastmove["to"]].stroke(theme["board"]["last_move"]);
+        if (current == lastmove["to"]) {
+          gid2high[lastmove["to"]].stroke(theme["board"]["selection"]);
+        } else {
+          gid2high[lastmove["to"]].stroke(theme["board"]["last_move"]);
+        }
       }
     })
     .catch((error) => {
