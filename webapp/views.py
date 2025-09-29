@@ -274,9 +274,13 @@ def profile():
     )
     active = TriBoard.query.filter_by(status=1).filter(user_in).all()
     archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
-    avg = sum([t.modified_at - t.started_at for t in archive], timedelta(0)) / len(
-        archive
-    )
+    avg = sum([t.modified_at - t.started_at for t in archive], timedelta(0))
+    if avg > 0:
+        avg = avg / len(archive)
+        avg_length = str(avg - timedelta(microseconds=avg.microseconds)) + " hours"
+    else:
+        avg_length = "Unknown"
+
     return render_template(
         "profile.html",
         form_profile=form_profile,
@@ -286,7 +290,7 @@ def profile():
         recent_score=g.user.recent_score(),
         active=len(active),
         archive=len(archive),
-        avg_length=str(avg - timedelta(microseconds=avg.microseconds)),
+        avg_length=avg_length,
     )
 
 
