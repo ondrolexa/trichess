@@ -34,6 +34,7 @@ var server_slog = "";
 var game_slog = "";
 var on_move = false;
 var view_pid = 0;
+const active_tween = { active: false, tween: null };
 
 const api_url = `${window.location.protocol}//${window.location.host}`;
 
@@ -161,7 +162,7 @@ const gameover_bg = new Konva.Rect({
   height: 7,
   opacity: 0.65,
   fill: theme["canvas"]["background"],
-  listening: false,
+  listening: true,
 });
 var gameover_text = new Konva.Text({
   x: -7,
@@ -178,6 +179,9 @@ var gameover_text = new Konva.Text({
 });
 gameover.add(gameover_bg);
 gameover.add(gameover_text);
+gameover.on("click tap", function (evt) {
+  gameover.visible(false);
+});
 
 var line_dash = [0.2, 0.1];
 var line_width = 0.04;
@@ -208,6 +212,15 @@ var sline = new Konva.Line({
   visible: false,
   listening: false,
 });
+
+var board_layer = new Konva.Layer();
+var interactive_layer = new Konva.Layer();
+var pieces_layer = new Konva.Layer();
+var top_layer = new Konva.Layer();
+stage.add(board_layer);
+stage.add(interactive_layer);
+stage.add(pieces_layer);
+stage.add(top_layer);
 
 // responsive canvas
 function fitStageIntoDiv() {
@@ -386,7 +399,10 @@ function forwardMove() {
 
 function boardReset() {
   cleanHigh();
-  stage.destroyChildren();
+  board_layer.removeChildren();
+  interactive_layer.removeChildren();
+  pieces_layer.removeChildren();
+  top_layer.removeChildren();
   boardInfo();
 }
 
@@ -636,17 +652,15 @@ function gameInfo(init = false, redraw = false) {
           player_names_color[2] = theme["canvas"]["name_onmove"];
         }
       }
-      if (data.in_chess) {
-        gid2high[data.king_pos].visible(true);
-        gid2high[data.king_pos].stroke("red");
-        for (var player in data.chess_by) {
-          for (var pcs in data.chess_by[player]) {
-            gid2high[data.chess_by[player][pcs].gid].visible(true);
-            gid2high[data.chess_by[player][pcs].gid].stroke("green");
-          }
-        }
+
+      if (active_tween["active"] == true) {
+        active_tween["tween"].reset();
+        active_tween["tween"].destroy();
+        active_tween["active"] = false;
       }
+
       updateStats(data.eliminated, data.eliminated_value, data.move_number);
+
       if (slog.slice(0, -4) == server_slog && on_move) {
         submit.disabled = false;
         submit.className = "btn btn-danger mb-2 col-12";
@@ -673,8 +687,13 @@ function gameInfo(init = false, redraw = false) {
           "GAME OVER\n" + seat[(data.onmove + 3 - view_pid) % 3] + " lost",
         );
         gameover.visible(true);
+        board_layer.off("click tap");
       } else {
         gameover.visible(false);
+        board_layer.on("click tap", function (evt) {
+          const shape = evt.target;
+          manageMove(shape.id());
+        });
       }
 
       if (data.last_move != null) {
@@ -697,6 +716,29 @@ function gameInfo(init = false, redraw = false) {
           gid2high[lastmove["to"]].stroke(theme["board"]["selection"]);
         } else {
           gid2high[lastmove["to"]].stroke(theme["board"]["last_move"]);
+        }
+      }
+
+      if (data.in_chess) {
+        active_tween["tween"] = new Konva.Tween({
+          node: gid2piece[data.king_pos],
+          easing: Konva.Easings.EaseInOut,
+          duration: 0.5,
+          scaleX: 0.1,
+          scaleY: 0.1,
+          yoyo: true,
+        });
+        active_tween["tween"].play();
+        active_tween["active"] = true;
+        gid2high[data.king_pos].visible(true);
+        gid2high[data.king_pos].stroke(theme["board"]["hex_inchess"]);
+        for (var player in data.chess_by) {
+          for (var pcs in data.chess_by[player]) {
+            gid2high[data.chess_by[player][pcs].gid].visible(true);
+            gid2high[data.chess_by[player][pcs].gid].stroke(
+              theme["board"]["hex_inchess"],
+            );
+          }
         }
       }
     })
@@ -734,15 +776,6 @@ function boardInfo() {
       server_slog = data.slog;
       game_slog = data.slog;
       gameInfo(true, true);
-      var board_layer = new Konva.Layer();
-      var interactive_layer = new Konva.Layer();
-      var pieces_layer = new Konva.Layer();
-      var top_layer = new Konva.Layer();
-      stage.add(board_layer);
-      stage.add(interactive_layer);
-      stage.add(pieces_layer);
-      stage.add(top_layer);
-
       // Create mappings
       let gid = 0;
       for (let r = -7; r <= 7; r++) {
@@ -836,12 +869,6 @@ function boardInfo() {
       interactive_layer.add(qline);
       interactive_layer.add(rline);
       interactive_layer.add(sline);
-
-      board_layer.on("click tap", function (evt) {
-        const shape = evt.target;
-        manageMove(shape.id());
-      });
-
       board_layer.draw();
       interactive_layer.draw();
       pieces_layer.draw();
