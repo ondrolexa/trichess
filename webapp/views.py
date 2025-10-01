@@ -60,7 +60,7 @@ def render_template(*args, **kwargs):
         theme = yaml.safe_load(f)
     pieces_file = os.path.join(
         os.path.abspath(os.path.dirname(__file__)),
-        "static/pieces/default.yaml",
+        "static/pieces/chubby.yaml",
     )
     with open(pieces_file) as f:
         pieces_paths = yaml.safe_load(f)

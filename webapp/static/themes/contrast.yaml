@@ -21,7 +21,7 @@ board:
     - "#737373"
   hex_inchess: "#8900b5"
   hex_alpha: "ff"
-  hint_lines: "#ffffff"
+  hint_lines: "#000000"
 
 pieces:
   font-family: "Roboto"

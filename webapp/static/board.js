@@ -13,7 +13,7 @@ const ctx0 = canvas0.getContext('2d');
 const url = `${window.location.protocol}//${window.location.host}`;
 const r = 17; // radius
 const piece_size = 2.5;
-const bpiece_lineWidth = 0.12
+const bpiece_lineWidth = 0.2
 const epiece_lineWidth = 0.3
 const pawn_size = "22px";
 const mame_size = "24px";
@@ -390,7 +390,7 @@ class  hex {
     }
     draw_piece2(i_lineWidth = 1, i_lineColor = "#000000") {
         draw_piece_common( this.piece.piece
-                         , bpiece_lineWidth
+                         , i_lineWidth
                          , i_lineColor
                          , theme["pieces"]["color"][(this.piece.player_id+2)%3]
                          , this.x,this.y
@@ -546,13 +546,13 @@ class board {
              for (let j in jdata.chess_by[player_id]) {
                  const pcs =jdata.chess_by[player_id][j];
                  this.hexs[pcs.gid].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
-                 this.hexs[pcs.gid].draw_piece2(1,theme["canvas"]["name_inchess"])
+                 this.hexs[pcs.gid].draw_piece2( bpiece_lineWidth, theme["board"]["hint_lines"])
             }
         }
         //king_pos
         if (!(jdata.chess_by[0].length == 0 && jdata.chess_by[1].length == 0 && jdata.chess_by[2].length == 0)) {
             this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
-            this.hexs[jdata.king_pos].draw_piece2(1,theme["canvas"]["name_inchess"])
+            this.hexs[jdata.king_pos].draw_piece2( bpiece_lineWidth ,theme["board"]["hint_lines"])
         }
        if (jdata.king_pos != 0) {
            //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
@@ -582,7 +582,7 @@ class board {
         }
         for (let i = 0; i < 169; i++) {
             if (this.hexs[i].show_flag) {
-                this.hexs[i].draw_piece2()
+                this.hexs[i].draw_piece2(bpiece_lineWidth)
                 //this.hexs[i].lumi = 0
             }
         }
