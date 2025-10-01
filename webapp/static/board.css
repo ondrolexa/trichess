@@ -37,8 +37,6 @@
 }
 .modal {
     display: none; /* Hidden by default */
-    width: 90%;
-    justify-content: left;
     min-width: 220px;
     max-width: 1600px;
     min-height: 190px;
@@ -55,7 +53,6 @@
         3px 0px 0 #000,
         0px -3px 0 #000,
         0px 3px 0 #000;
-    overflow: auto; /* Enable scroll if needed */
     background-color: #ffffffc8;
     font-size: 60px;
     font-weight: bold;

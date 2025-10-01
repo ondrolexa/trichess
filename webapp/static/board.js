@@ -1,19 +1,46 @@
 const canvas0 = document.getElementById('canvas');
 canvas0.addEventListener('mouseclick', Click_Board);
+//var scale =  (canvas0.clientWidth / 800)
+//canvas0.style.width = canvas0.width*scale  + 'px';
+//canvas0.style.height = canvas0.height*scale + 'px';
+window.onresize = function(){var scale =  (canvas0.clientWidth / 800)
+                            canvas0.style.width = canvas0.width*scale  + 'px';
+                            canvas0.style.height = canvas0.height*scale + 'px';
+                            window.location.reload()
+                            };
+
 const ctx0 = canvas0.getContext('2d');
-//const url = 'https://trichess.mykuna.eu';
 const url = `${window.location.protocol}//${window.location.host}`;
 const r = 17; // radius
-const piece_size = "28px";
-const pawn_size = "24px";
+const piece_size = 2.5;
+const bpiece_lineWidth = 0.12
+const epiece_lineWidth = 0.3
+const pawn_size = "22px";
 const mame_size = "24px";
+
 const info_size = r.toString()+"px";
 // colors
 const button_color = '#919595';
-const pcs_map = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
+const pcs_map1 = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
+const pcs_map2 = {"":"", "♟":"P", "♞":"N", "♝":"B", "♜":"R", "♛":"Q", "♚":"K"}
+
 
 let SemaforGreen = true
 let SemaforWait = false
+
+function draw_piece_common( i_piece, i_lineWidth = 1, i_lineColor = "#000000", i_fillColor = "#000000", i_x, i_y) {
+        if (i_piece != undefined ||  i_piece != "") {
+            var path = new Path2D(pieces_paths["pieces"][i_piece]);
+            ctx0.save()
+            ctx0.lineWidth = i_lineWidth
+            ctx0.fillStyle = i_fillColor
+            ctx0.strokeStyle = i_lineColor
+            ctx0.transform(piece_size,0,0,piece_size, i_x, i_y);
+            ctx0.fill(path)
+            ctx0.stroke(path);
+            ctx0.restore()
+        }
+    }
 
 function setCursorByID(id,cursorStyle) {
  var elem;
@@ -24,25 +51,24 @@ function setCursorByID(id,cursorStyle) {
 }
 // tools
 function test(i_flag) {
-    var modal = document.getElementById("myModal")
-    if (i_flag != "a") {
-        //setCursorByID(id="main","default")
+    var modal = document.getElementById("myModal2")
+    if (i_flag != "a"  ) {
+        SemaforWait = false
         setTimeout(function (){
-            modal.style.display = "none";
-            SemaforWait = false
-        }, 10);
+                modal.style.display = "none";
+        }, 1);
         }
     else {
-        SemaforWait = true
         setTimeout(function (){
-            if ( SemaforWait ) {
+            if ( !(SemaforWait) ) {
                 //setCursorByID(id="main","progress")
                 modal.style.color = theme["canvas"]["name_inchess"]
                 modal.innerHTML = "Waiting<br/>for<br/>connection..."
-                modal.style.display = "block";
                 modal.style.fontSize = "40px"
+                SemaforWait = true
+                modal.style.display = "block";
             }
-        }, 500);
+        }, 1);
     }
     }
 
@@ -138,29 +164,29 @@ class ssel {
 }
 // llines ////////////////////////////////////////////////
 class llines {
-  constructor( itext, ipos_x, ipos_y, ialign, ilength, ifont, icolor, istrokeLine, istrokeColor ) {
-    this.text        = itext;
-    this.pos_x       = ipos_x;
-    this.pos_y       = ipos_y;
-    this.align       = ialign;
-    this.length      = ilength
-    this.font        = ifont;
-    this.color       = icolor;
-    this.strokeLine = istrokeLine
-    this.strokeColor = istrokeColor
-    ctx0.font = ifont
-    var text_width = ctx0.measureText(this.text).width
-    var l = this.text.length
-    while (text_width > ilength) {
-        l--;
-        this.text = this.text.substr(0,l);
-        text_width = ctx0.measureText(this.text).width
+    constructor( itext, ipos_x, ipos_y, ialign, ilength, ifont, icolor, istrokeLine, istrokeColor ) {
+        this.text        = itext;
+        this.pos_x       = ipos_x;
+        this.pos_y       = ipos_y;
+        this.align       = ialign;
+        this.length      = ilength
+        this.font        = ifont;
+        this.color       = icolor;
+        this.strokeLine = istrokeLine
+        this.strokeColor = istrokeColor
+        ctx0.font = ifont
+        var text_width = ctx0.measureText(this.text).width
+        var l = this.text.length
+        while (text_width > ilength) {
+            l--;
+            this.text = this.text.substr(0,l);
+            text_width = ctx0.measureText(this.text).width
+        }
+        this.text_width = text_width;
+        this.text_hi  = ifont.substring(0,2);
+        this.text_high  = Number(this.font.substring(0,2));
     }
-    this.text_width = text_width;
-    this.text_hi  = ifont.substring(0,2);
-    this.text_high  = Number(this.font.substring(0,2));
-  }
-  clear() {
+    clear() {
         var c = -1
         if (this.align == 'left') {
             c = 1}
@@ -168,8 +194,8 @@ class llines {
         ctx0.clearRect(this.pos_x-5*c,this.pos_y+5, c*this.length, (this.text_high+10)*(-1));
         //ctx0.fill()
         this.text = ''
-  }
-  write() {
+    }
+    write() {
         ctx0.save();
         ctx0.beginPath();
         ctx0.font = this.font;
@@ -185,7 +211,35 @@ class llines {
         }
         ctx0.fillText(this.text,this.pos_x,this.pos_y);
         ctx0.restore()
+      }
+    draw() {
+        // text zisti pocet znakov
+        if (this.text.charAt(0) != "" || this.text.charAt(0) != undefined) {
+            var offset = piece_size*4
+            var dist = piece_size*10
+            piece_size
+            for ( let i = 0; i < this.text.length; i++) {
+                if (this.align == "right") {
+                    draw_piece_common( this.text.charAt(0)
+                                     , epiece_lineWidth
+                                     , this.strokeColor
+                                     , this.color
+                                     , this.pos_x + (-1) * (offset + i * dist)
+                                     , this.pos_y)
+                    }
+                else {
+                    draw_piece_common( this.text.charAt(0)
+                                     , epiece_lineWidth
+                                     , this.strokeColor
+                                     , this.color
+                                     , this.pos_x + (1) * (offset + i * dist)
+                                     , this.pos_y)
+                    }
+            }
+        }
     }
+
+
 }
 // iinfo  ////////////////////////////////////////////////
 class iinfo {
@@ -215,8 +269,11 @@ class iinfo {
         }
     }
     write() {
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 2; i++) {
             this.lines[i].write()
+        }
+    for (let i = 2; i < 7; i++) {
+            this.lines[i].draw()
         }
     }
     clear() {
@@ -251,7 +308,7 @@ class iinfos {
         for (let i = 0; i < 3; i++) {
             // highlight players
             if (this.index[i] == idata.onmove) {
-                this.panel[i].lines[0].strokeLine = 8
+                this.panel[i].lines[0].strokeLine = 4
                 this.panel[i].lines[0].strokeColor = theme["canvas"]["name_onmove"]
                 }
             else
@@ -264,12 +321,7 @@ class iinfos {
                 {
                 for (let j = 0; j < e.length; j++) {
                     this.panel[i].lines[j+2].color= theme["pieces"]["color"][(this.index[i]+2)%3]
-                    if (e[j].indexOf("♟") >= 0 || e[j].indexOf("♜")  >=  0) {
-                        this.panel[i].lines[j+2].font = pawn_size+" "+theme["pieces"]["font-family"]
-                        }
-                    else {
-                        this.panel[i].lines[j+2].font = piece_size+" "+theme["pieces"]["font-family"];
-                        }
+                    this.panel[i].lines[j+2].font = pawn_size+" "+theme["pieces"]["font-family"]
                     this.panel[i].lines[j+2].text= e[j]
                     }
                 }
@@ -286,6 +338,7 @@ class iinfos {
         }
     }
 }
+
 // hex ///////////////////////////////////////////////////
 class  hex {
     constructor(a, b, id) {
@@ -311,8 +364,11 @@ class  hex {
    this.show_flag = true
     }
     draw() {
+        ctx0.save()
         ctx0.beginPath();
-        ctx0.lineWidth = 0;
+        //ctx0.lineWidth = 3;
+        //ctx0.strokeStyle = "#ff9b09"//theme["board"]["valid_move"];
+
         for (let i = 0; i < 6; i++) { //draw hex tile
             ctx0.lineTo(this.x + r * Math.cos((i  + 0.5)*(Math.PI / 3 )),
                        this.y + r * Math.sin((i  + 0.5)*(Math.PI / 3 )));
@@ -327,28 +383,20 @@ class  hex {
         else
         {ctx0.fillStyle = this.hex_color
         }
+        //ctx0.stroke()
         ctx0.fill();
+        ctx0.restore()
+
     }
-    draw_piece() {
-        if (this.piece.piece != undefined) {
-            ctx0.save()
-            if (this.piece.piece == 'P' ||this.piece.piece == 'R') {
-                ctx0.font = pawn_size+" "+theme["pieces"]["font-family"];
-            }
-            else {
-                ctx0.font = piece_size+" "+theme["pieces"]["font-family"];
-            }
-            ctx0.textAlign = "center";
-            ctx0.fillStyle = theme["pieces"]["color"][(this.piece.player_id+2)%3]  //piece_color[];      //todo
-            ctx0.miterLimit = 1;
-            ctx0.lineJoin = 'circle';
-            ctx0.lineWidth = 1;
-            ctx0.strokeText(pcs_map[this.piece.piece],this.x-0, this.y+r/2); // todo
-            ctx0.fillText(pcs_map[this.piece.piece],this.x-0,this.y+r/2); // todo
-            ctx0.strokeStyle = theme["pieces"]["stroke-color"]
-            ctx0.restore()
-        }
-}
+    draw_piece2(i_lineWidth = 1, i_lineColor = "#000000") {
+        draw_piece_common( this.piece.piece
+                         , bpiece_lineWidth
+                         , i_lineColor
+                         , theme["pieces"]["color"][(this.piece.player_id+2)%3]
+                         , this.x,this.y
+                         )
+    }
+
     line_intersect2(ax,bo) {
        if (ax.u2/ax.u1 == bo.z2/bo.z1) {
             return
@@ -376,8 +424,8 @@ class  hex {
         ctx0.strokeStyle = i_color
         ctx0.beginPath()
         for (let i = 0; i < 6; i++) { //draw hex
-           ctx0.lineTo(this.x + r*0.9 * Math.cos((i  + 0.5)*(Math.PI / 3 )),
-           this.y + r*0.9 * Math.sin((i  + 0.5)*(Math.PI / 3 )));
+           ctx0.lineTo(this.x + r * Math.cos((i  + 0.5)*(Math.PI / 3 )),
+           this.y + r * Math.sin((i  + 0.5)*(Math.PI / 3 )));
         }
         ctx0.closePath();
         ctx0.stroke();
@@ -393,7 +441,7 @@ class  hex {
            ctx0.arc(this.x, this.y, r/2, 0, 2 * Math.PI);
            ctx0.stroke()
         } else if (i_kind == 'rect') {
-            this.draw_hex(1,theme["board"]["valid_move"])
+            this.draw_hex(2,theme["board"]["valid_move"]) //curso
             ctx0.lineWidth = 0.5
             var axis = []
             axis[0] =  {"a1":this.x  ,"a2":this.y   ,   "u1":B.hexs[0].x    ,"u2":0 }
@@ -498,11 +546,13 @@ class board {
              for (let j in jdata.chess_by[player_id]) {
                  const pcs =jdata.chess_by[player_id][j];
                  this.hexs[pcs.gid].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
+                 this.hexs[pcs.gid].draw_piece2(1,theme["canvas"]["name_inchess"])
             }
         }
         //king_pos
         if (!(jdata.chess_by[0].length == 0 && jdata.chess_by[1].length == 0 && jdata.chess_by[2].length == 0)) {
             this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
+            this.hexs[jdata.king_pos].draw_piece2(1,theme["canvas"]["name_inchess"])
         }
        if (jdata.king_pos != 0) {
            //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
@@ -516,7 +566,7 @@ class board {
             }
         }
     }
-    draw_piece() {
+    draw_pieces() {
         // mark last move
         if (this.last_move_from != -1 ) {
             this.hexs[this.last_move_from].draw_hex(3, theme["board"]["last_move"] )
@@ -532,7 +582,7 @@ class board {
         }
         for (let i = 0; i < 169; i++) {
             if (this.hexs[i].show_flag) {
-                this.hexs[i].draw_piece()
+                this.hexs[i].draw_piece2()
                 //this.hexs[i].lumi = 0
             }
         }
@@ -578,9 +628,13 @@ class board {
 function elim2array(idata) {
     let s = ''
     for (i in idata) {
-        s = s + pcs_map[idata[i]]
+        s = s + pcs_map1[idata[i]]
     }
     var t = Array.from(s).sort().reverse().join('').match(/(.)\1*/g)
+    s = ''
+    for (i in t) {
+        t[i] =  t[i].replace(t[i].charAt(0),  pcs_map2[t[i].charAt(0)])
+    }
     return t;
 }
 function Step_make_move(idata) {
@@ -621,7 +675,7 @@ function Step_2_setplayers(idata) {
 function Step_3_setelim_board_and_draw(idata) {
     B.set(idata);
     B.draw_tile();
-    B.draw_piece();
+    B.draw_pieces();
     B.set(idata);
     II.clear()
     II.set(idata);
@@ -736,7 +790,7 @@ function Click_Board(event) {
             if (a == "") { // ked klikne do prdele
                 SemaforGreen = true
                 B.draw_tile();
-                B.draw_piece();
+                B.draw_pieces();
                 return
             }
             B.moveMake(a)
@@ -749,7 +803,7 @@ function Click_Board(event) {
         }
         B.draw_tile()
         B.hexs[B.gid_new].draw_mark('rect'); // show cursor
-        B.draw_piece()
+        B.draw_pieces()
         //if new piece promotion
         if (B.hexs[B.gid_new].promo_flag) {
             SS.line[1].color = theme["pieces"]["color"][B.onmove]
