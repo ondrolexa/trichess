@@ -24,7 +24,6 @@ const button_color = '#919595';
 const pcs_map1 = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
 const pcs_map2 = {"":"", "♟":"P", "♞":"N", "♝":"B", "♜":"R", "♛":"Q", "♚":"K"}
 
-
 let SemaforGreen = true
 let SemaforWait = false
 
@@ -136,30 +135,44 @@ class ssel {
     constructor(){
         this.active = false
         this.line = []
-        this.line[0] = new llines('Select piece:', 550, 350, 'center', 200, "15px "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
-        this.line[1] = new llines(' ♛  ♜  ♝  ♞ ', 550, 400, 'center', 200, piece_size+" "+theme["pieces"]["font-family"] , '#ff00ff', 2, theme["pieces"]["stroke-color"])
+        this.line[0] = new llines('Select piece:', 400, 180, 'center', 200, "15px "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
+        this.line[1] = new llines('QRBN', 355, 210, 'center', 200, piece_size+" "+theme["pieces"]["font-family"] , 'green', 2, theme["pieces"]["stroke-color"])
     }
     getpromo(ix,iy) {
-    const possx = [475, 525, 575, 625]
-    const possy = [391, 391, 391, 391]
-    const piece = ["Q", "R", "B", "N"]
-    let d = 0;
-    let d_min = 35;
-    for (let i = 0; i < 4; i++) {
-        d = Math.sqrt(Math.pow((ix-possx[i]),2) + Math.pow((iy-possy[i]),2))
-        if (d<d_min) {
-            return piece[i]
+        const possx = 353
+        const possy = 195
+        const ps =  piece_size*10
+        const pcs = ["Q","R","B","N"]
+        for (let i = 0; i < 4; i++) {
+            if ( possx+i*ps < ix && ix < possx+(i+1)* ps  && possy < iy && iy < possy+ps ) {
+                return pcs[i]
             }
         }
-    return ""
+        return ""
     }
     write() {
+        ctx0.save()
+        ctx0.beginPath()
         ctx0.fillStyle =  theme["canvas"]["background"];
-        ctx0.rect(400,300, 307, 130);
-        ctx0.fill();
+        ctx0.rect(297,153, 206, 85);
+        ctx0.closePath()
+        ctx0.fill()
         this.line[0].write()
-        this.line[1].write()
+        this.line[1].draw()
         this.active = true
+        ctx0.restore()
+
+    //const possx = 353
+    //const possy = 195
+    //const ps =  piece_size*10
+    //for (let i = 0; i < 4; i++) {
+    //    ctx0.save()
+    //    ctx0.beginPath()
+    //    ctx0.rect( possx+i*ps ,possy, ps, ps);
+    //    ctx0.closePath()
+    //    ctx0.stroke()
+    //    ctx0.restore()
+    
     }
 }
 // llines ////////////////////////////////////////////////
@@ -210,17 +223,17 @@ class llines {
             ctx0.strokeText(this.text,this.pos_x, this.pos_y);
         }
         ctx0.fillText(this.text,this.pos_x,this.pos_y);
+        ctx0.closePath();
         ctx0.restore()
       }
     draw() {
         // text zisti pocet znakov
-        if (this.text.charAt(0) != "" || this.text.charAt(0) != undefined) {
+        if (!(this.text == "" || this.text == undefined)) {
             var offset = piece_size*4
             var dist = piece_size*10
-            piece_size
             for ( let i = 0; i < this.text.length; i++) {
                 if (this.align == "right") {
-                    draw_piece_common( this.text.charAt(0)
+                    draw_piece_common( this.text[i]
                                      , epiece_lineWidth
                                      , this.strokeColor
                                      , this.color
@@ -228,7 +241,7 @@ class llines {
                                      , this.pos_y)
                     }
                 else {
-                    draw_piece_common( this.text.charAt(0)
+                    draw_piece_common( this.text[i]
                                      , epiece_lineWidth
                                      , this.strokeColor
                                      , this.color
@@ -373,7 +386,6 @@ class  hex {
             ctx0.lineTo(this.x + r * Math.cos((i  + 0.5)*(Math.PI / 3 )),
                        this.y + r * Math.sin((i  + 0.5)*(Math.PI / 3 )));
         }
-        ctx0.closePath();
         ctx0.fillStyle = this.hex_color
         if (this.lumi != undefined) {
             ctx0.fillStyle = this.hex_color
@@ -385,6 +397,7 @@ class  hex {
         }
         //ctx0.stroke()
         ctx0.fill();
+        ctx0.closePath()
         ctx0.restore()
 
     }
@@ -436,10 +449,9 @@ class  hex {
         ctx0.save();
         ctx0.strokeStyle = theme["board"]["valid_move"]
         ctx0.lineWidth = 2
+        ctx0.beginPath();
         if (i_kind == 'safe') {
-           ctx0.beginPath();
            ctx0.arc(this.x, this.y, r/2, 0, 2 * Math.PI);
-           ctx0.stroke()
         } else if (i_kind == 'rect') {
             this.draw_hex(2,theme["board"]["valid_move"]) //curso
             ctx0.lineWidth = 0.5
@@ -469,15 +481,16 @@ class  hex {
             }
             ctx0.stroke();
         } else if (i_kind == 'attack') {
-            ctx0.beginPath();
             ctx0.moveTo(this.x-r/1.6, this.y-r/1.6);
             ctx0.lineTo(this.x+r/1.6, this.y+r/1.6);
             ctx0.moveTo(this.x+r/1.6, this.y-r/1.6);
             ctx0.lineTo(this.x-r/1.6, this.y+r/1.6);
-           ctx0.stroke();
+            ctx0.stroke();
         } else {
             const a = 0;
         }
+        ctx0.closePath();
+        ctx0.stroke()
         ctx0.restore();
     }
 }
@@ -633,7 +646,7 @@ function elim2array(idata) {
     var t = Array.from(s).sort().reverse().join('').match(/(.)\1*/g)
     s = ''
     for (i in t) {
-        t[i] =  t[i].replace(t[i].charAt(0),  pcs_map2[t[i].charAt(0)])
+        t[i] =  t[i].replaceAll(t[i].charAt(0),  pcs_map2[t[i].charAt(0)])
     }
     return t;
 }
@@ -806,7 +819,7 @@ function Click_Board(event) {
         B.draw_pieces()
         //if new piece promotion
         if (B.hexs[B.gid_new].promo_flag) {
-            SS.line[1].color = theme["pieces"]["color"][B.onmove]
+            SS.line[1].color = theme["pieces"]["color"][(B.onmove+2)%3]
             SS.write()
             SemaforGreen = true
             return
