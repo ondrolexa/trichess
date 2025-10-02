@@ -13,7 +13,7 @@ var movelabel_text = "";
 const player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
 const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
 var stageWidth = 20;
-var stageHeight = 18;
+var stageHeight = 20;
 var movestage = -1;
 var target = -1;
 var current = -1;
@@ -80,6 +80,96 @@ stage.on("wheel", function (e) {
   };
   stage.position(newPos);
   stage.batchDraw();
+});
+
+Konva.hitOnDragEnabled = true;
+function getDistance(p1, p2) {
+  return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+}
+
+function getCenter(p1, p2) {
+  return {
+    x: (p1.x + p2.x) / 2,
+    y: (p1.y + p2.y) / 2,
+  };
+}
+
+let lastCenter = null;
+let lastDist = 0;
+let dragStopped = false;
+
+stage.on("touchmove", function (e) {
+  e.evt.preventDefault();
+  const touch1 = e.evt.touches[0];
+  const touch2 = e.evt.touches[1];
+
+  // we need to restore dragging, if it was cancelled by multi-touch
+  if (touch1 && !touch2 && !stage.isDragging() && dragStopped) {
+    stage.startDrag();
+    dragStopped = false;
+  }
+
+  if (touch1 && touch2) {
+    // if the stage was under Konva's drag&drop
+    // we need to stop it, and implement our own pan logic with two pointers
+    if (stage.isDragging()) {
+      dragStopped = true;
+      stage.stopDrag();
+    }
+
+    const rect = stage.container().getBoundingClientRect();
+
+    const p1 = {
+      x: touch1.clientX - rect.left,
+      y: touch1.clientY - rect.top,
+    };
+    const p2 = {
+      x: touch2.clientX - rect.left,
+      y: touch2.clientY - rect.top,
+    };
+
+    if (!lastCenter) {
+      lastCenter = getCenter(p1, p2);
+      return;
+    }
+    const newCenter = getCenter(p1, p2);
+
+    const dist = getDistance(p1, p2);
+
+    if (!lastDist) {
+      lastDist = dist;
+    }
+
+    // local coordinates of center point
+    const pointTo = {
+      x: (newCenter.x - stage.x()) / stage.scaleX(),
+      y: (newCenter.y - stage.y()) / stage.scaleX(),
+    };
+
+    const scale = stage.scaleX() * (dist / lastDist);
+
+    stage.scaleX(scale);
+    stage.scaleY(scale);
+
+    // calculate new position of the stage
+    const dx = newCenter.x - lastCenter.x;
+    const dy = newCenter.y - lastCenter.y;
+
+    const newPos = {
+      x: newCenter.x - pointTo.x * scale + dx,
+      y: newCenter.y - pointTo.y * scale + dy,
+    };
+
+    stage.position(newPos);
+
+    lastDist = dist;
+    lastCenter = newCenter;
+  }
+});
+
+stage.on("touchend", function () {
+  lastDist = 0;
+  lastCenter = null;
 });
 
 var movelabel = new Konva.Shape({
@@ -237,11 +327,9 @@ function fitStageIntoDiv() {
   } else {
     stage.height(stageHeight * scale);
   }
-  stage.offsetX(
-    -stageWidth / 2 - (containerWidth / scale - stageWidth) / 2 - 0.5,
-  );
+  stage.offsetX(-stageWidth / 2 - (containerWidth / scale - stageWidth) / 2);
   stage.scale({ x: scale, y: scale });
-  stage.position({ x: -20, y: 0 });
+  stage.position({ x: -10, y: 0 });
   stage.draw();
 }
 
