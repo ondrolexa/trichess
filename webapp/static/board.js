@@ -15,18 +15,42 @@ const r = 17; // radius
 const piece_size = 2.5;
 const bpiece_lineWidth = 0.2
 const epiece_lineWidth = 0.3
-const pawn_size = "22px";
 const mame_size = "24px";
-
 const info_size = r.toString()+"px";
-// colors
 const button_color = '#919595';
-const pcs_map1 = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
-const pcs_map2 = {"":"", "♟":"P", "♞":"N", "♝":"B", "♜":"R", "♛":"Q", "♚":"K"}
-
 let SemaforGreen = true
 let SemaforWait = false
 
+// tools /////////////////////////////////////////////
+function test(i_flag) {
+    var modal = document.getElementById("myModal2")
+    if (i_flag != "a"  ) {
+        SemaforWait = false
+        setTimeout(function (){
+                modal.style.display = "none";
+        }, 1);
+        }
+    else {
+        setTimeout(function (){
+            if ( !(SemaforWait) ) {
+                modal.style.color = theme["canvas"]["name_inchess"]
+                modal.innerHTML = "Waiting<br/>for<br/>connection..."
+                modal.style.fontSize = "40px"
+                SemaforWait = true
+                modal.style.display = "block";
+            }
+        }, 1);
+    }
+    }
+function debug(itext) {
+        window.alert("Debug:"+itext)
+
+}
+function rotateArray(arr, rotateBy) {
+    const n = arr.length;
+    rotateBy %= n;
+    return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
+}
 function draw_piece_common( i_piece, i_lineWidth = 1, i_lineColor = "#000000", i_fillColor = "#000000", i_x, i_y) {
         if (i_piece != undefined ||  i_piece != "") {
             var path = new Path2D(pieces_paths["pieces"][i_piece]);
@@ -40,45 +64,6 @@ function draw_piece_common( i_piece, i_lineWidth = 1, i_lineColor = "#000000", i
             ctx0.restore()
         }
     }
-
-function setCursorByID(id,cursorStyle) {
- var elem;
- if (document.getElementById &&
-    (elem=document.getElementById(id)) ) {
-  if (elem.style) elem.style.cursor=cursorStyle;
- }
-}
-// tools
-function test(i_flag) {
-    var modal = document.getElementById("myModal2")
-    if (i_flag != "a"  ) {
-        SemaforWait = false
-        setTimeout(function (){
-                modal.style.display = "none";
-        }, 1);
-        }
-    else {
-        setTimeout(function (){
-            if ( !(SemaforWait) ) {
-                //setCursorByID(id="main","progress")
-                modal.style.color = theme["canvas"]["name_inchess"]
-                modal.innerHTML = "Waiting<br/>for<br/>connection..."
-                modal.style.fontSize = "40px"
-                SemaforWait = true
-                modal.style.display = "block";
-            }
-        }, 1);
-    }
-    }
-
-function debug(itext) {
-        window.alert("Debug:"+itext);
-}
-function rotateArray(arr, rotateBy) {
-    const n = arr.length;
-    rotateBy %= n;
-    return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
-}
 // fetchData /////////////////////////////////////////////
 class fetchData {
     constructor() {
@@ -135,8 +120,8 @@ class ssel {
     constructor(){
         this.active = false
         this.line = []
-        this.line[0] = new llines('Select piece:', 400, 180, 'center', 200, "15px "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
-        this.line[1] = new llines('QRBN', 355, 210, 'center', 200, piece_size+" "+theme["pieces"]["font-family"] , 'green', 2, theme["pieces"]["stroke-color"])
+        this.line[0] = new llines('Select piece:', 400, 180, 'center', 200, mame_size+" "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
+        this.line[1] = new llines('QRBN'         , 355, 210, 'center', 200, info_size+" "+theme["pieces"]["font-family"] , 'green', 2, theme["pieces"]["stroke-color"])
     }
     getpromo(ix,iy) {
         const possx = 353
@@ -204,7 +189,8 @@ class llines {
         if (this.align == 'left') {
             c = 1}
         //ctx0.fillStyle = "balck"
-        ctx0.clearRect(this.pos_x-5*c,this.pos_y+5, c*this.length, (this.text_high+10)*(-1));
+        //ctx0.rect(this.pos_x-5*c,this.pos_y+6, c*this.length, (this.text_high+10)*(-1));
+        ctx0.clearRect(this.pos_x-5*c,this.pos_y+11, c*this.length, (this.text_high+10)*(-1));
         //ctx0.fill()
         this.text = ''
     }
@@ -251,8 +237,6 @@ class llines {
             }
         }
     }
-
-
 }
 // iinfo  ////////////////////////////////////////////////
 class iinfo {
@@ -278,7 +262,7 @@ class iinfo {
         // elimited
         for (let i = 2; i < 7; i++) {
             line_len  = line_len-18//10 - 60/i
-            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, piece_size+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, (piece_size*15).toString()+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
         }
     }
     write() {
@@ -334,7 +318,6 @@ class iinfos {
                 {
                 for (let j = 0; j < e.length; j++) {
                     this.panel[i].lines[j+2].color= theme["pieces"]["color"][(this.index[i]+2)%3]
-                    this.panel[i].lines[j+2].font = pawn_size+" "+theme["pieces"]["font-family"]
                     this.panel[i].lines[j+2].text= e[j]
                     }
                 }
@@ -351,7 +334,6 @@ class iinfos {
         }
     }
 }
-
 // hex ///////////////////////////////////////////////////
 class  hex {
     constructor(a, b, id) {
@@ -639,6 +621,8 @@ class board {
 }
 //----------------------------------------------------
 function elim2array(idata) {
+    const pcs_map1 = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
+    const pcs_map2 = {"":"", "♟":"P", "♞":"N", "♝":"B", "♜":"R", "♛":"Q", "♚":"K"}
     let s = ''
     for (i in idata) {
         s = s + pcs_map1[idata[i]]
@@ -840,12 +824,6 @@ var II = new iinfos()
 var SS = new ssel()
 
 B.init();
-
 B.draw_tile();
 II.write()
-
 Step_1_settoken()
-
-//F.fetchPOST(url+'/token', {username: "filio", password: ''} , Step_1_settoken);
-//F.fetchPOST(url+'/token', {username: "ondro", password: ''} , Step_1_settoken);
-//F.fetchPOST(url+'/token', {username: "livia", password: ''} , Step_1_settoken);
