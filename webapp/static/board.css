@@ -26,9 +26,9 @@
     width: 90%;
     justify-content: left;
     min-width: 200px;
-    max-width: 1600px;
+    max-width: 4320px;
     min-height: 160px;
-    max-height: 1600px;
+    max-height: 2160px;
 }
 .divmain {
     display: flex;
@@ -38,9 +38,9 @@
 .modal {
     display: none; /* Hidden by default */
     min-width: 220px;
-    max-width: 1600px;
+    max-width: 4320px;
     min-height: 190px;
-    max-height: 1900px;
+    max-height: 2160px;
     height: 190px;
     top: 15%;
     text-align: center;

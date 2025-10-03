@@ -1,22 +1,30 @@
 const canvas0 = document.getElementById('canvas');
 canvas0.addEventListener('mouseclick', Click_Board);
-//var scale =  (canvas0.clientWidth / 800)
+
+const canW = canvas0.width
+const canH = canvas0.height
+
 //canvas0.style.width = canvas0.width*scale  + 'px';
 //canvas0.style.height = canvas0.height*scale + 'px';
-window.onresize = function(){var scale =  (canvas0.clientWidth / 800)
-                            canvas0.style.width = canvas0.width*scale  + 'px';
-                            canvas0.style.height = canvas0.height*scale + 'px';
-                            window.location.reload()
-                            };
+//window.onresize = function(){var scale =  (canvas0.clientWidth / 800)
+//                            canvas0.style.width = canvas0.width*scale  + 'px';
+//                            canvas0.style.height = canvas0.height*scale + 'px';
+//                            window.location.reload()
+//                            };
 
 const ctx0 = canvas0.getContext('2d');
+ctx0.lineCap = 'round';
+
 const url = `${window.location.protocol}//${window.location.host}`;
-const r = 17; // radius
-const piece_size = 2.5;
+const r = 94 // radius
+const piece_size = 15;
 const bpiece_lineWidth = 0.2
 const epiece_lineWidth = 0.3
-const mame_size = "24px";
-const info_size = r.toString()+"px";
+const lineWidth = 12
+const lineStroke = 20
+const boardXoffset = 450
+const mame_size = "150px";
+const info_size = "90px";//r.toString()+"px";
 const button_color = '#919595';
 let SemaforGreen = true
 let SemaforWait = false
@@ -120,12 +128,12 @@ class ssel {
     constructor(){
         this.active = false
         this.line = []
-        this.line[0] = new llines('Select piece:', 400, 180, 'center', 200, mame_size+" "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
-        this.line[1] = new llines('QRBN'         , 355, 210, 'center', 200, info_size+" "+theme["pieces"]["font-family"] , 'green', 2, theme["pieces"]["stroke-color"])
+        this.line[0] = new llines('Select piece:', 2160, 1040, 'center', 200, mame_size+" "+theme["pieces"]["font-family"] , theme["canvas"]["info"] )
+        this.line[1] = new llines('QRBN'         , 1880, 1170, 'center', 200, info_size+" "+theme["pieces"]["font-family"] , 'green', 2, theme["pieces"]["stroke-color"])
     }
     getpromo(ix,iy) {
-        const possx = 353
-        const possy = 195
+        const possx = 1865
+        const possy = 1090
         const ps =  piece_size*10
         const pcs = ["Q","R","B","N"]
         for (let i = 0; i < 4; i++) {
@@ -139,9 +147,23 @@ class ssel {
         ctx0.save()
         ctx0.beginPath()
         ctx0.fillStyle =  theme["canvas"]["background"];
-        ctx0.rect(297,153, 206, 85);
+        ctx0.rect(1670,894, 978, 375);
         ctx0.closePath()
         ctx0.fill()
+        const possx = 1865
+        const possy = 1090
+        const ps =  piece_size*10
+
+         for (let i = 0; i < 4; i++) {
+            ctx0.save()
+            ctx0.beginPath()
+            ctx0.strokeLine = 40
+            ctx0.rect(possx,possy, ps+i*ps, ps);
+            ctx0.closePath()
+            ctx0.stroke()
+            ctx0.restore()
+         }
+
         this.line[0].write()
         this.line[1].draw()
         this.active = true
@@ -173,26 +195,7 @@ class llines {
         this.strokeLine = istrokeLine
         this.strokeColor = istrokeColor
         ctx0.font = ifont
-        var text_width = ctx0.measureText(this.text).width
-        var l = this.text.length
-        while (text_width > ilength) {
-            l--;
-            this.text = this.text.substr(0,l);
-            text_width = ctx0.measureText(this.text).width
-        }
-        this.text_width = text_width;
-        this.text_hi  = ifont.substring(0,2);
-        this.text_high  = Number(this.font.substring(0,2));
-    }
-    clear() {
-        var c = -1
-        if (this.align == 'left') {
-            c = 1}
-        //ctx0.fillStyle = "balck"
-        //ctx0.rect(this.pos_x-5*c,this.pos_y+6, c*this.length, (this.text_high+10)*(-1));
-        ctx0.clearRect(this.pos_x-5*c,this.pos_y+11, c*this.length, (this.text_high+10)*(-1));
-        //ctx0.fill()
-        this.text = ''
+        var text_width = ctx0.measureText(this.text).width // todo orezavat prilis dlhy text
     }
     write() {
         ctx0.save();
@@ -241,41 +244,73 @@ class llines {
 // iinfo  ////////////////////////////////////////////////
 class iinfo {
     constructor(iinfo_id, ipos_x, ipos_y, ialign, ivert) {
+        this.x     = ipos_x
+        this.y     = ipos_y
+        this.align = ialign
+        this.vert  = ivert
         var line_len = 260
         var line_high = 1.5*r
-        const width = ctx0.canvas.width
-        const height = ctx0.canvas.height
         this.text = []
         this.lines  = []
         line_len  = line_len - 30
+        var inf_ofs = 0
+        const dist=  20
+        var nam_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist) * ivert
+        if (ivert == -1) {
+            nam_ofs = dist*ivert
+        }
+        if (ivert == 1) {
+            inf_ofs = nam_ofs+dist+Number(info_size.substring(0, info_size.length - 2))
+        }
+        else {
+            inf_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist)*ivert + dist*ivert
+        }
+
         // info block
         if (iinfo_id == 3) {
-            this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[0] =  new llines('', ipos_x, ipos_y+nam_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
             this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
         }
         // player info
         else {
             // player name
-            this.lines[0] =  new llines('', ipos_x, ipos_y, ialign, line_len, mame_size+" "+theme["canvas"]["font-family"] , theme["canvas"]["name"] )
-            this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[0] =  new llines('', ipos_x, ipos_y + nam_ofs, ialign, line_len, mame_size+" "+theme["canvas"]["font-family"] , theme["canvas"]["name"] )
+            this.lines[1] =  new llines('', ipos_x, ipos_y + inf_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
         }
         // elimited
+        var ofs  = inf_ofs + (Number(mame_size.substring(0, mame_size.length - 2)))*ivert
+        if (ivert == 1) {
+            ofs  = ofs -50 //todo
+                }
         for (let i = 2; i < 7; i++) {
             line_len  = line_len-18//10 - 60/i
-            this.lines[i] =  new llines('', ipos_x, ipos_y+i*line_high*ivert, ialign, line_len, (piece_size*15).toString()+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+            this.lines[i] =  new llines('', ipos_x, ipos_y+ofs+(i-2)*line_high*ivert, ialign, line_len, (piece_size*15).toString()+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+        }
+    }
+    clear() {
+        var a = -1
+        var h = canH/14
+        var w = canW/3
+        var d = canW/40
+        if (this.align == "left") { a = 1}
+        ctx0.save()
+        ctx0.fillStyle = "balck"
+        ctx0.beginPath()
+        for (let i = 0; i < 7; i++) {
+            ctx0.clearRect(this.x+(5*a*(-1)) ,this.y + this.vert*i*h  , a*(w-(i*d)), this.vert*h)
+            //this.lines[i].clear()
+        ctx0.closePath();
+        ctx0.fill()
+        ctx0.restore()
         }
     }
     write() {
+    //this.clear()
     for (let i = 0; i < 2; i++) {
             this.lines[i].write()
         }
     for (let i = 2; i < 7; i++) {
             this.lines[i].draw()
-        }
-    }
-    clear() {
-    for (let i = 0; i < 7; i++) {
-            this.lines[i].clear()
         }
     }
   }
@@ -285,10 +320,10 @@ class iinfos {
     this.panel = []
     this.players = []
     this.index = []
-    this.panel[0] = new iinfo(0, 780   , 380   , 'right', -1)
-    this.panel[1] = new iinfo(1, 20    , 1.5*r    , 'left' ,  1)
-    this.panel[2] = new iinfo(2, 780   , 1.5*r    , 'right',  1)
-    this.panel[3] = new iinfo(3, 20    , 380   , 'left' , -1)
+    this.panel[0] = new iinfo(0, canW-50, canH   , 'right', -1)
+    this.panel[1] = new iinfo(1, 50     , 0      , 'left' ,  1)
+    this.panel[2] = new iinfo(2, canW-50, 0    , 'right', 1)
+    this.panel[3] = new iinfo(3, 50    , canH   , 'left' , -1)
     }
     set (idata) {
         this.index = rotateArray([0,1,2], B.view_player)
@@ -305,7 +340,7 @@ class iinfos {
         for (let i = 0; i < 3; i++) {
             // highlight players
             if (this.index[i] == idata.onmove) {
-                this.panel[i].lines[0].strokeLine = 4
+                this.panel[i].lines[0].strokeLine = lineStroke
                 this.panel[i].lines[0].strokeColor = theme["canvas"]["name_onmove"]
                 }
             else
@@ -337,7 +372,7 @@ class iinfos {
 // hex ///////////////////////////////////////////////////
 class  hex {
     constructor(a, b, id) {
-        this.x =  (a +b*(0.5 ))*(r * Math.sqrt(3))+91;
+        this.x =  (a +b*(0.5 ))*(r * Math.sqrt(3))+ boardXoffset
         this.y =  (1 + b * 1.5) * r;
         this.id = id;
         this.piece = {"piece":"" , "player_id":-1};
@@ -419,8 +454,8 @@ class  hex {
         ctx0.strokeStyle = i_color
         ctx0.beginPath()
         for (let i = 0; i < 6; i++) { //draw hex
-           ctx0.lineTo(this.x + r * Math.cos((i  + 0.5)*(Math.PI / 3 )),
-           this.y + r * Math.sin((i  + 0.5)*(Math.PI / 3 )));
+           ctx0.lineTo(this.x + r*(0.9) * Math.cos((i  + 0.5)*(Math.PI / 3 )),
+           this.y + r*(0.9) * Math.sin((i  + 0.5)*(Math.PI / 3 )));
         }
         ctx0.closePath();
         ctx0.stroke();
@@ -430,13 +465,13 @@ class  hex {
         this.show_flag = true;
         ctx0.save();
         ctx0.strokeStyle = theme["board"]["valid_move"]
-        ctx0.lineWidth = 2
+        ctx0.lineWidth = lineWidth
         ctx0.beginPath();
         if (i_kind == 'safe') {
            ctx0.arc(this.x, this.y, r/2, 0, 2 * Math.PI);
         } else if (i_kind == 'rect') {
-            this.draw_hex(2,theme["board"]["valid_move"]) //curso
-            ctx0.lineWidth = 0.5
+            this.draw_hex(lineWidth, theme["board"]["valid_move"]) //curso
+            ctx0.lineWidth = lineWidth/5
             var axis = []
             axis[0] =  {"a1":this.x  ,"a2":this.y   ,   "u1":B.hexs[0].x    ,"u2":0 }
             axis[1] =  {"a1":this.x  ,"a2":this.y   ,   "u1":1/2            ,"u2":Math.sqrt(3)/2 }
@@ -564,8 +599,8 @@ class board {
     draw_pieces() {
         // mark last move
         if (this.last_move_from != -1 ) {
-            this.hexs[this.last_move_from].draw_hex(3, theme["board"]["last_move"] )
-            this.hexs[this.last_move_to].draw_hex(3, theme["board"]["last_move"])
+            this.hexs[this.last_move_from].draw_hex(lineWidth, theme["board"]["last_move"] )
+            this.hexs[this.last_move_to].draw_hex(lineWidth, theme["board"]["last_move"])
             //ctx0.save()
             //ctx0.lineWidth = 1
             //ctx0.strokeStyle = theme["board"]["last_move"]
@@ -822,6 +857,12 @@ var b_fw = new butt('b_fw', button_color )
 var b_bw = new butt('b_bw', button_color )
 var II = new iinfos()
 var SS = new ssel()
+
+ctx0.lineWidth = 2
+ctx0.fillStyle = "black"
+ctx0.strokeStyle = "black"
+ctx0.arc(canW/2, 0, 20, 0, 1 * Math.PI);
+ctx0.stroke();
 
 B.init();
 B.draw_tile();
