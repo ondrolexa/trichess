@@ -214,14 +214,14 @@ class llines {
         ctx0.fillText(this.text,this.pos_x,this.pos_y);
         ctx0.closePath();
         ctx0.restore()
-      }
+    }
     draw() {
         // text zisti pocet znakov
         if (!(this.text == "" || this.text == undefined)) {
             var offset = piece_size*4
             var dist = piece_size*10
             for ( let i = 0; i < this.text.length; i++) {
-                if (this.align == "right") {
+                if (this.align == "right") { //todo prepisat
                     draw_piece_common( this.text[i]
                                      , epiece_lineWidth
                                      , this.strokeColor
@@ -280,7 +280,7 @@ class iinfo {
         // elimited
         var ofs  = inf_ofs + (Number(mame_size.substring(0, mame_size.length - 2)))*ivert
         if (ivert == 1) {
-            ofs  = ofs -50 //todo
+            ofs  = ofs -70 //todo
                 }
         for (let i = 2; i < 7; i++) {
             line_len  = line_len-18//10 - 60/i
@@ -290,18 +290,18 @@ class iinfo {
     clear() {
         var a = -1
         var h = canH/14
-        var w = canW/3
-        var d = canW/40
+        var w = canW/3.1
+        var d = canW/45 //sklon
         if (this.align == "left") { a = 1}
-        ctx0.save()
-        ctx0.fillStyle = "balck"
-        ctx0.beginPath()
+        //ctx0.save ()
+        //ctx0.beginPath()
+        //ctx0.fillStyle = "balck"
         for (let i = 0; i < 7; i++) {
+            this.lines[i].text = ""
             ctx0.clearRect(this.x+(5*a*(-1)) ,this.y + this.vert*i*h  , a*(w-(i*d)), this.vert*h)
-            //this.lines[i].clear()
-        ctx0.closePath();
-        ctx0.fill()
-        ctx0.restore()
+        //ctx0.closePath();
+        //ctx0.fill()
+        //ctx0.restore()
         }
     }
     write() {
@@ -797,8 +797,9 @@ function Click_Refresh()    {
     F.fetchGET(url+'/api/v1/manager/board?id='+ID.toString(), Step_2_setplayers)
 };
 function Click_Rotate() {
+    let slog = B.slog.substring(0,B.move_number*4)
     B.view_player = (B.view_player+1)%3
-    F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
+    F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Click_Board(event) {
     function getMouesPosition(e) {

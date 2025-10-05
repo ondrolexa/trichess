@@ -2,8 +2,8 @@ app:
   theme: "dark"
 
 canvas:
-  info: "#ffffff"
-  name: "#ffffff"
+  info: "#ffffe0"
+  name: "#ffffe0"
   name_inchess: "#000000"
   name_onmove: "#00ce02"
   background: "#212529"
@@ -17,7 +17,7 @@ board:
   attack_move: "orangered"
   hex_color:
     - "#000000"
-    - "#ffffff"
+    - "#ffffe0"
     - "#737373"
   hex_inchess: "#fa6eee"
   hex_alpha: "FF"
