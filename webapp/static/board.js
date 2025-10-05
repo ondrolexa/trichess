@@ -30,26 +30,26 @@ let SemaforGreen = true
 let SemaforWait = false
 
 // tools /////////////////////////////////////////////
-function test(i_flag) {
+function wait_msg(yes) {
     var modal = document.getElementById("myModal2")
-    if (i_flag != "a"  ) {
-        SemaforWait = false
+    if (yes) {
+        SemaforWait = true
         setTimeout(function (){
-                modal.style.display = "none";
-        }, 1);
-        }
-    else {
-        setTimeout(function (){
-            if ( !(SemaforWait) ) {
+            if ( SemaforWait ) {
                 modal.style.color = theme["canvas"]["name_inchess"]
                 modal.innerHTML = "Waiting<br/>for<br/>connection..."
                 modal.style.fontSize = "40px"
-                SemaforWait = true
                 modal.style.display = "block";
             }
-        }, 1);
+        }, 1000);
     }
+    else {
+        setTimeout(function (){
+                SemaforWait = false
+                modal.style.display = "none";
+        }, 0);
     }
+ }
 function debug(itext) {
         window.alert("Debug:"+itext)
 
@@ -86,7 +86,7 @@ class fetchData {
             body: jsonData
         })
             .then(response => {
-            test("a")
+            wait_msg(true)
             if (!response.ok) {
                 if (response.status == 401) {
                     window.alert('Token expired. Reload the page');
@@ -99,7 +99,7 @@ class fetchData {
             }
             return response.json();
             })
-            .then(data => { test("d");
+            .then(data => { wait_msg(false);
                             icallback(data);
             })
             .catch(error => { debug('Error:'+error+' url:'+iurl)
@@ -112,13 +112,13 @@ class fetchData {
             headers: this.headers,
         })
             .then(response => {
-                test("a")
+                wait_msg(true)
                 if (!response.ok) {
                   throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
-            .then(data => { test("d")
+            .then(data => { wait_msg(false)
                         icallback(data) })
             .catch(error => { debug('Error:'+error+' url:'+iurl) })
     };
@@ -727,7 +727,6 @@ function Step_3_setelim_board_and_draw(idata) {
         }
     }
 }
-
 // Button ////////////////////////////////////////////////////////////////////////////////
 function button_control() {
         if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 && !(B.hist_changed)  ) {
