@@ -419,6 +419,7 @@ class GameBoard(Resource):
                                     score = v * 2 / sum(tot)
                                     if score > 0:
                                         new_score = Score(
+                                            board_id=tb.id,
                                             player_id=players[uid].id,
                                             score=score,
                                         )
