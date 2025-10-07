@@ -59,6 +59,21 @@ class ProfileForm(FlaskForm):
         validators=[DataRequired()],
         choices=["filio", "ondro"],
     )
+    pieces_dir = os.path.join(
+        os.path.abspath(os.path.dirname(__file__)), "static/pieces"
+    )
+    pieces_files = sorted(
+        [
+            os.path.splitext(f)[0]
+            for f in os.listdir(pieces_dir)
+            if os.path.splitext(f)[1] == ".yaml"
+        ]
+    )
+    pieces = SelectField(
+        "Pieces",
+        validators=[DataRequired()],
+        choices=pieces_files,
+    )
     submit = SubmitField("Save")
 
 

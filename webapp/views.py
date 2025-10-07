@@ -208,7 +208,7 @@ def play(id):
     if tb:
         pieces_file = os.path.join(
             os.path.abspath(os.path.dirname(__file__)),
-            "static/pieces/default.yaml",
+            f"static/pieces/{g.user.pieces}.yaml",
         )
         with open(pieces_file) as f:
             pieces_paths = yaml.safe_load(f)
@@ -233,7 +233,7 @@ def playlx(id):
     if tb:
         pieces_file = os.path.join(
             os.path.abspath(os.path.dirname(__file__)),
-            "static/pieces/default.yaml",
+            f"static/pieces/{g.user.pieces}.yaml",
         )
         with open(pieces_file) as f:
             pieces_paths = yaml.safe_load(f)
@@ -249,13 +249,14 @@ def playlx(id):
 @login_required
 def profile():
     form_profile = ProfileForm(
-        email=g.user.email, theme=g.user.theme, board=g.user.board
+        email=g.user.email, theme=g.user.theme, board=g.user.board, pieces=g.user.pieces
     )
     form_password = PasswordForm(username=g.user.username)
     if form_profile.validate_on_submit():
         g.user.email = form_profile.email.data
         g.user.theme = form_profile.theme.data
         g.user.board = form_profile.board.data
+        g.user.pieces = form_profile.pieces.data
         db.session.commit()
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active"))
