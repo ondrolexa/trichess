@@ -552,8 +552,10 @@ class board {
         this.move_number =  jdata.move_number;
         this.finished = jdata.finished;
         this.onmove = jdata.onmove;
-        this.last_move_from =  jdata.last_move.from
-        this.last_move_to =  jdata.last_move.to
+        if (jdata.last_move != null) {
+            this.last_move_from =  jdata.last_move.from
+            this.last_move_to =  jdata.last_move.to
+        }
         if (this.move_number_org == -1) {
             this.move_number_org = jdata.move_number;
         }
