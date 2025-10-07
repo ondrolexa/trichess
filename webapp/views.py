@@ -58,16 +58,8 @@ def render_template(*args, **kwargs):
         )
     with open(theme_file) as f:
         theme = yaml.safe_load(f)
-    pieces_file = os.path.join(
-        os.path.abspath(os.path.dirname(__file__)),
-        "static/pieces/default.yaml",
-    )
-    with open(pieces_file) as f:
-        pieces_paths = yaml.safe_load(f)
 
-    return real_render_template(
-        *args, **kwargs, navailable=navailable, theme=theme, pieces_paths=pieces_paths
-    )
+    return real_render_template(*args, **kwargs, navailable=navailable, theme=theme)
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -214,18 +206,14 @@ def play(id):
     )
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
-        pid = {
-            tb.player_0.username: 0,
-            tb.player_1.username: 1,
-            tb.player_2.username: 2,
-        }
-        view_pid = pid[g.user.username]
-
+        pieces_file = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            "static/pieces/default.yaml",
+        )
+        with open(pieces_file) as f:
+            pieces_paths = yaml.safe_load(f)
         return render_template(
-            "play.html",
-            id=id,
-            view_pid=view_pid,
-            access_token=access_token,
+            "play.html", id=id, access_token=access_token, pieces_paths=pieces_paths
         )
     else:
         flash("You have no access to this game", "error")
@@ -243,10 +231,14 @@ def playlx(id):
     )
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
+        pieces_file = os.path.join(
+            os.path.abspath(os.path.dirname(__file__)),
+            "static/pieces/default.yaml",
+        )
+        with open(pieces_file) as f:
+            pieces_paths = yaml.safe_load(f)
         return render_template(
-            "playlx.html",
-            id=id,
-            access_token=access_token,
+            "playlx.html", id=id, access_token=access_token, pieces_paths=pieces_paths
         )
     else:
         flash("You have no access to this game", "error")
@@ -336,6 +328,7 @@ def register():
                 email=form.email.data,
                 theme="default",
                 board="ondro",
+                pieces="default",
             )
             db.session.add(new_user)
             db.session.commit()
@@ -409,6 +402,8 @@ def login():
             g.user.password, form.password.data
         ):
             login_user(g.user)
+            g.user.last_login = datetime.now()
+            db.session.commit()
             flash("Login successful!", "success")
             if g.user.id == 1:
                 return redirect(url_for("index"))

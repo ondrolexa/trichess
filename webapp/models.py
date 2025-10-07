@@ -9,9 +9,12 @@ class User(db.Model):
     username = db.Column(db.String(64), unique=True)
     password = db.Column(db.String(500))
     email = db.Column(db.String(120))
-    theme = db.Column(db.String())
-    board = db.Column(db.String())
+    theme = db.Column(db.String(), default="default")
+    board = db.Column(db.String(), default="ondro")
+    pieces = db.Column(db.String(), default="default")
     scores = db.relationship("Score", backref="player")
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    last_login = db.Column(db.DateTime)
 
     def score(self):
         return sum([score.score for score in self.scores])

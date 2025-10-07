@@ -11,7 +11,7 @@ canvas:
   game_over: "black"
 
 board:
-  last_move: "#000000"
+  last_move: "yellow"
   valid_move: "green"
   selection: "#ffffff"
   attack_move: "red"
@@ -21,7 +21,7 @@ board:
     - "#d1f0a8"
   hex_inchess: "#ff0000"
   hex_alpha: "a8"
-  hint_lines: "#ffffff"
+  hint_lines: "#222222"
 
 pieces:
   font-family: "Roboto"
