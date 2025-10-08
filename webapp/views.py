@@ -341,9 +341,9 @@ def register():
         return redirect(url_for("active"))
 
 
-@app.route("/admin", methods=["GET", "POST"])
+@app.route("/admin-games", methods=["GET", "POST"])
 @login_required
-def admin():
+def admin_games():
     if g.user.id == 1:
         if request.method == "POST":
             delete = request.form.get("delete", None)
@@ -351,7 +351,7 @@ def admin():
                 board = TriBoard.query.filter_by(id=delete).first()
                 db.session.delete(board)
                 db.session.commit()
-                return redirect(url_for("admin"))
+                return redirect(url_for("admin_games"))
         else:
             available = (
                 TriBoard.query.filter_by(status=0)
@@ -369,8 +369,19 @@ def admin():
                 .all()
             )
             return render_template(
-                "admin.html", available=available, active=active, archive=archive
+                "admin-games.html", available=available, active=active, archive=archive
             )
+    else:
+        flash("You are not admin.", "error")
+        return redirect(url_for("active"))
+
+
+@app.route("/admin-users", methods=["GET", "POST"])
+@login_required
+def admin_users():
+    if g.user.id == 1:
+        users = User.query.filter(User.id > 1).order_by(User.last_login.desc()).all()
+        return render_template("admin-users.html", users=users)
     else:
         flash("You are not admin.", "error")
         return redirect(url_for("active"))

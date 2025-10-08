@@ -23,7 +23,7 @@
     <tbody>
         {% for game in available %}
         <tr>
-        <form action=""{{ url_for('admin') }}"" method="post" class="form" role="form">
+        <form action=""{{ url_for('admin_games') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         <td><strong>{{game.player_0.username}}</strong></td>
@@ -58,7 +58,7 @@
         {% for game in active %}
         {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
-        <form action=""{{ url_for('admin') }}"" method="post" class="form" role="form">
+        <form action=""{{ url_for('admin_games') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}
@@ -117,7 +117,7 @@
         {% for game in archive %}
         {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
-        <form action=""{{ url_for('admin') }}"" method="post" class="form" role="form">
+        <form action=""{{ url_for('admin_games') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         {% if onmove == 0 %}
