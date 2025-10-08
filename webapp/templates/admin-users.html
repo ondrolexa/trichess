@@ -9,7 +9,6 @@
         <th scope="col">#</th>
         <th scope="col">Username</th>
         <th scope="col">Score</th>
-        <th scope="col">Email</th>
         <th scope="col">Theme</th>
         <th scope="col">Board</th>
         <th scope="col">Pieces</th>
@@ -24,11 +23,6 @@
         <th scope="row">{{user.id}}</th>
         <td><span>{{user.username}}</span></td>
         <td><span>{{user.score()}}</span></td>
-        {% if user.email is none %}
-        <td>--</td>
-        {% else %}
-        <td><span>{{user.email}}</span></td>
-        {% endif %}
         <td><span>{{user.theme}}</span></td>
         <td><span>{{user.board}}</span></td>
         <td><span>{{user.pieces}}</span></td>
