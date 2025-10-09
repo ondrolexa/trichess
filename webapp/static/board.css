@@ -10,10 +10,6 @@
     height: 40px;
     min-width: 50px;
 }
-.disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
 .divbutt {
     width: 10%;
     display: flex;
@@ -30,6 +26,7 @@
     max-width: 4320px;
     min-height: 160px;
     max-height: 2160px;
+    /*border-style: solid;*/
 }
 .divmain {
     display: flex;
@@ -38,12 +35,13 @@
 }
 .modal {
     display: none; /* Hidden by default */
-    min-width: 220px;
-    max-width: 4320px;
-    min-height: 190px;
-    max-height: 2160px;
-    height: 190px;
+    position: absolute;
     top: 15%;
+    /*left: 30%;*/
+    /*width: 90%;*/
+    height: 190px;
+    min-height: 190px;
+    min-width: 320px;
     text-align: center;
     text-shadow:
         -2px -2px 0 #000,
@@ -60,6 +58,11 @@
 }
 
 /* Modal Content */
+
+.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
 .modal-content {
     background-color: #fefefe;
     margin: auto;
@@ -68,15 +71,3 @@
     width: 80%;
 }
 /* The Close Button */
-.close {
-    color: #aaaaaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
-}
-.close:hover,
-.close:focus {
-    color: #000;
-    text-decoration: none;
-    cursor: pointer;
-}

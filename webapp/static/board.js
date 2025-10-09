@@ -802,6 +802,9 @@ function Click_Rotate() {
     B.view_player = (B.view_player+1)%3
     F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
+function Click_CloseModal() {
+    document.getElementById("myModal").style.display = "none";
+}
 function Click_Board(event) {
     function getMouesPosition(e) {
         var mouseX = e.offsetX * canvas0.width / canvas0.clientWidth | 0;
@@ -812,7 +815,7 @@ function Click_Board(event) {
     if (SemaforGreen) {
         SemaforGreen = false;
         const bounds = canvas0.getBoundingClientRect()
-        document.getElementById("myModal").style.display = "none";
+        Click_CloseModal()
         let x = pos.x
         let y = pos.y
         //if select pieces window is open

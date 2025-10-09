@@ -8,26 +8,8 @@
 <!-- The Modal -->
 
 <div id="main" class="divmain">
-
-    <div id="myModal" class="modal">
-    <!-- Modal content -->
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <p>GAME OVER!!!</p>
-        </div>
-    </div>
-
-    <div id="myModal2" class="modal">
-    <!-- Modal content -->
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <p>Waiting for connection...</p>
-        </div>
-    </div>
-
-
     <canvas id="canvas" width="4320" height="2160"  onclick="Click_Board(event)" ></canvas>
-    <div class="divbutt">
+    <div class="divbutt" onclick="Click_CloseModal()">
         <button id="b_bw" class="button" onclick="Click_Backward()"><</button>
         <button id="b_fw" class="button"  onclick="Click_Forward()">></button>
         <button id="b_rf" class="button"  onclick="Click_Refresh()">Reload</button>
@@ -35,6 +17,23 @@
         <button id="b_ok" class="button"  onclick="Click_OK()">OK</button>
     </div>
 </div>
+
+<div id="myModal" class="modal">
+<!-- Modal content -->
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <p>GAME OVER!!!</p>
+    </div>
+</div>
+
+<div id="myModal2" class="modal">
+<!-- Modal content -->
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <p>Waiting for connection...</p>
+    </div>
+</div>
+
 
 {%endblock%}
 
