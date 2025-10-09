@@ -50,14 +50,9 @@ class ProfileForm(FlaskForm):
         ]
     )
     theme = SelectField(
-        "Theme",
+        "Colors",
         validators=[DataRequired()],
         choices=theme_files,
-    )
-    board = SelectField(
-        "Board",
-        validators=[DataRequired()],
-        choices=["filio", "ondro"],
     )
     pieces_dir = os.path.join(
         os.path.abspath(os.path.dirname(__file__)), "static/pieces"
@@ -73,6 +68,11 @@ class ProfileForm(FlaskForm):
         "Pieces",
         validators=[DataRequired()],
         choices=pieces_files,
+    )
+    board = SelectField(
+        "Board",
+        validators=[DataRequired()],
+        choices=["filio", "ondro"],
     )
     submit = SubmitField("Save")
 

@@ -23,6 +23,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from flask_login import current_user, login_required, login_user, logout_user
+from sqlalchemy.sql.expression import func
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from webapp.api import blueprint as api
@@ -58,6 +59,8 @@ def render_template(*args, **kwargs):
         )
     with open(theme_file) as f:
         theme = yaml.safe_load(f)
+    if "board" not in kwargs:
+        kwargs["board"] = False
 
     return real_render_template(*args, **kwargs, navailable=navailable, theme=theme)
 
@@ -213,7 +216,11 @@ def play(id):
         with open(pieces_file) as f:
             pieces_paths = yaml.safe_load(f)
         return render_template(
-            "play.html", id=id, access_token=access_token, pieces_paths=pieces_paths
+            "play.html",
+            id=id,
+            access_token=access_token,
+            pieces_paths=pieces_paths,
+            board=True,
         )
     else:
         flash("You have no access to this game", "error")
@@ -238,7 +245,11 @@ def playlx(id):
         with open(pieces_file) as f:
             pieces_paths = yaml.safe_load(f)
         return render_template(
-            "playlx.html", id=id, access_token=access_token, pieces_paths=pieces_paths
+            "playlx.html",
+            id=id,
+            access_token=access_token,
+            pieces_paths=pieces_paths,
+            board=True,
         )
     else:
         flash("You have no access to this game", "error")
@@ -267,6 +278,26 @@ def profile():
     )
     active = TriBoard.query.filter_by(status=1).filter(user_in).all()
     archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
+    loss = (
+        len(
+            TriBoard.query.filter_by(status=2)
+            .filter(TriBoard.player_0_id == g.user.id)
+            .where((func.length(TriBoard.slog) // 4) % 3 == 0)
+            .all()
+        )
+        + len(
+            TriBoard.query.filter_by(status=2)
+            .filter(TriBoard.player_1_id == g.user.id)
+            .where((func.length(TriBoard.slog) // 4) % 3 == 1)
+            .all()
+        )
+        + len(
+            TriBoard.query.filter_by(status=2)
+            .filter(TriBoard.player_2_id == g.user.id)
+            .where((func.length(TriBoard.slog) // 4) % 3 == 2)
+            .all()
+        )
+    )
     avg = sum([t.modified_at - t.started_at for t in archive], timedelta(0))
     if avg.total_seconds() > 0:
         avg = avg / len(archive)
@@ -284,6 +315,8 @@ def profile():
         active=len(active),
         archive=len(archive),
         avg_length=avg_length,
+        wp=g.user.stats(),
+        loss=loss,
     )
 
 

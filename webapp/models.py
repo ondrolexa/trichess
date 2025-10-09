@@ -28,6 +28,16 @@ class User(db.Model):
             ]
         )
 
+    def stats(self):
+        win = 0
+        part = 0
+        for score in self.scores:
+            if score.score == 2:
+                win += 1
+            else:
+                part += 1
+        return win, part
+
     def is_authenticated(self):
         return True
 
