@@ -220,23 +220,15 @@ class llines {
         if (!(this.text == "" || this.text == undefined)) {
             var offset = piece_size*4
             var dist = piece_size*10
+            var align = 1
+            if (this.align == "right") { align = -1}
             for ( let i = 0; i < this.text.length; i++) {
-                if (this.align == "right") { //todo prepisat
-                    draw_piece_common( this.text[i]
-                                     , epiece_lineWidth
-                                     , this.strokeColor
-                                     , this.color
-                                     , this.pos_x + (-1) * (offset + i * dist)
-                                     , this.pos_y)
-                    }
-                else {
-                    draw_piece_common( this.text[i]
-                                     , epiece_lineWidth
-                                     , this.strokeColor
-                                     , this.color
-                                     , this.pos_x + (1) * (offset + i * dist)
-                                     , this.pos_y)
-                    }
+                draw_piece_common( this.text[i]
+                                 , epiece_lineWidth
+                                 , this.strokeColor
+                                 , this.color
+                                 , this.pos_x + align * (offset + i * dist)
+                                 , this.pos_y)
             }
         }
     }
@@ -254,16 +246,16 @@ class iinfo {
         this.lines  = []
         line_len  = line_len - 30
         var inf_ofs = 0
-        const dist=  20
-        var nam_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist) * ivert
+        const dist_top=  20
+        var nam_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist_top) * ivert
         if (ivert == -1) {
-            nam_ofs = dist*ivert
+            nam_ofs = dist_top*ivert
         }
         if (ivert == 1) {
-            inf_ofs = nam_ofs+dist+Number(info_size.substring(0, info_size.length - 2))
+            inf_ofs = nam_ofs+dist_top+Number(info_size.substring(0, info_size.length - 2))
         }
         else {
-            inf_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist)*ivert + dist*ivert
+            inf_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist_top)*ivert + dist_top*ivert
         }
 
         // info block
@@ -290,8 +282,8 @@ class iinfo {
     clear() {
         var a = -1
         var h = canH/14
-        var w = canW/3.1
-        var d = canW/45 //sklon
+        var w = canW/3.3
+        var d = canW/46 //sklon
         if (this.align == "left") { a = 1}
         //ctx0.save ()
         //ctx0.beginPath()
@@ -317,13 +309,14 @@ class iinfo {
 class iinfos {
     constructor() {
     var a = theme["canvas"]["font-family"]
+    var dist_rl = 150
     this.panel = []
     this.players = []
     this.index = []
-    this.panel[0] = new iinfo(0, canW-50, canH   , 'right', -1)
-    this.panel[1] = new iinfo(1, 50     , 0      , 'left' ,  1)
-    this.panel[2] = new iinfo(2, canW-50, 0    , 'right', 1)
-    this.panel[3] = new iinfo(3, 50    , canH   , 'left' , -1)
+    this.panel[0] = new iinfo(0, canW-dist_rl   , canH   , 'right', -1)
+    this.panel[1] = new iinfo(1, dist_rl        , 0      , 'left' ,  1)
+    this.panel[2] = new iinfo(2, canW-dist_rl   , 0    , 'right', 1)
+    this.panel[3] = new iinfo(3, dist_rl        , canH   , 'left' , -1)
     }
     set (idata) {
         this.index = rotateArray([0,1,2], B.view_player)
