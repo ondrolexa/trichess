@@ -55,7 +55,11 @@
         <main class="flex-shrink-0">
             {{ render_messages(dismissible=True) }}
             <!-- Your page content -->
+            {% if board is true %}
+            <div class="container-fluid mt-2">
+            {% else %}
             <div class="container mt-4">
+            {% endif %}
             {% block content %}{% endblock %}
             </div>
         </main>
