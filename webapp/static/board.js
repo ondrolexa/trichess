@@ -2,7 +2,7 @@ const canvas0 = document.getElementById('canvas');
 canvas0.addEventListener('mouseclick', Click_Board);
 
 const canW = canvas0.width
-const canH = canvas0.height
+const canH = canvas0.   height
 
 //canvas0.style.width = canvas0.width*scale  + 'px';
 //canvas0.style.height = canvas0.height*scale + 'px';
@@ -26,6 +26,7 @@ const boardXoffset = 450
 const mame_size = "150px";
 const info_size = "90px";//r.toString()+"px";
 const button_color = '#919595';
+// todo vsetky konstanty vytiahnut sem
 let SemaforGreen = true
 let SemaforWait = false
 
@@ -91,7 +92,7 @@ class fetchData {
                 if (response.status == 401) {
                     window.alert('Token expired. Reload the page');
                     location.reload();
-                    //throw new Error(`Token expired. Reload the page: ${response.status}`);
+                    return
                 }
                 else {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -106,24 +107,30 @@ class fetchData {
             })
     }
     fetchGET(iurl,  icallback) {
-    //const jsonData = JSON.stringify(ijson)
         fetch(iurl, {
             method: 'GET',
             headers: this.headers,
         })
             .then(response => {
-                wait_msg(true)
-                if (!response.ok) {
-                  throw new Error(`HTTP error! status: ${response.status}`);
+            wait_msg(true)
+            if (!response.ok) {
+                if (response.status == 401) {
+                    window.alert('Token expired. Reload the page');
+                    location.reload();
+                    return
                 }
-                return response.json();
+                else {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+            }
+            return response.json();
             })
             .then(data => { wait_msg(false)
-                        icallback(data) })
+                            icallback(data) })
             .catch(error => { debug('Error:'+error+' url:'+iurl) })
     };
 }
-// ssel //////////////////////////////////////////////////
+// ssel - promotion ////////////////////////////////////////////////
 class ssel {
     constructor(){
         this.active = false
@@ -148,38 +155,21 @@ class ssel {
         ctx0.beginPath()
         ctx0.fillStyle =  theme["canvas"]["background"];
         ctx0.rect(1670,894, 978, 375);
-        ctx0.closePath()
         ctx0.fill()
         const possx = 1865
         const possy = 1090
-        const ps =  piece_size*10
-
-         for (let i = 0; i < 4; i++) {
-            ctx0.save()
-            ctx0.beginPath()
-            ctx0.strokeLine = 40
+        const ps =  piece_size*10 //todo
+        ctx0.strokeLine = 40
+        for (let i = 0; i < 4; i++) {
             ctx0.rect(possx,possy, ps+i*ps, ps);
-            ctx0.closePath()
-            ctx0.stroke()
-            ctx0.restore()
          }
-
+        ctx0.closePath()
+        ctx0.stroke()
+        ctx0.restore()
         this.line[0].write()
         this.line[1].draw()
         this.active = true
         ctx0.restore()
-
-    //const possx = 353
-    //const possy = 195
-    //const ps =  piece_size*10
-    //for (let i = 0; i < 4; i++) {
-    //    ctx0.save()
-    //    ctx0.beginPath()
-    //    ctx0.rect( possx+i*ps ,possy, ps, ps);
-    //    ctx0.closePath()
-    //    ctx0.stroke()
-    //    ctx0.restore()
-    
     }
 }
 // llines ////////////////////////////////////////////////
@@ -195,7 +185,7 @@ class llines {
         this.strokeLine = istrokeLine
         this.strokeColor = istrokeColor
         ctx0.font = ifont
-        var text_width = ctx0.measureText(this.text).width // todo orezavat prilis dlhy text
+        this.text_width = ctx0.measureText(this.text).width // todo orezavat prilis dlhy text
     }
     write() {
         ctx0.save();
@@ -223,7 +213,7 @@ class llines {
             var align = 1
             if (this.align == "right") { align = -1}
             for ( let i = 0; i < this.text.length; i++) {
-                draw_piece_common( this.text[i]
+                draw_piece_common( this.text[i] //elimineted pieces
                                  , epiece_lineWidth
                                  , this.strokeColor
                                  , this.color
@@ -235,7 +225,7 @@ class llines {
 }
 // iinfo  ////////////////////////////////////////////////
 class iinfo {
-    constructor(iinfo_id, ipos_x, ipos_y, ialign, ivert) {
+    constructor(iinfo_id, ipos_x, ipos_y, ialign, ivert) { // todo revizia attr. a upratat
         this.x     = ipos_x
         this.y     = ipos_y
         this.align = ialign
@@ -246,7 +236,7 @@ class iinfo {
         this.lines  = []
         line_len  = line_len - 30
         var inf_ofs = 0
-        const dist_top=  20
+        const dist_top=  30 // top and bottom distance
         var nam_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist_top) * ivert
         if (ivert == -1) {
             nam_ofs = dist_top*ivert
@@ -271,11 +261,9 @@ class iinfo {
         }
         // elimited
         var ofs  = inf_ofs + (Number(mame_size.substring(0, mame_size.length - 2)))*ivert
-        if (ivert == 1) {
-            ofs  = ofs -70 //todo
-                }
+        if (ivert == 1) { ofs  = ofs -70 } //todo
         for (let i = 2; i < 7; i++) {
-            line_len  = line_len-18//10 - 60/i
+            line_len  = line_len-18
             this.lines[i] =  new llines('', ipos_x, ipos_y+ofs+(i-2)*line_high*ivert, ialign, line_len, (piece_size*15).toString()+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
         }
     }
@@ -319,17 +307,12 @@ class iinfos {
     this.panel[3] = new iinfo(3, dist_rl        , canH   , 'left' , -1)
     }
     set (idata) {
-        this.index = rotateArray([0,1,2], B.view_player)
-        for (let i = 0; i < 3; i++) {
-            this.panel[i].lines[0].text = this.players[this.index[i] ] // set players names
-              //set players color
-            //for (let j = 2; j < 7; j++) {
-                //this.panel[i].lines[j].color =  theme["pieces"]["color"][this.index[i]]
-                //this.panel[i].lines[j].strokeColor = text_color
-            //}
-        }
+        this.index = rotateArray([0,1,2], B.view_player) //todo
         this.panel[3].lines[1].text = 'Game ID: '+ID.toString()
         this.panel[3].lines[0].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
+        for (let i = 0; i < 3; i++) {
+            this.panel[i].lines[0].text = this.players[this.index[i] ] // set players names
+        }
         for (let i = 0; i < 3; i++) {
             // highlight players
             if (this.index[i] == idata.onmove) {
@@ -419,7 +402,19 @@ class  hex {
                          , this.x,this.y
                          )
     }
-
+    draw_hex(i_width, i_color) {
+        ctx0.save()
+        ctx0.lineWidth = i_width
+        ctx0.strokeStyle = i_color
+        ctx0.beginPath()
+        for (let i = 0; i < 6; i++) { //draw hex
+           ctx0.lineTo(this.x + r*(0.9) * Math.cos((i  + 0.5)*(Math.PI / 3 )),
+           this.y + r*(0.9) * Math.sin((i  + 0.5)*(Math.PI / 3 )));
+        }
+        ctx0.closePath();
+        ctx0.stroke();
+        ctx0.restore()
+    }
     line_intersect2(ax,bo) {
        if (ax.u2/ax.u1 == bo.z2/bo.z1) {
             return
@@ -440,19 +435,6 @@ class  hex {
             return {"x": Math.round(x), "y":Math.round(y) }
         }
         return
-    }
-    draw_hex(i_width, i_color) {
-        ctx0.save()
-        ctx0.lineWidth = i_width
-        ctx0.strokeStyle = i_color
-        ctx0.beginPath()
-        for (let i = 0; i < 6; i++) { //draw hex
-           ctx0.lineTo(this.x + r*(0.9) * Math.cos((i  + 0.5)*(Math.PI / 3 )),
-           this.y + r*(0.9) * Math.sin((i  + 0.5)*(Math.PI / 3 )));
-        }
-        ctx0.closePath();
-        ctx0.stroke();
-        ctx0.restore()
     }
     draw_mark(i_kind) {
         this.show_flag = true;
@@ -482,20 +464,16 @@ class  hex {
                         }
                     }
                 }
-
                 ctx0.moveTo(point[0].x, point[0].y)
                 ctx0.lineTo(point[1].x, point[1].y)
-                ctx0.stroke()
                 j = 0
                 point = []
             }
-            ctx0.stroke();
         } else if (i_kind == 'attack') {
             ctx0.moveTo(this.x-r/1.6, this.y-r/1.6);
             ctx0.lineTo(this.x+r/1.6, this.y+r/1.6);
             ctx0.moveTo(this.x+r/1.6, this.y-r/1.6);
             ctx0.lineTo(this.x-r/1.6, this.y+r/1.6);
-            ctx0.stroke();
         } else {
             const a = 0;
         }
@@ -516,12 +494,12 @@ class board {
         this.move_number =  -1;
         this.move_number_org =  -1;
         this.move_number_max =  -1;
+        this.last_move_from =  -1
+        this.last_move_to =  -1
         this.onmove =  0;
         this.finished =  false;
         this.hist_changed =  false;
         this.border = []
-        this.last_move_from =  -1
-        this.last_move_to =  -1
     }
     init() {
         let cnt = 0;
@@ -596,14 +574,6 @@ class board {
         if (this.last_move_from != -1 ) {
             this.hexs[this.last_move_from].draw_hex(lineWidth, theme["board"]["last_move"] )
             this.hexs[this.last_move_to].draw_hex(lineWidth, theme["board"]["last_move"])
-            //ctx0.save()
-            //ctx0.lineWidth = 1
-            //ctx0.strokeStyle = theme["board"]["last_move"]
-            //ctx0.beginPath();
-            //ctx0.moveTo(this.hexs[this.last_move_from].x, this.hexs[this.last_move_from].y )
-            //ctx0.lineTo(this.hexs[this.last_move_to].x, this.hexs[this.last_move_to].y )
-            //ctx0.stroke();
-            //ctx0.restore()
         }
         for (let i = 0; i < 169; i++) {
             if (this.hexs[i].show_flag) {
@@ -649,6 +619,25 @@ class board {
         F.fetchPOST(url+'/api/v1/move/make', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new, "new_piece": inew_piece}, Step_make_move);
     }
 }
+// Button ////////////////////////////////////////////////////////////////////////////////
+class butt {
+    constructor (iid, icolor) {
+        this.id = iid;
+        this.disabled = true;
+        this.color_enable = icolor;
+}
+    update = function() {
+        if (this.disabled) {
+            document.getElementById(this.id).style.backgroundColor = '#c9c9d9'//button_color;
+            document.getElementById(this.id).disabled = true;
+            //document.getElementById(this.id).cursor = 'not-allowed';
+        }
+        else {
+        document.getElementById(this.id).style.backgroundColor = this.color_enable;//'#d9d9d9' //this.color_enable;
+        document.getElementById(this.id).disabled = false;
+        }
+    }
+};
 //----------------------------------------------------
 function elim2array(idata) {
     const pcs_map1 = {"":"", "P":"♟", "N":"♞", "B":"♝", "R":"♜", "Q":"♛", "K":"♚"}
@@ -722,7 +711,6 @@ function Step_3_setelim_board_and_draw(idata) {
         }
     }
 }
-// Button ////////////////////////////////////////////////////////////////////////////////
 function button_control() {
         if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 && !(B.hist_changed)  ) {
             b_ok.disabled = false;
@@ -746,22 +734,6 @@ function button_control() {
         }
         b_fw.update()
 }
-function butt(iid, icolor) {
-    this.id = iid;
-    this.disabled = true;
-    this.color_enable = icolor;
-}
-butt.prototype.update = function() {
-    if (this.disabled) {
-        document.getElementById(this.id).style.backgroundColor = '#c9c9d9'//button_color;
-        document.getElementById(this.id).disabled = true;
-        //document.getElementById(this.id).cursor = 'not-allowed';
-    }
-    else {
-        document.getElementById(this.id).style.backgroundColor = this.color_enable;//'#d9d9d9' //this.color_enable;
-        document.getElementById(this.id).disabled = false;
-    }
-};
 // Click ////////////////////////////////////////////////////////////////////////////////
 function Click_Backward() {
     B.move_number = B.move_number -1
