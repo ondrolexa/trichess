@@ -2,8 +2,11 @@ from engine.pieces import King, Pawn, Piece, Pos
 from engine.player import Player
 
 base0 = [Pos(i, 7) for i in range(-7, 1)]
+base01 = [Pos(-7, i) for i in range(1, 7)]
 base1 = [Pos(i, -7 - i) for i in range(-7, 1)]
+base12 = [Pos(i, -7) for i in range(1, 7)]
 base2 = [Pos(7, i) for i in range(-7, 1)]
+base20 = [Pos(7 - i, i) for i in range(1, 7)]
 
 
 class Hex:
@@ -64,9 +67,9 @@ class Board:
                     self._board[pos] = Hex(pos, self)
         self.init_pieces()
         self.opposite = {
-            0: base1 + base2,
-            1: base0 + base2,
-            2: base0 + base1,
+            0: base1 + base12 + base2,
+            1: base2 + base20 + base0,
+            2: base0 + base01 + base1,
         }
         self.eliminated = []
         log = kwargs.get("log", [])
