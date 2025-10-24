@@ -19,7 +19,7 @@ const url = `${window.location.protocol}//${window.location.host}`;
 const r = 94 // radius
 const piece_size = 15;
 const bpiece_lineWidth = 0.2
-const epiece_lineWidth = 0.3
+const epiece_lineWidth = 0.4
 const lineWidth = 12
 const lineStroke = 20
 const boardXoffset = 450
@@ -174,7 +174,8 @@ class ssel {
 }
 // llines ////////////////////////////////////////////////
 class llines {
-    constructor( itext, ipos_x, ipos_y, ialign, ilength, ifont, icolor, istrokeLine, istrokeColor ) {
+    constructor(itext, ipos_x, ipos_y, ialign, ilength, ifont, icolor, istrokeLine, istrokeColor ) {
+        this.player_id   = -1
         this.text        = itext;
         this.pos_x       = ipos_x;
         this.pos_y       = ipos_y;
@@ -182,7 +183,7 @@ class llines {
         this.length      = ilength
         this.font        = ifont;
         this.color       = icolor;
-        this.strokeLine = istrokeLine
+        this.strokeLine  = istrokeLine
         this.strokeColor = istrokeColor
         ctx0.font = ifont
         this.text_width = ctx0.measureText(this.text).width // todo orezavat prilis dlhy text
@@ -208,14 +209,20 @@ class llines {
     draw() {
         // text zisti pocet znakov
         if (!(this.text == "" || this.text == undefined)) {
-            var offset = piece_size*4
-            var dist = piece_size*10
+            var offset = piece_size*6
+            var dist = piece_size*9
             var align = 1
+            var strokeColor = this.strokeColor
+            var c = 0
             if (this.align == "right") { align = -1}
             for ( let i = 0; i < this.text.length; i++) {
+                if (this.text[i] == "B") {
+                    strokeColor = B.bishop_elim[this.player_id][c]
+                    c++
+                }
                 draw_piece_common( this.text[i] //elimineted pieces
                                  , epiece_lineWidth
-                                 , this.strokeColor
+                                 , strokeColor
                                  , this.color
                                  , this.pos_x + align * (offset + i * dist)
                                  , this.pos_y)
@@ -226,6 +233,7 @@ class llines {
 // iinfo  ////////////////////////////////////////////////
 class iinfo {
     constructor(iinfo_id, ipos_x, ipos_y, ialign, ivert) { // todo revizia attr. a upratat
+        this.info_id = iinfo_id
         this.x     = ipos_x
         this.y     = ipos_y
         this.align = ialign
@@ -247,7 +255,6 @@ class iinfo {
         else {
             inf_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist_top)*ivert + dist_top*ivert
         }
-
         // info block
         if (iinfo_id == 3) {
             this.lines[0] =  new llines('', ipos_x, ipos_y+nam_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
@@ -273,15 +280,15 @@ class iinfo {
         var w = canW/3.3
         var d = canW/46 //sklon
         if (this.align == "left") { a = 1}
-        //ctx0.save ()
-        //ctx0.beginPath()
-        //ctx0.fillStyle = "balck"
+        // ctx0.save ()
+        // ctx0.beginPath()
+        // ctx0.fillStyle = "balck"
         for (let i = 0; i < 7; i++) {
             this.lines[i].text = ""
             ctx0.clearRect(this.x+(5*a*(-1)) ,this.y + this.vert*i*h  , a*(w-(i*d)), this.vert*h)
-        //ctx0.closePath();
-        //ctx0.fill()
-        //ctx0.restore()
+        // ctx0.closePath();
+        // ctx0.fill()
+        // ctx0.restore()
         }
     }
     write() {
@@ -312,15 +319,21 @@ class iinfos {
         this.panel[3].lines[0].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
         for (let i = 0; i < 3; i++) {
             this.panel[i].lines[0].text = this.players[this.index[i] ] // set players names
+            for (let z= 0; z < 7; z++) {
+                this.panel[i].lines[z].player_id = this.index[i]
+            }
         }
         for (let i = 0; i < 3; i++) {
             // highlight players
             if (this.index[i] == idata.onmove) {
-                this.panel[i].lines[0].strokeLine = lineStroke
-                this.panel[i].lines[0].strokeColor = theme["canvas"]["name_onmove"]
+                this.panel[i].lines[0].strokeLine = 5
+                this.panel[i].lines[0].strokeColor = theme["canvas"]["name"]
+                this.panel[i].lines[0].color = theme["canvas"]["name_onmove"]
                 }
-            else
-                {this.panel[i].lines[0].strokeLine = undefined}
+            else {
+                this.panel[i].lines[0].strokeLine = 0
+                this.panel[i].lines[0].color = theme["canvas"]["name"]
+                }
             // eliminated_value
             this.panel[i].lines[1].text= 'lost: '+idata.eliminated_value[this.index[i]].toString()
             // eliminated pieces
@@ -358,6 +371,7 @@ class  hex {
         this.valid_flag = false;
         this.promo_flag = false;
     }
+
     set(ipiece) {
     if (ipiece.piece !=  this.piece.piece || ipiece.player_id !=  this.piece.player_id) {
         this.show_flag = true;
@@ -500,6 +514,7 @@ class board {
         this.finished =  false;
         this.hist_changed =  false;
         this.border = []
+        this.bishop_elim = []
     }
     init() {
         let cnt = 0;
@@ -518,6 +533,26 @@ class board {
         this.border[4] =  {"b1":this.hexs[161].x,"b2":this.hexs[161].y ,   "z1":-1/2              ,"z2":-Math.sqrt(3)/2 }
         this.border[5] =  {"b1":this.hexs[77].x ,"b2":this.hexs[77].y  ,   "z1":1/2                ,"z2":-Math.sqrt(3)/2 }
     }
+    bishop_elim_color() {
+        var c = []
+        for (let j= 0; j < 3; j++) {
+            c[j] = theme["board"]["hex_color"]
+        }
+        for (let z= 0; z < 169; z++) {
+            if (this.hexs[z].piece.piece == "B") {
+                var p = c[this.hexs[z].piece.player_id].slice()
+                var t = p.indexOf(this.hexs[z].hex_color)
+                if (t > -1) { // only splice array when item is found
+                    p.splice(t, 1); // 2nd parameter means remove one item only
+                    c[this.hexs[z].piece.player_id] = p
+                }
+                //https://stackoverflow.com/questions/5767325/how-can-i-remove-a-specific-item-from-an-array-in-javascript
+            }
+        }
+        this.bishop_elim = c
+    }
+
+
     set(idata) {
         const jdata = idata;
         this.move_number =  jdata.move_number;
@@ -560,6 +595,7 @@ class board {
        if (jdata.king_pos != 0) {
            //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
        }
+       this.bishop_elim_color()
     }
     draw_tile() {
         for (let i = 0; i < 169; i++) {
@@ -599,7 +635,7 @@ class board {
         }
     this.gid_old = this.gid_new;
     this.gid_new = r_i;
-    return r_i;
+    return this.gid_new;
 };
     // move ---------------------------------------------
     moveValid() {
@@ -827,13 +863,6 @@ var b_fw = new butt('b_fw', button_color )
 var b_bw = new butt('b_bw', button_color )
 var II = new iinfos()
 var SS = new ssel()
-
-ctx0.lineWidth = 2
-ctx0.fillStyle = "black"
-ctx0.strokeStyle = "black"
-ctx0.arc(canW/2, 0, 20, 0, 1 * Math.PI);
-ctx0.stroke();
-
 B.init();
 B.draw_tile();
 II.write()

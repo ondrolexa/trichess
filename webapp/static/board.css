@@ -6,16 +6,16 @@
     font-size: 14px;
     cursor: pointer;
     border-radius: 8px;
-    width: 100px;
+    width: 60px;
     height: 40px;
-    min-width: 50px;
+    min-width: 100px;
 }
 .divbutt {
     width: 10%;
     display: flex;
     margin-top: 10px;
     flex-wrap: wrap;
-    min-width: 50px;
+    min-width: 60px;
     max-width: 1200px;
     justify-content: center;
 }
