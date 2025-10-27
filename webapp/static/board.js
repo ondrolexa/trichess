@@ -20,9 +20,10 @@ const r = 94 // radius
 const piece_size = 15;
 const bpiece_lineWidth = 0.2
 const epiece_lineWidth = 0.4
-const lineWidth = 12
+const lineWidth = 14
 const lineStroke = 20
 const boardXoffset = 450
+const boardYoffset = 8
 const mame_size = "150px";
 const info_size = "90px";//r.toString()+"px";
 const button_color = '#919595';
@@ -362,7 +363,7 @@ class iinfos {
 class  hex {
     constructor(a, b, id) {
         this.x =  (a +b*(0.5 ))*(r * Math.sqrt(3))+ boardXoffset
-        this.y =  (1 + b * 1.5) * r;
+        this.y =  ((1 + b * 1.5) * r) + boardYoffset
         this.id = id;
         this.piece = {"piece":"" , "player_id":-1};
         this.hex_color =  theme["board"]["hex_color"][(a+2*b)%3] ;
@@ -406,7 +407,6 @@ class  hex {
         ctx0.fill();
         ctx0.closePath()
         ctx0.restore()
-
     }
     draw_piece2(i_lineWidth = 1, i_lineColor = "#000000") {
         draw_piece_common( this.piece.piece
@@ -416,14 +416,14 @@ class  hex {
                          , this.x,this.y
                          )
     }
-    draw_hex(i_width, i_color) {
+    draw_hex(i_width, i_color, i_r) {
         ctx0.save()
         ctx0.lineWidth = i_width
         ctx0.strokeStyle = i_color
         ctx0.beginPath()
         for (let i = 0; i < 6; i++) { //draw hex
-           ctx0.lineTo(this.x + r*(0.9) * Math.cos((i  + 0.5)*(Math.PI / 3 )),
-           this.y + r*(0.9) * Math.sin((i  + 0.5)*(Math.PI / 3 )));
+           ctx0.lineTo(this.x + r*(i_r) * Math.cos((i  + 0.5)*(Math.PI / 3 )),
+           this.y + r*(i_r) * Math.sin((i  + 0.5)*(Math.PI / 3 )));
         }
         ctx0.closePath();
         ctx0.stroke();
@@ -459,7 +459,7 @@ class  hex {
         if (i_kind == 'safe') {
            ctx0.arc(this.x, this.y, r/2, 0, 2 * Math.PI);
         } else if (i_kind == 'rect') {
-            this.draw_hex(lineWidth, theme["board"]["valid_move"]) //curso
+            this.draw_hex(lineWidth, theme["board"]["valid_move"],0.85) //curso
             ctx0.lineWidth = lineWidth/5
             var axis = []
             axis[0] =  {"a1":this.x  ,"a2":this.y   ,   "u1":B.hexs[0].x    ,"u2":0 }
@@ -597,6 +597,48 @@ class board {
        }
        this.bishop_elim_color()
     }
+    draw_border () {
+        ctx0.save()
+        ctx0.beginPath();
+
+        ctx0.lineWidth = 10;
+        ctx0.strokeStyle = theme["board"]["border"];
+        ctx0.transform(1.004,0,0,1.004, -9 , -5);
+
+        var rb = r*1.0
+        var x1 = this.hexs[0].x + rb * Math.cos( 7/6*Math.PI )
+        var y1 = this.hexs[0].y + rb * Math.sin( 7/6*Math.PI )
+        var x2 = this.hexs[0].x + rb * Math.cos( 3/2*Math.PI )
+        var y2 = this.hexs[0].y + rb * Math.sin( 3/2*Math.PI )
+        var dist = Math.sqrt( Math.pow((x1-x2), 2) + Math.pow((y1-y2), 2) )
+        ctx0.moveTo(x1, y1)
+        ctx0.lineTo(x2, y2)
+        var d = 1
+        var a1 = 0
+        var a2 =  -1/6
+        var m = 1
+        var l = 15
+        for (let j = 0; j < 90; j++) {
+            if ( j%15 == 0 ) {
+                    a1 = a2         //-1/6
+                    a2 = a1+1/3     // 1/6
+                if ( j%30 == 0 ) {m = 1} else {m = 0}
+            }
+             if (j%2 == m )
+                 { d=a1}
+             else {d=a2}
+             x1 = x2
+             y1 = y2
+             x2 = x1 + dist * Math.cos(d*Math.PI )
+             y2 = y1 + dist * Math.sin(d*Math.PI )
+             ctx0.moveTo(x1, y1)
+             ctx0.lineTo(x2, y2)
+
+            }
+        ctx0.closePath()
+        ctx0.stroke()
+        ctx0.restore()
+    }
     draw_tile() {
         for (let i = 0; i < 169; i++) {
             if (this.hexs[i].show_flag) {
@@ -604,12 +646,14 @@ class board {
                 //this.hexs[i].lumi = 0
             }
         }
+        this.draw_border ()
     }
+
     draw_pieces() {
         // mark last move
         if (this.last_move_from != -1 ) {
-            this.hexs[this.last_move_from].draw_hex(lineWidth, theme["board"]["last_move"] )
-            this.hexs[this.last_move_to].draw_hex(lineWidth, theme["board"]["last_move"])
+            this.hexs[this.last_move_from].draw_hex(lineWidth, theme["board"]["last_move"],1 )
+            this.hexs[this.last_move_to].draw_hex(lineWidth, theme["board"]["last_move"], 1)
         }
         for (let i = 0; i < 169; i++) {
             if (this.hexs[i].show_flag) {

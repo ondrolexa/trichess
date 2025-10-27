@@ -11,7 +11,7 @@ canvas:
   game_over: "black"
 
 board:
-  last_move: "#00ce02"
+  last_move: "#ea60f5"
   valid_move: "#ea60f5"
   selection: "#ffffff"
   attack_move: "orangered"
@@ -22,11 +22,13 @@ board:
   hex_inchess: "#fa6eee"
   hex_alpha: "FF"
   hint_lines: "#ffffff"
+  hex_border: "#ffffff"
+  border: "#1b2024"
 
 pieces:
   font-family: "Roboto"
   stroke-color: "#000000"
   color:
-    - "#60a3f5"
+    - "#00ce02"
     - "#cc0000"
     - "#ff9a07"

@@ -22,6 +22,8 @@ board:
   hex_inchess: "yellow"
   hex_alpha: "a8"
   hint_lines: "#ffffff"
+  hex_border: "#ffffff"
+  border: "#1b2024"
 
 pieces:
   font-family: "Roboto"
