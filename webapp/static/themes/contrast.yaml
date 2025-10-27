@@ -22,9 +22,8 @@ board:
   hex_inchess: "#8900b5"
   hex_alpha: "ff"
   hint_lines: "#000000"
-  hex_border: "#ffffff"
+  hex_border: "#000000"
   border: "#ffffff"
-
 
 pieces:
   font-family: "Roboto"

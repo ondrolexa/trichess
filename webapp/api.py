@@ -214,8 +214,8 @@ game_eliminated = api.model(
     },
 )
 
-game_eliminated_value = api.model(
-    "Game players eliminated pieces total value",
+game_pieces_value = api.model(
+    "Game players pieces total value",
     {
         0: fields.Integer,
         1: fields.Integer,
@@ -234,8 +234,9 @@ game_response = api.model(
         "king_pos": fields.Integer,
         "chess_by": fields.Nested(game_pieces),
         "pieces": fields.Nested(game_pieces),
+        "pieces_value": fields.Nested(game_pieces_value),
         "eliminated": fields.Nested(game_eliminated),
-        "eliminated_value": fields.Nested(game_eliminated_value),
+        "eliminated_value": fields.Nested(game_pieces_value),
     },
 )
 
@@ -268,6 +269,7 @@ class GameInfo(Resource):
                 res["finished"] = not ga.move_possible()
                 res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess
                 res["pieces"] = ga.pieces
+                res["pieces_value"] = ga.pieces_value
                 res["eliminated"] = ga.eliminated
                 res["eliminated_value"] = ga.eliminated_value
                 return res

@@ -22,7 +22,7 @@ board:
   hex_inchess: "#fa6eee"
   hex_alpha: "FF"
   hint_lines: "#ffffff"
-  hex_border: "#ffffff"
+  hex_border: "#000000"
   border: "#1b2024"
 
 pieces:

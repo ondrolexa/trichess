@@ -12,8 +12,8 @@ const player_names_font = { 0: "", 1: "", 2: "" };
 var movelabel_text = "";
 const player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
 const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
-var stageWidth = 20;
-var stageHeight = 20;
+var stageWidth = 18;
+var stageHeight = 18;
 var movestage = -1;
 var target = -1;
 var current = -1;
@@ -333,7 +333,7 @@ function fitStageIntoDiv() {
   stage.draw();
 }
 
-function createHexPatch(gid, xy, color, qr) {
+function createHexPatch(gid, xy, color, stroke, qr) {
   let hex = new Konva.RegularPolygon({
     id: gid,
     x: xy[0],
@@ -341,7 +341,7 @@ function createHexPatch(gid, xy, color, qr) {
     sides: 6,
     radius: Math.sqrt(1 / 3),
     fill: color,
-    stroke: "black",
+    stroke: stroke,
     strokeWidth: 0.05,
     q: qr[0],
     r: qr[1],
@@ -529,8 +529,8 @@ function drawPieces(pieces) {
   }
 }
 
-function updateStats(eliminated, value, move_number) {
-  player_names[0] = `${seat[0]} (${value[(0 + view_pid) % 3]})`;
+function updateStats(eliminated, eliminated_value, pieces_value, move_number) {
+  player_names[0] = `${seat[0]} (${pieces_value[(0 + view_pid) % 3]}/${eliminated_value[(0 + view_pid) % 3]})`;
   el = eliminated[(0 + view_pid) % 3];
   for (let pcs in el) {
     p0el[pcs].data(pieces_paths["pieces"][el[pcs]]);
@@ -539,7 +539,7 @@ function updateStats(eliminated, value, move_number) {
     p0el[i].data("");
   }
 
-  player_names[1] = `${seat[1]} (${value[(1 + view_pid) % 3]})`;
+  player_names[1] = `${seat[1]} (${pieces_value[(1 + view_pid) % 3]}/${eliminated_value[(1 + view_pid) % 3]})`;
   el = eliminated[(1 + view_pid) % 3];
   for (let pcs in el) {
     p1el[pcs].data(pieces_paths["pieces"][el[pcs]]);
@@ -548,7 +548,7 @@ function updateStats(eliminated, value, move_number) {
     p1el[i].data("");
   }
 
-  player_names[2] = `${seat[2]} (${value[(2 + view_pid) % 3]})`;
+  player_names[2] = `${seat[2]} (${pieces_value[(2 + view_pid) % 3]}/${eliminated_value[(2 + view_pid) % 3]})`;
   el = eliminated[(2 + view_pid) % 3];
   for (let pcs in el) {
     p2el[pcs].data(pieces_paths["pieces"][el[pcs]]);
@@ -747,7 +747,12 @@ function gameInfo(init = false, redraw = false) {
         active_tween["active"] = false;
       }
 
-      updateStats(data.eliminated, data.eliminated_value, data.move_number);
+      updateStats(
+        data.eliminated,
+        data.eliminated_value,
+        data.pieces_value,
+        data.move_number,
+      );
 
       if (slog.slice(0, -4) == server_slog && on_move) {
         submit.disabled = false;
@@ -878,6 +883,7 @@ function boardInfo() {
               gid,
               [x, y],
               theme["board"]["hex_color"][colorid],
+              theme["board"]["hex_border"],
               [q, r],
             );
             gid2high[gid] = createHexHigh([x, y]);

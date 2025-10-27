@@ -139,6 +139,16 @@ class GameAPI:
                 )
         return res
 
+    @property
+    def pieces_value(self):
+        """Return total values of pieces for player pid"""
+        res = {0: 0, 1: 0, 2: 0}
+        for hex in self.board:
+            if hex.has_piece:
+                p = hex.piece
+                res[p.player.pid] += p.value
+        return res
+
     def seat(self, seat: int):
         """Return player on seat 0, 1 or 2"""
         return self.players[(self.view_pid + seat) % 3]
