@@ -20,7 +20,7 @@ const r = 94 // radius
 const piece_size = 15;
 const bpiece_lineWidth = 0.2
 const epiece_lineWidth = 0.4
-const lineWidth = 14
+const lineWidth = 12
 const lineStroke = 20
 const boardXoffset = 450
 const boardYoffset = 8
@@ -265,7 +265,8 @@ class iinfo {
         else {
             // player name
             this.lines[0] =  new llines('', ipos_x, ipos_y + nam_ofs, ialign, line_len, mame_size+" "+theme["canvas"]["font-family"] , theme["canvas"]["name"] )
-            this.lines[1] =  new llines('', ipos_x, ipos_y + inf_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[1] =  new llines('', ipos_x, ipos_y + inf_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["pieces"]["color"][iinfo_id], 10, theme["pieces"]["stroke-color"])
+
         }
         // elimited
         var ofs  = inf_ofs + (Number(mame_size.substring(0, mame_size.length - 2)))*ivert
@@ -335,8 +336,9 @@ class iinfos {
                 this.panel[i].lines[0].strokeLine = 0
                 this.panel[i].lines[0].color = theme["canvas"]["name"]
                 }
-            // eliminated_value
-            this.panel[i].lines[1].text= 'lost: '+idata.eliminated_value[this.index[i]].toString()
+            // eliminated_value / pieces_value
+            this.panel[i].lines[1].color= theme["pieces"]["color"][(this.index[i]+2)%3]
+            this.panel[i].lines[1].text= idata.pieces_value[this.index[i]].toString() + ' / '+idata.eliminated_value[this.index[i]].toString()
             // eliminated pieces
             var e = elim2array(idata.eliminated[this.index[i]])
             if (e != undefined)

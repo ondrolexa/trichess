@@ -12,7 +12,7 @@ canvas:
 
 board:
   last_move: "#ea60f5"
-  valid_move: "#ea60f5"
+  valid_move: "#19a9c2"
   selection: "#ffffff"
   attack_move: "orangered"
   hex_color:
