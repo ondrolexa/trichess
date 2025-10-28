@@ -10,8 +10,9 @@ const player_names_font = { 0: "", 1: "", 2: "" };
 const player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
 var movelabel_text = "";
 const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
-var stageWidth = 18;
-var stageHeight = 18;
+var stageWidth = 20;
+var stageHeight = 17;
+var visual_shift = 20;
 var movestage = -1;
 var target = -1;
 var current = -1;
@@ -26,6 +27,7 @@ const loader = document.getElementById("loader");
 const backmove = document.getElementById("backMove");
 const forwardmove = document.getElementById("forwardMove");
 const modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
+const navbar = document.getElementById("header");
 var seat = {};
 var slog = "";
 var server_slog = "";
@@ -170,7 +172,7 @@ stage.on("touchend", function () {
 });
 
 var movelabel = new Konva.Shape({
-  x: -7,
+  x: -7.5,
   y: 4,
   width: 3.5,
   height: 1,
@@ -326,8 +328,41 @@ function fitStageIntoDiv() {
   }
   stage.offsetX(-stageWidth / 2 - (containerWidth / scale - stageWidth) / 2);
   stage.scale({ x: scale, y: scale });
-  stage.position({ x: -10, y: 0 });
+  stage.position({ x: -10, y: visual_shift });
   stage.draw();
+}
+
+function doOnOrientationChange() {
+  switch (window.screen.orientation.type) {
+    case "landscape-primary":
+      header.style.display = "none";
+      stageWidth = 17;
+      stageHeight = 20;
+      visual_shift = 0;
+      fitStageIntoDiv();
+      window.scrollBy(0, 200);
+      break;
+    case "portrait-secondary":
+      header.style.display = "";
+      stageWidth = 20;
+      stageHeight = 17;
+      visual_shift = 20;
+      fitStageIntoDiv();
+      break;
+    case "landscape-secondary":
+      header.style.display = "none";
+      stageWidth = 17;
+      stageHeight = 20;
+      visual_shift = 0;
+      fitStageIntoDiv();
+      break;
+    default:
+      header.style.display = "";
+      stageWidth = 20;
+      stageHeight = 17;
+      visual_shift = 20;
+      fitStageIntoDiv();
+  }
 }
 
 function createHexPatch(gid, xy, color, stroke, qr) {
@@ -882,8 +917,8 @@ function boardInfo() {
           9, 8, 8, 7, 8, 7, 6, 7, 6, 5, 7, 6, 5, 4, 6, 5, 4, 3, 6, 5, 4, 3, 2,
         ],
         1: [
-          -6, -5, -4, -3, -2, -6, -5, -4, -3, -7, -6, -5, -4, -7, -6, -5, -8,
-          -7, -6, -8, -7, -9, -8,
+          -5, -4, -3, -2, -1, -5, -4, -3, -2, -6, -5, -4, -3, -6, -5, -4, -7,
+          -6, -5, -7, -6, -8, -7,
         ],
         2: [
           13, 12, 11, 10, 9, 12, 11, 10, 9, 12, 11, 10, 9, 11, 10, 9, 11, 10, 9,
@@ -995,5 +1030,6 @@ function boardSubmit() {
 }
 
 window.addEventListener("resize", fitStageIntoDiv);
+window.addEventListener("orientationchange", doOnOrientationChange);
 
 boardInfo();
