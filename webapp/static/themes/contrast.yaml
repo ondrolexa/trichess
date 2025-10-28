@@ -5,7 +5,7 @@ canvas:
   info: "#000000"
   name: "black"
   name_inchess: "red"
-  name_onmove: "#00ad51"
+  name_onmove: "#04d410"
   background: "#ffffff"
   font-family: "Arial"
   game_over: "gold"
