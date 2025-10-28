@@ -54,21 +54,21 @@ function wait_msg(yes) {
  }
 function debug(itext) {
         window.alert("Debug:"+itext)
-
 }
 function rotateArray(arr, rotateBy) {
     const n = arr.length;
     rotateBy %= n;
     return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
 }
-function draw_piece_common( i_piece, i_lineWidth = 1, i_lineColor = "#000000", i_fillColor = "#000000", i_x, i_y) {
+function draw_piece_common( i_piece, i_lineWidth = 1, i_lineColor = "#000000", i_fillColor = "#000000", i_x, i_y , i_rotate = 0 , i_hp = piece_size, i_hs = 0, i_vs = 0, i_vp = piece_size) {
         if (i_piece != undefined ||  i_piece != "") {
             var path = new Path2D(pieces_paths["pieces"][i_piece]);
             ctx0.save()
             ctx0.lineWidth = i_lineWidth
             ctx0.fillStyle = i_fillColor
             ctx0.strokeStyle = i_lineColor
-            ctx0.transform(piece_size,0,0,piece_size, i_x, i_y);
+            ctx0.transform(i_hp,i_hs,i_vs,i_vp , i_x, i_y);
+            ctx0.rotate(i_rotate * Math.PI / 180);
             ctx0.fill(path)
             ctx0.stroke(path);
             ctx0.restore()
@@ -157,9 +157,9 @@ class ssel {
         ctx0.fillStyle =  theme["canvas"]["background"];
         ctx0.rect(1670,894, 978, 375);
         ctx0.fill()
-        const possx = 1865
-        const possy = 1090
-        const ps =  piece_size*10 //todo
+        const possx = 1900
+        const possy = 1100
+        const ps =  piece_size*9 //todo
         ctx0.strokeLine = 40
         for (let i = 0; i < 4; i++) {
             ctx0.rect(possx,possy, ps+i*ps, ps);
@@ -217,7 +217,7 @@ class llines {
             var c = 0
             if (this.align == "right") { align = -1}
             for ( let i = 0; i < this.text.length; i++) {
-                if (this.text[i] == "B") {
+                if (this.text[i] == "B" && this.player_id != -1) {
                     strokeColor = B.bishop_elim[this.player_id][c]
                     c++
                 }
@@ -778,6 +778,10 @@ function Step_3_setelim_board_and_draw(idata) {
     II.clear()
     II.set(idata);
     II.write()
+
+    //draw_piece_common( "K", i_lineWidth = epiece_lineWidth, i_lineColor = "#000000", i_fillColor = "#dddd00", 800, 400, 20)
+    //draw_piece_common( "K", i_lineWidth = epiece_lineWidth, i_lineColor = "#000000", i_fillColor = "#dddd00", 800, 400, -20)
+
     button_control()
     if (B.finished) {
         // Get the modal
@@ -865,7 +869,7 @@ function Click_Board(event) {
         Click_CloseModal()
         let x = pos.x
         let y = pos.y
-        //if select pieces window is open
+        //if pieces window is open
         if (B.hexs[B.gid_new].promo_flag && SS.active) {
             B.hexs[B.gid_new].promo_flag = false
             //CP.elems[7].e.show_flag = false
@@ -913,3 +917,4 @@ B.init();
 B.draw_tile();
 II.write()
 Step_1_settoken()
+
