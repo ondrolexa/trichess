@@ -4,13 +4,11 @@ const gid2valid = {};
 const gid2attack = {};
 const gid2piece = {};
 const pos2gid = {};
-const p0el = {};
-const p1el = {};
-const p2el = {};
+var elpieces = { 0: {}, 1: {}, 2: {} };
 const player_names = { 0: "", 1: "", 2: "" };
 const player_names_font = { 0: "", 1: "", 2: "" };
-var movelabel_text = "";
 const player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
+var movelabel_text = "";
 const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
 var stageWidth = 18;
 var stageHeight = 18;
@@ -110,8 +108,7 @@ stage.on("touchmove", function (e) {
   }
 
   if (touch1 && touch2) {
-    // if the stage was under Konva's drag&drop
-    // we need to stop it, and implement our own pan logic with two pointers
+    // we need to stop Konva's drag&drop and implement our own pan logic with two pointers
     if (stage.isDragging()) {
       dragStopped = true;
       stage.stopDrag();
@@ -530,31 +527,16 @@ function drawPieces(pieces) {
 }
 
 function updateStats(eliminated, eliminated_value, pieces_value, move_number) {
-  player_names[0] = `${seat[0]} (${pieces_value[(0 + view_pid) % 3]}/${eliminated_value[(0 + view_pid) % 3]})`;
-  el = eliminated[(0 + view_pid) % 3];
-  for (let pcs in el) {
-    p0el[pcs].data(pieces_paths["pieces"][el[pcs]]);
-  }
-  for (let i = el.length; i < 23; i++) {
-    p0el[i].data("");
-  }
-
-  player_names[1] = `${seat[1]} (${pieces_value[(1 + view_pid) % 3]}/${eliminated_value[(1 + view_pid) % 3]})`;
-  el = eliminated[(1 + view_pid) % 3];
-  for (let pcs in el) {
-    p1el[pcs].data(pieces_paths["pieces"][el[pcs]]);
-  }
-  for (let i = el.length; i < 23; i++) {
-    p1el[i].data("");
-  }
-
-  player_names[2] = `${seat[2]} (${pieces_value[(2 + view_pid) % 3]}/${eliminated_value[(2 + view_pid) % 3]})`;
-  el = eliminated[(2 + view_pid) % 3];
-  for (let pcs in el) {
-    p2el[pcs].data(pieces_paths["pieces"][el[pcs]]);
-  }
-  for (let i = el.length; i < 23; i++) {
-    p2el[i].data("");
+  for (var p = 0; p < 3; p++) {
+    player_names[p] =
+      `${seat[p]} (${pieces_value[(p + view_pid) % 3]}/${eliminated_value[(p + view_pid) % 3]})`;
+    el = eliminated[(p + view_pid) % 3];
+    for (let pcs in el) {
+      elpieces[p][pcs].data(pieces_paths["pieces"][el[pcs]]);
+    }
+    for (let i = el.length; i < 23; i++) {
+      elpieces[p][i].data("");
+    }
   }
 
   slogtext.innerHTML = slog;
@@ -894,52 +876,43 @@ function boardInfo() {
           }
         }
       }
-
       // Create mappings for eliminated
-      let q0 = [
-        9, 8, 8, 7, 8, 7, 6, 7, 6, 5, 7, 6, 5, 4, 6, 5, 4, 3, 6, 5, 4, 3, 2,
-      ];
-      let r0 = [
-        1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7,
-      ];
-      let q1 = [
-        -6, -5, -4, -3, -2, -6, -5, -4, -3, -7, -6, -5, -4, -7, -6, -5, -8, -7,
-        -6, -8, -7, -9, -8,
-      ];
-      let r1 = [
-        -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3, -3,
-        -3, -2, -2, -1, -1,
-      ];
-      let q2 = [
-        13, 12, 11, 10, 9, 12, 11, 10, 9, 12, 11, 10, 9, 11, 10, 9, 11, 10, 9,
-        10, 9, 10, 9,
-      ];
-      let r2 = [
-        -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3, -3,
-        -3, -2, -2, -1, -1,
-      ];
+      let q = {
+        0: [
+          9, 8, 8, 7, 8, 7, 6, 7, 6, 5, 7, 6, 5, 4, 6, 5, 4, 3, 6, 5, 4, 3, 2,
+        ],
+        1: [
+          -6, -5, -4, -3, -2, -6, -5, -4, -3, -7, -6, -5, -4, -7, -6, -5, -8,
+          -7, -6, -8, -7, -9, -8,
+        ],
+        2: [
+          13, 12, 11, 10, 9, 12, 11, 10, 9, 12, 11, 10, 9, 11, 10, 9, 11, 10, 9,
+          10, 9, 10, 9,
+        ],
+      };
+      let r = {
+        0: [
+          1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7,
+        ],
+        1: [
+          -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3,
+          -3, -3, -2, -2, -1, -1,
+        ],
+        2: [
+          -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3,
+          -3, -3, -2, -2, -1, -1,
+        ],
+      };
       for (let i = 0; i < 23; i++) {
-        p0el[i] = createHexLabel(
-          0,
-          [q0[i] + 0.5 * r0[i] - 0.5, (r0[i] * Math.sqrt(3)) / 2],
-          theme["pieces"]["color"][(0 + view_pid) % 3],
-          "",
-        );
-        pieces_layer.add(p0el[i]);
-        p1el[i] = createHexLabel(
-          0,
-          [q1[i] + 0.5 * r1[i] + 0.5, (r1[i] * Math.sqrt(3)) / 2],
-          theme["pieces"]["color"][(1 + view_pid) % 3],
-          "",
-        );
-        pieces_layer.add(p1el[i]);
-        p2el[i] = createHexLabel(
-          0,
-          [q2[i] + 0.5 * r2[i] - 0.5, (r2[i] * Math.sqrt(3)) / 2],
-          theme["pieces"]["color"][(2 + view_pid) % 3],
-          "",
-        );
-        pieces_layer.add(p2el[i]);
+        for (var p = 0; p < 3; p++) {
+          elpieces[p][i] = createHexLabel(
+            0,
+            [q[p][i] + 0.5 * r[p][i] - 0.5, (r[p][i] * Math.sqrt(3)) / 2],
+            theme["pieces"]["color"][(p + view_pid) % 3],
+            "",
+          );
+          pieces_layer.add(elpieces[p][i]);
+        }
       }
 
       board_layer.add(background);
