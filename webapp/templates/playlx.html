@@ -25,6 +25,18 @@
                 </div>
                 <div class="row justify-content-md-center">
                 <div class="col">
+                    <button id="voteDraw" class="btn btn-danger mb-2 col-12" onclick="voteDraw(true)">
+                      Draw
+                    </button>
+                </div>
+                <div class="col">
+                    <button id="voteResign" class="btn btn-danger mb-2 col-12" onclick="voteResign(true)">
+                      Resign
+                    </button>
+                </div>
+                </div>
+                <div class="row justify-content-md-center">
+                <div class="col">
                     <button class="btn btn-success mb-2 col-12" onclick="fitStageIntoDiv()">
                         Fit
                     </button>
@@ -59,13 +71,30 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="exampleModalLabel">Select piece</h5>
+        <h5 class="modal-title">Select piece</h5>
       </div>
       <div class="modal-body text-center">
         <button type="button" class="btn btn-secondary btn-lg btn-piece" onclick="promotePiece('Q')">♛</button>
         <button type="button" class="btn btn-secondary btn-lg btn-piece" onclick="promotePiece('R')">♜</button>
         <button type="button" class="btn btn-secondary btn-lg btn-piece" onclick="promotePiece('B')">♝</button>
         <button type="button" class="btn btn-secondary btn-lg btn-piece" onclick="promotePiece('N')">♞</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="voteDrawDialog" tabindex="-1" role="dialog" data-bs-keyboard="false" data-bs-backdrop="static">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Game draw voting</h5>
+      </div>
+      <div class="modal-body text-center">
+        <p>Accepted by: <span id="voteDrawPlayers"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="voteDraw(false)">Decline</button>
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="voteDraw(true)">Accept</button>
       </div>
     </div>
   </div>

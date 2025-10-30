@@ -233,10 +233,16 @@ game_response = api.model(
         "in_chess": fields.Boolean,
         "king_pos": fields.Integer,
         "chess_by": fields.Nested(game_pieces),
+        "resignation": fields.Boolean,
+        "draw": fields.Boolean,
         "pieces": fields.Nested(game_pieces),
         "pieces_value": fields.Nested(game_pieces_value),
         "eliminated": fields.Nested(game_eliminated),
         "eliminated_value": fields.Nested(game_pieces_value),
+        "vote_draw_needed": fields.Boolean,
+        "vote_draw_results": fields.List(fields.Integer),
+        "vote_resign_needed": fields.Boolean,
+        "vote_resign_results": fields.List(fields.Integer),
     },
 )
 
@@ -268,13 +274,100 @@ class GameInfo(Resource):
                 res["last_move"] = ga.last_move
                 res["finished"] = not ga.move_possible()
                 res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess
+                res["resignation"] = ga.resignation()
+                res["draw"] = ga.draw()
                 res["pieces"] = ga.pieces
                 res["pieces_value"] = ga.pieces_value
                 res["eliminated"] = ga.eliminated
                 res["eliminated_value"] = ga.eliminated_value
+                res["vote_draw_needed"] = ga.draw_vote_needed()
+                res["vote_draw_results"] = ga.vote_draw["results"]
+                res["vote_resign_needed"] = ga.resignation_vote_needed()
+                res["vote_resign_results"] = ga.vote_resign["results"]
                 return res
             except Exception as err:
                 gameapi.abort(404, message=f"Unexpected error {err}")
+
+
+# vote API
+
+voteapi = api.namespace(
+    "vote", description="Game voting", authorizations=authorizations
+)
+
+VoteParser = reqparse.RequestParser()
+VoteParser.add_argument(name="slog", type=str, required=True, nullable=False)
+VoteParser.add_argument(name="view_pid", type=int, required=True, nullable=False)
+VoteParser.add_argument(name="vote", type=bool, required=True, nullable=False)
+vote_payload = api.model(
+    "Vote payload",
+    {
+        "slog": fields.String(example="BNDLGCICNILICOFMCGCIOCLDGNILCFEGLIKJ"),
+        "view_pid": fields.Integer(example=0),
+        "vote": fields.Boolean(example=True),
+    },
+)
+
+vote_response = api.model(
+    "Vote response",
+    {
+        "slog": fields.String(),
+    },
+)
+
+
+@voteapi.route("/draw")
+class DrawVote(Resource):
+    @voteapi.expect(vote_payload, validate=True)
+    @voteapi.doc(
+        description="Vote for draw and return updated slog",
+        security="jsonWebToken",
+        responses={400: "slog parsing error"},
+    )
+    @jwt_required()
+    @voteapi.response(200, "Success", vote_response)
+    def post(self):
+        state = VoteParser.parse_args()
+        ga = GameAPI(state.get("view_pid"))
+        slog = state.get("slog")
+        vote = state.get("vote")
+        try:
+            if slog:
+                ga.replay_from_slog(slog)
+        except Exception:
+            voteapi.abort(400, message="slog parsing error")
+        else:
+            try:
+                return {"slog": ga.draw_vote(vote)}
+            except Exception as err:
+                voteapi.abort(404, message=f"Unexpected error {err}")
+
+
+@voteapi.route("/resign")
+class ResignVote(Resource):
+    @voteapi.expect(vote_payload, validate=True)
+    @voteapi.doc(
+        description="Vote for resign and return updated slog",
+        security="jsonWebToken",
+        responses={400: "slog parsing error"},
+    )
+    @jwt_required()
+    @voteapi.response(200, "Success", vote_response)
+    def post(self):
+        state = VoteParser.parse_args()
+        ga = GameAPI(state.get("view_pid"))
+        slog = state.get("slog")
+        vote = state.get("vote")
+        try:
+            if slog:
+                ga.replay_from_slog(slog)
+        except Exception:
+            voteapi.abort(400, message="slog parsing error")
+        else:
+            try:
+                return {"slog": ga.resignation_vote(vote)}
+            except Exception as err:
+                voteapi.abort(404, message=f"Unexpected error {err}")
 
 
 # manager API

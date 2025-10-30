@@ -22,6 +22,8 @@ var promotions = new Set();
 var lastmove = { from: -1, to: -1 };
 const slogtext = document.getElementById("log");
 const submit = document.getElementById("submitGame");
+const draw = document.getElementById("voteDraw");
+const resign = document.getElementById("voteResign");
 const submitText = document.getElementById("submitText");
 const loader = document.getElementById("loader");
 const backmove = document.getElementById("backMove");
@@ -696,6 +698,82 @@ function makeMove(gid, tgid, new_piece = "") {
     });
 }
 
+function voteDraw(vote) {
+  const url = `${api_url}/api/v1/vote/draw`;
+  const headers = new Headers();
+  headers.append("Accept", "application/json");
+  headers.append("Content-Type", "application/json");
+  headers.append("Authorization", access_token);
+  ready = false;
+
+  fetch(url, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify({
+      slog: slog,
+      view_pid: view_pid,
+      vote: vote,
+    }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then((data) => {
+      slog = data.slog;
+      if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
+        game_slog = slog;
+      }
+      movestage = -1;
+      cleanHigh();
+      gameInfo(false, true);
+      ready = true;
+    })
+    .catch((error) => {
+      alert("voteDraw Error:", error);
+    });
+}
+
+function voteResign(vote) {
+  const url = `${api_url}/api/v1/vote/resign`;
+  const headers = new Headers();
+  headers.append("Accept", "application/json");
+  headers.append("Content-Type", "application/json");
+  headers.append("Authorization", access_token);
+  ready = false;
+
+  fetch(url, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify({
+      slog: slog,
+      view_pid: view_pid,
+      vote: vote,
+    }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then((data) => {
+      slog = data.slog;
+      if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
+        game_slog = slog;
+      }
+      movestage = -1;
+      cleanHigh();
+      gameInfo(false, true);
+      ready = true;
+    })
+    .catch((error) => {
+      alert("voteDraw Error:", error);
+    });
+}
+
 function gameInfo(init = false, redraw = false) {
   const url = `${api_url}/api/v1/game/info`;
   const headers = new Headers();
@@ -770,6 +848,14 @@ function gameInfo(init = false, redraw = false) {
         data.pieces_value,
         data.move_number,
       );
+
+      if (slog == server_slog && on_move) {
+        draw.disabled = false;
+        resign.disabled = false;
+      } else {
+        draw.disabled = true;
+        resign.disabled = true;
+      }
 
       if (slog.slice(0, -4) == server_slog && on_move) {
         submit.disabled = false;
@@ -851,10 +937,38 @@ function gameInfo(init = false, redraw = false) {
           }
         }
       }
+
+      if (data.vote_draw_needed && !data.finished) {
+        if (data.onmove == view_pid) {
+          const modalDraw = new bootstrap.Modal(
+            document.getElementById("voteDrawDialog"),
+          );
+          const pspan = document.getElementById("voteDrawPlayers");
+          pspan.innerHTML = "";
+          if (data.vote_draw_results.includes(0)) {
+            pspan.innerHTML += seat[(3 - view_pid) % 3] + " ";
+          }
+          if (data.vote_draw_results.includes(1)) {
+            pspan.innerHTML += seat[(4 - view_pid) % 3] + " ";
+          }
+          if (data.vote_draw_results.includes(2)) {
+            pspan.innerHTML += seat[(5 - view_pid) % 3];
+          }
+          modalDraw.show();
+        } else {
+          board_layer.off("click tap");
+          movelabel_text = `Draw voting\nin progress`;
+        }
+      } else {
+        board_layer.on("click tap", function (evt) {
+          const shape = evt.target;
+          manageMove(shape.id());
+        });
+      }
     })
     .catch((error) => {
-      window.location.reload(true);
-      // alert("gameInfo Error:", error);
+      // window.location.reload(true);
+      alert("gameInfo Error:", error.message);
     });
 }
 
