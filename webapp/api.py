@@ -4,7 +4,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
 
 from engine import GameAPI
-from webapp.main import db
+from webapp.main import app, db
 from webapp.models import Score, TriBoard, User
 
 blueprint = Blueprint("api", __name__)
@@ -498,10 +498,11 @@ class GameBoard(Resource):
                         2: tb.player_2,
                     }
                     poster = ga1.on_move == pid[username]
+                    voting = ga1.in_voting | ga2.in_voting
                     oneadded = ga2.move_number - ga1.move_number == 1
                     same = ga2.slog.startswith(ga1.slog)
-                    if poster & oneadded & same:
-                        tb.slog = state.slog
+                    if poster & ((oneadded & same) | voting):
+                        tb.slog = ga2.slog
                         user = User.query.filter_by(
                             username=players[ga2.on_move].username
                         ).first()
@@ -520,36 +521,43 @@ class GameBoard(Resource):
                                         )
                                         db.session.add(new_score)
                                 # notify
-                                post_notification(
-                                    players[ga2.on_move].username,
-                                    f"You lost in game {state.id}",
-                                    "Game over",
-                                    state.id,
-                                    user.board,
-                                )
+                                if not app.debug:
+                                    post_notification(
+                                        players[ga2.on_move].username,
+                                        f"You lost in game {state.id}",
+                                        "Game over",
+                                        state.id,
+                                        user.board,
+                                    )
                             else:
-                                post_notification(
-                                    players[ga2.on_move].username,
-                                    f"The game {state.id} ended in a stalemate",
-                                    "Game over",
-                                    state.id,
-                                    user.board,
-                                )
+                                if not app.debug:
+                                    post_notification(
+                                        players[ga2.on_move].username,
+                                        f"The game {state.id} ended in a stalemate",
+                                        "Game over",
+                                        state.id,
+                                        user.board,
+                                    )
                         else:
                             # notify next player
-                            post_notification(
-                                players[ga2.on_move].username,
-                                f"It's your turn in game {state.id}",
-                                "Your turn",
-                                state.id,
-                                user.board,
-                            )
+                            if not app.debug:
+                                post_notification(
+                                    players[ga2.on_move].username,
+                                    f"It's your turn in game {state.id}",
+                                    "Your turn",
+                                    state.id,
+                                    user.board,
+                                )
                         db.session.commit()
                     else:
                         managerapi.abort(
                             409, message="Posted slog is in conflict with server one"
                         )
                 except Exception as err:
+                    if hasattr(err, "message"):
+                        print(err.message)
+                    else:
+                        print(err)
                     managerapi.abort(404, message=f"Unexpected error {err}")
             else:
                 managerapi.abort(400, message="Board not found")

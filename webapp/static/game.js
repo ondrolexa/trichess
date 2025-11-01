@@ -626,10 +626,10 @@ function validMoves(gid) {
     body: JSON.stringify({ slog: slog, view_pid: view_pid, gid: gid }),
   })
     .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        return response.json();
       }
-      return response.json();
+      return Promise.reject(response);
     })
     .then((data) => {
       gid2high[gid].visible(true);
@@ -651,8 +651,8 @@ function validMoves(gid) {
       movestage = gid;
       ready = true;
     })
-    .catch((error) => {
-      alert("validMoves Error:", error);
+    .catch((response) => {
+      alert(`ValidMoves error ${response.status}: ${response.statusText}`);
     });
 }
 
@@ -676,10 +676,10 @@ function makeMove(gid, tgid, new_piece = "") {
     }),
   })
     .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        return response.json();
       }
-      return response.json();
+      return Promise.reject(response);
     })
     .then((data) => {
       if (new_piece != "") {
@@ -693,8 +693,8 @@ function makeMove(gid, tgid, new_piece = "") {
       cleanHigh();
       cleanMove();
     })
-    .catch((error) => {
-      alert("makeMove Error:", error);
+    .catch((response) => {
+      alert(`MakeMove error ${response.status}: ${response.statusText}`);
     });
 }
 
@@ -716,10 +716,10 @@ function voteDraw(vote) {
     }),
   })
     .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        return response.json();
       }
-      return response.json();
+      return Promise.reject(response);
     })
     .then((data) => {
       slog = data.slog;
@@ -731,8 +731,8 @@ function voteDraw(vote) {
       gameInfo(false, true);
       ready = true;
     })
-    .catch((error) => {
-      alert("voteDraw Error:", error);
+    .catch((response) => {
+      alert(`VoteDraw error ${response.status}: ${response.statusText}`);
     });
 }
 
@@ -754,10 +754,10 @@ function voteResign(vote) {
     }),
   })
     .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        return response.json();
       }
-      return response.json();
+      return Promise.reject(response);
     })
     .then((data) => {
       slog = data.slog;
@@ -769,8 +769,8 @@ function voteResign(vote) {
       gameInfo(false, true);
       ready = true;
     })
-    .catch((error) => {
-      alert("voteDraw Error:", error);
+    .catch((response) => {
+      alert(`VoteResign error ${response.status}: ${response.statusText}`);
     });
 }
 
@@ -788,10 +788,10 @@ function gameInfo(init = false, redraw = false) {
     body: JSON.stringify({ slog: slog, view_pid: view_pid }),
   })
     .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        return response.json();
       }
-      return response.json();
+      return Promise.reject(response);
     })
     .then((data) => {
       if (init) {
@@ -966,9 +966,8 @@ function gameInfo(init = false, redraw = false) {
         });
       }
     })
-    .catch((error) => {
-      // window.location.reload(true);
-      alert("gameInfo Error:", error.message);
+    .catch((response) => {
+      alert(`GameInfo error ${response.status}: ${response.statusText}`);
     });
 }
 
@@ -985,10 +984,10 @@ function boardInfo() {
     headers: headers,
   })
     .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (response.ok) {
+        return response.json();
       }
-      return response.json();
+      return Promise.reject(response);
     })
     .then((data) => {
       const seats = [data.player_0, data.player_1, data.player_2];
@@ -1096,8 +1095,8 @@ function boardInfo() {
       loader.style.display = "none";
       ready = true;
     })
-    .catch((error) => {
-      alert("Error:", error);
+    .catch((response) => {
+      alert(`BoardInfo error ${response.status}: ${response.statusText}`);
     });
 }
 
@@ -1119,15 +1118,13 @@ function boardSubmit() {
     body: JSON.stringify({ id: id, slog: slog }),
   })
     .then((response) => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-        submitText.innerHTML = "Submit";
-        submit.className = "btn btn-secondary mb-2 col-12";
-        loader.style.display = "none";
+      if (response.ok) {
+        return response.json();
       }
-      return response.json();
+      return Promise.reject(response);
     })
     .then((data) => {
+      boardInfo();
       server_slog = slog;
       on_move = false;
       ready = true;
@@ -1135,11 +1132,11 @@ function boardSubmit() {
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
     })
-    .catch((error) => {
+    .catch((response) => {
       submitText.innerHTML = "Submit";
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
-      alert("Error:", error);
+      alert(`BoardSubmit error ${response.status}: ${response.statusText}`);
     });
 }
 

@@ -193,7 +193,10 @@ class GameAPI:
                 case "N":
                     r2 += 32
             nlog.append(chr(72 + q1) + chr(72 + r1) + chr(72 + q2) + chr(72 + r2))
-        return "".join(nlog) + self.vote_resign["log"] + self.vote_draw["log"]
+        if self.vote_needed:
+            return "".join(nlog) + self.vote_resign["log"] + self.vote_draw["log"]
+        else:
+            return "".join(nlog)
 
     def replay_from_slog(self, s: str):
         """Initalize board and replay all moves from string log."""
@@ -343,6 +346,14 @@ class GameAPI:
             if len(self.vote_draw["results"]) == 3:
                 return True
         return False
+
+    @property
+    def in_voting(self):
+        return (self.vote_resign["log"] or self.vote_draw["log"]) != ""
+
+    @property
+    def vote_needed(self):
+        return self.resignation_vote_needed() | self.draw_vote_needed()
 
     def move_possible(self):
         """Return True if there is any move possible"""
