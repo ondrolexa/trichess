@@ -12,9 +12,10 @@ class User(db.Model):
     theme = db.Column(db.String(), default="default")
     board = db.Column(db.String(), default="ondro")
     pieces = db.Column(db.String(), default="default")
-    scores = db.relationship("Score", backref="player")
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     last_login = db.Column(db.DateTime)
+    rating = db.Column(db.Float, default=500.0)
+    scores = db.relationship("Score", backref="player")
 
     def score(self):
         return sum([score.score for score in self.scores])

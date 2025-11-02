@@ -3,57 +3,60 @@
 {%block content%}
 <h2>Available games</h2>
 <div class="table-responsive">
-    <table class="table table-hover table-sm align-middle">
-    <thead>
-        <tr>
-        <th scope="col">#</th>
-        <th scope="col">Player 1</th>
-        <th scope="col">Player 2</th>
-        <th scope="col">Player 3</th>
-        <th scope="col">Created</th>
-        <th scope="col">Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for game in games %}
-        {% set not_in = (game.player_0.id != player_id) and (game.player_1.id != player_id) and (game.player_2.id != player_id) %}
-        <tr>
-        <form action=""{{ url_for('available') }}"" method="post" class="form" role="form">
-        <th scope="row">{{game.id}}<input type="hidden" id="board" name="board" value="{{game.id}}"/></th>
-        <td>{% if game.player_0 is none %}
-                {% if not_in %}
-                    <button type="submit" class="btn btn-success btn-sm" name="seat" value="0">Join</button>
-                {% endif %}
-            {% else %}
-                {{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})
-            {% endif %}
-        </td>
-        <td>{% if game.player_1 is none %}
-                {% if not_in %}
-                    <button type="submit" class="btn btn-success btn-sm" name="seat" value="1">Join</button>
-                {% endif %}
-            {% else %}
-                {{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})
-            {% endif %}
-        </td>
-        <td>{% if game.player_2 is none %}
-                {% if not_in %}
-                    <button type="submit" class="btn btn-success btn-sm" name="seat" value="2">Join</button>
-                {% endif %}
-            {% else %}
-                {{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})
-            {% endif %}
-        </td>
-        <td>{{game.created_at|strftime}}</td>
-        <td>
-            {% if game.owner_id == player_id %}
-            <button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button>
-            {% endif %}
-        </td>
-        </form>
-        </tr>
-        {% endfor %}
-    </tbody>
-    </table>
+  <table class="table table-hover table-sm align-middle">
+  <thead>
+    <tr>
+    <th scope="col">#</th>
+    <th scope="col">Player 1</th>
+    <th scope="col">Player 2</th>
+    <th scope="col">Player 3</th>
+    <th scope="col">Created</th>
+    <th scope="col">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for game in games %}
+    {% set not_in = (game.player_0.id != player_id) and (game.player_1.id != player_id) and (game.player_2.id != player_id) %}
+    <tr>
+    <form action=""{{ url_for('available') }}"" method="post" class="form" role="form">
+    <th scope="row">{{game.id}}<input type="hidden" id="board" name="board" value="{{game.id}}"/></th>
+    <td>
+      {% if game.player_0 is none %}
+        {% if not_in %}
+          <button type="submit" class="btn btn-success btn-sm" name="seat" value="0">Join</button>
+        {% endif %}
+      {% else %}
+        {{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})
+      {% endif %}
+    </td>
+    <td>
+      {% if game.player_1 is none %}
+        {% if not_in %}
+            <button type="submit" class="btn btn-success btn-sm" name="seat" value="1">Join</button>
+        {% endif %}
+      {% else %}
+        {{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})
+      {% endif %}
+    </td>
+    <td>
+      {% if game.player_2 is none %}
+        {% if not_in %}
+          <button type="submit" class="btn btn-success btn-sm" name="seat" value="2">Join</button>
+        {% endif %}
+      {% else %}
+        {{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})
+      {% endif %}
+    </td>
+    <td>{{game.created_at|strftime}}</td>
+    <td>
+      {% if game.owner_id == player_id %}
+      <button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button>
+      {% endif %}
+    </td>
+    </form>
+    </tr>
+    {% endfor %}
+  </tbody>
+  </table>
 </div>
 {%endblock%}

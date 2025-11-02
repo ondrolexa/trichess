@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
 {%block content%}
-	{% if current_user.is_authenticated %}
-	    <h2>Welcome {{ current_user.username }}!</h2>
-        <p>Thanks for join our test server. Check menu for game management.</p>
-    {% else %}
-        <h2>Welcome on Trichess server!</h2>
-        <p>Please login to access the game.</p>
-    {% endif %}
+{% if current_user.is_authenticated %}
+  <h2>Welcome {{ current_user.username }}!</h2>
+  <p>Thanks for join our test server. Check menu for game management.</p>
+{% else %}
+  <h2>Welcome on Trichess server!</h2>
+  <p>Please login to access the game.</p>
+{% endif %}
 {%endblock%}

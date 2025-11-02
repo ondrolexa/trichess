@@ -2,59 +2,59 @@
 {% from 'bootstrap5/form.html' import render_form %}
 
 {%block content%}
-    <h2 class="mb-4">Profile</h2>
+  <h2 class="mb-4">Profile</h2>
 
-    <div class="container">
-        <div class="row">
-            <div class="col-lg p-2">
-                <div class="card h-100">
-                    <h5 class="card-header">Statistics</h5>
-                    <div class="card-body">
-                        <table class="table">
-                            <tr>
-                              <th scope="row">Win/Co-op/Loss</th>
-                              <td>{{ wp[0] }}/{{ wp[1] }}/{{ loss }}</td>
-                            </tr>
-                            <tr>
-                              <th scope="row">Total score</th>
-                              <td>{{ score }}</td>
-                            </tr>
-                            <tr>
-                              <th scope="row">30 days score</th>
-                              <td>{{ recent_score }}</td>
-                            </tr>
-                            <tr>
-                              <th scope="row">Finished games</th>
-                              <td>{{ archive }}</td>
-                            </tr>
-                            <tr>
-                              <th scope="row">Active games</th>
-                              <td>{{ active }}</td>
-                            </tr>
-                            <tr>
-                              <th scope="row">Average game time</th>
-                              <td>{{ avg_length }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg p-2">
-                <div class="card h-100">
-                    <h5 class="card-header">Settings</h5>
-                    <div class="card-body">
-                        {{ render_form(form_profile, action=url_for("profile"), form_type='horizontal', horizontal_columns=('lg', 4, 8)) }}
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg p-2">
-                <div class="card h-100">
-                    <h5 class="card-header">Password</h5>
-                    <div class="card-body">
-                        {{ render_form(form_password, action=url_for("password"), form_type='horizontal', horizontal_columns=('lg', 4, 8)) }}
-                    </div>
-                </div>
-            </div>
+  <div class="container">
+    <div class="row">
+      <div class="col-lg p-2">
+        <div class="card h-100">
+          <h5 class="card-header">Statistics</h5>
+          <div class="card-body">
+            <table class="table">
+              <tr>
+                <th scope="row">Rating</th>
+                <td>{{ '%0.2f' % rating|float }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Win/Co-op/Loss</th>
+                <td>{{ wp[0] }}/{{ wp[1] }}/{{ loss }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Total score</th>
+                <td>{{ '%0.2f' % score|float }}</td>
+              </tr>
+              <tr>
+                <th scope="row">30 days score</th>
+                <td>{{ '%0.2f' % recent_score|float }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Active/Finished</th>
+                <td>{{ active }}/{{ archive }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Average game time</th>
+                <td>{{ avg_length }}</td>
+              </tr>
+            </table>
+          </div>
         </div>
+      </div>
+      <div class="col-lg p-2">
+        <div class="card h-100">
+          <h5 class="card-header">Settings</h5>
+          <div class="card-body">
+            {{ render_form(form_profile, action=url_for("profile"), form_type='horizontal', horizontal_columns=('lg', 4, 8)) }}
+          </div>
+        </div>
+      </div>
+      <div class="col-lg p-2">
+        <div class="card h-100">
+          <h5 class="card-header">Password</h5>
+          <div class="card-body">
+            {{ render_form(form_password, action=url_for("password"), form_type='horizontal', horizontal_columns=('lg', 4, 8)) }}
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 {%endblock%}

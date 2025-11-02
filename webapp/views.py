@@ -1,7 +1,7 @@
 """
 When changed update migrations
 
-flask --app=webapp/main.py db migrate -m "Added board to User"
+flask --app=webapp/main.py db migrate -m "Added rating to User"
 flask --app=webapp/main.py db upgrade
 
 Rerun flask --app=webapp/main.py db upgrade with production database
@@ -310,6 +310,7 @@ def profile():
         form_profile=form_profile,
         form_password=form_password,
         username=g.user.username,
+        rating=g.user.rating,
         score=g.user.score(),
         recent_score=g.user.recent_score(),
         active=len(active),
