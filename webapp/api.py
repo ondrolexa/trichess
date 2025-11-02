@@ -274,16 +274,16 @@ class GameInfo(Resource):
                 res["last_move"] = ga.last_move
                 res["finished"] = not ga.move_possible()
                 res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess
-                res["resignation"] = ga.resignation()
-                res["draw"] = ga.draw()
+                res["resignation"] = ga.voting.resignation()
+                res["draw"] = ga.voting.draw()
                 res["pieces"] = ga.pieces
                 res["pieces_value"] = ga.pieces_value
                 res["eliminated"] = ga.eliminated
                 res["eliminated_value"] = ga.eliminated_value
-                res["vote_draw_needed"] = ga.draw_vote_needed()
-                res["vote_draw_results"] = ga.vote_draw["results"]
-                res["vote_resign_needed"] = ga.resignation_vote_needed()
-                res["vote_resign_results"] = ga.vote_resign["results"]
+                res["vote_draw_needed"] = ga.voting.needed(kind="draw")
+                res["vote_draw_results"] = ga.voting.results(kind="draw")
+                res["vote_resign_needed"] = ga.voting.needed(kind="resign")
+                res["vote_resign_results"] = ga.voting.results(kind="resign")
                 return res
             except Exception as err:
                 gameapi.abort(404, message=f"Unexpected error {err}")
@@ -498,7 +498,7 @@ class GameBoard(Resource):
                         2: tb.player_2,
                     }
                     poster = ga1.on_move == pid[username]
-                    voting = ga1.in_voting | ga2.in_voting
+                    voting = ga1.voting.active() | ga2.voting.active()
                     oneadded = ga2.move_number - ga1.move_number == 1
                     same = ga2.slog.startswith(ga1.slog)
                     if poster & ((oneadded & same) | voting):

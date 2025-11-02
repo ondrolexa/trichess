@@ -3,6 +3,94 @@ from engine.pieces import Pos
 from engine.player import Player
 
 
+class Voting:
+    """Game voting tracking"""
+
+    def __init__(self):
+        self.clean()
+
+    def clean(self):
+        self.kind = None
+        self.accepts = []
+        self.n_voted = 0
+        self.slog = ""
+
+    def resign_vote(self, player, code):
+        if self.kind is None:
+            self.kind = "resign"
+        if self.kind == "resign":
+            if code != "X":
+                if code == "A":
+                    self.accepts.append(player)
+                    self.slog += self.resign_slog(player, True)
+                else:
+                    self.slog += self.resign_slog(player, False)
+                self.n_voted += 1
+        else:
+            raise ValueError(f"{self.kind} voting is in progress")
+
+    def draw_vote(self, player, code):
+        if self.kind is None:
+            self.kind = "draw"
+        if self.kind == "draw":
+            if code != "X":
+                if code == "A":
+                    self.accepts.append(player)
+                    self.slog += self.draw_slog(player, True)
+                else:
+                    self.slog += self.draw_slog(player, False)
+                self.n_voted += 1
+        else:
+            raise ValueError(f"{self.kind} voting is in progress")
+
+    def resign_slog(self, player, vote):
+        votelog = ["X", "X", "X"]
+        if vote:
+            votelog[player] = "A"
+        else:
+            votelog[player] = "D"
+        return "R" + "".join(votelog)
+
+    def draw_slog(self, player, vote):
+        votelog = ["X", "X", "X"]
+        if vote:
+            votelog[player] = "A"
+        else:
+            votelog[player] = "D"
+        return "S" + "".join(votelog)
+
+    def needed(self, kind="any"):
+        active = 0 < self.n_voted < 3
+        if kind in (self.kind, "any"):
+            return active
+        else:
+            return False
+
+    def results(self, kind="any"):
+        if kind in (self.kind, "any"):
+            return self.accepts
+        else:
+            return []
+
+    def finished(self):
+        return self.n_voted == 3
+
+    def active(self):
+        return self.n_voted > 0
+
+    def resignation(self):
+        if self.kind == "resign" and self.finished() and len(self.accepts) == 2:
+            return True
+        else:
+            return False
+
+    def draw(self):
+        if self.kind == "draw" and self.finished() and len(self.accepts) == 3:
+            return True
+        else:
+            return False
+
+
 class GameAPI:
     """A trichess game API.
 
@@ -30,8 +118,7 @@ class GameAPI:
     def __init__(self, view_pid, **kwargs):
         self.log = []
         self.move_number = 0
-        self.vote_resign = {"log": "", "results": []}
-        self.vote_draw = {"log": "", "results": []}
+        self.voting = Voting()
         self.players = {
             0: Player(0, name=kwargs.get("name0", "Player 0")),
             1: Player(1, name=kwargs.get("name1", "Player 1")),
@@ -91,20 +178,11 @@ class GameAPI:
 
     @property
     def on_move(self):
-        return (
-            self.move_number
-            + len(self.vote_draw["log"]) // 4
-            + len(self.vote_resign["log"]) // 4
-        ) % 3
+        return (self.move_number + self.voting.n_voted) % 3
 
     @property
     def on_move_previous(self):
-        return (
-            self.move_number
-            + len(self.vote_draw["log"]) // 4
-            + len(self.vote_resign["log"]) // 4
-            - 1
-        ) % 3
+        return (self.move_number + self.voting.n_voted - 1) % 3
 
     @property
     def last_move(self):
@@ -193,8 +271,8 @@ class GameAPI:
                 case "N":
                     r2 += 32
             nlog.append(chr(72 + q1) + chr(72 + r1) + chr(72 + q2) + chr(72 + r2))
-        if self.vote_needed:
-            return "".join(nlog) + self.vote_resign["log"] + self.vote_draw["log"]
+        if self.voting.needed():
+            return "".join(nlog) + self.voting.slog
         else:
             return "".join(nlog)
 
@@ -202,32 +280,19 @@ class GameAPI:
         """Initalize board and replay all moves from string log."""
         log = []
         # clean votings
-        self.vote_resign = {"log": "", "results": []}
-        self.vote_draw = {"log": "", "results": []}
+        self.voting.clean()
         for q1, r1, q2, r2 in zip(s[::4], s[1::4], s[2::4], s[3::4]):
             # clean previous finished votings
-            if (len(self.vote_resign["log"]) // 4) == 3:
-                self.vote_resign = {"log": "", "results": []}
-            if (len(self.vote_draw["log"]) // 4) == 3:
-                self.vote_draw = {"log": "", "results": []}
+            if self.voting.finished():
+                self.voting.clean()
             if q1 == "R":
-                # check resignation, suggesting player got 1
-                if r1 == "A":
-                    self.vote_resign["results"].append(0)
-                if q2 == "A":
-                    self.vote_resign["results"].append(1)
-                if r2 == "A":
-                    self.vote_resign["results"].append(2)
-                self.vote_resign["log"] += f"{q1}{r1}{q2}{r2}"
+                self.voting.resign_vote(0, r1)
+                self.voting.resign_vote(1, q2)
+                self.voting.resign_vote(2, r2)
             elif q1 == "S":
-                # draw voting. game ends with ends with SAAA
-                if r1 == "A":
-                    self.vote_draw["results"].append(0)
-                if q2 == "A":
-                    self.vote_draw["results"].append(1)
-                if r2 == "A":
-                    self.vote_draw["results"].append(2)
-                self.vote_draw["log"] += f"{q1}{r1}{q2}{r2}"
+                self.voting.draw_vote(0, r1)
+                self.voting.draw_vote(1, q2)
+                self.voting.draw_vote(2, r2)
             else:
                 # check promotion
                 if q1 > "O":
@@ -303,61 +368,15 @@ class GameAPI:
 
     def resignation_vote(self, vote: bool):
         """Get slog with resignation voting"""
-        slog = self.slog
-        votelog = ["X", "X", "X"]
-        if vote:
-            votelog[self.on_move] = "A"
-        else:
-            votelog[self.on_move] = "D"
-        return slog + "R" + "".join(votelog)
-
-    def resignation_vote_needed(self):
-        """Return True if resignation vote is needed"""
-        if len(self.vote_resign["log"]) > 0 and len(self.vote_resign["log"]) < 12:
-            return True
-        return False
-
-    def resignation(self):
-        """Return True if there is agreement on resignation"""
-        if (len(self.vote_resign["log"]) // 4) == 3:
-            if len(self.vote_resign["results"]) == 2:
-                return True
-        return False
+        return self.slog + self.voting.resign_slog(self.on_move, vote)
 
     def draw_vote(self, vote: bool):
         """Get slog with draw voting"""
-        slog = self.slog
-        votelog = ["X", "X", "X"]
-        if vote:
-            votelog[self.on_move] = "A"
-        else:
-            votelog[self.on_move] = "D"
-        return slog + "S" + "".join(votelog)
-
-    def draw_vote_needed(self):
-        """Return True if draw vote is needed"""
-        if len(self.vote_draw["log"]) > 0 and len(self.vote_draw["log"]) < 12:
-            return True
-        return False
-
-    def draw(self):
-        """Return True if there is agreement on draw"""
-        if (len(self.vote_draw["log"]) // 4) == 3:
-            if len(self.vote_draw["results"]) == 3:
-                return True
-        return False
-
-    @property
-    def in_voting(self):
-        return (self.vote_resign["log"] or self.vote_draw["log"]) != ""
-
-    @property
-    def vote_needed(self):
-        return self.resignation_vote_needed() | self.draw_vote_needed()
+        return self.slog + self.voting.draw_slog(self.on_move, vote)
 
     def move_possible(self):
         """Return True if there is any move possible"""
-        if self.resignation() or self.draw():
+        if self.voting.resignation() or self.voting.draw():
             return False
         for hex in self.board:
             if hex.has_piece:
