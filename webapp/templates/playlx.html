@@ -90,11 +90,32 @@
         <h5 class="modal-title">Game draw voting</h5>
       </div>
       <div class="modal-body text-center">
-        <p>Accepted by: <span id="voteDrawPlayers"></span></p>
+        <p>For game draw all players must accept</p>
+        <p>So far accepted by:</p>
+        <strong><span id="voteDrawPlayers"></span></strong>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="voteDraw(false)">Decline</button>
         <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="voteDraw(true)">Accept</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="voteResignDialog" tabindex="-1" role="dialog" data-bs-keyboard="false" data-bs-backdrop="static">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Game resign voting</h5>
+      </div>
+      <div class="modal-body text-center">
+        <p>For game resign just players must accept</p>
+        <p>So far accepted by:</p>
+        <strong><span id="voteResignPlayers"></span></strong>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="voteResign(false)">Decline</button>
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="voteResign(true)">Accept</button>
       </div>
     </div>
   </div>

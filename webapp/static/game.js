@@ -879,9 +879,25 @@ function gameInfo(init = false, redraw = false) {
         backmove.className = "btn btn-secondary mb-2 col-12";
       }
       if (data.finished) {
-        gameover_text.text(
-          "GAME OVER\n" + seat[(data.onmove + 3 - view_pid) % 3] + " lost",
-        );
+        if (data.draw) {
+          gameover_text.text("GAME OVER\nDraw agreed");
+        } else if (data.resignation) {
+          let wid;
+          if (!data.vote_resign_results.includes(0)) {
+            wid = 0;
+          } else if (!data.vote_resign_results.includes(1)) {
+            wid = 1;
+          } else {
+            wid = 2;
+          }
+          gameover_text.text(
+            "GAME OVER\n" + seat[(wid + 3 - view_pid) % 3] + " win",
+          );
+        } else {
+          gameover_text.text(
+            "GAME OVER\n" + seat[(data.onmove + 3 - view_pid) % 3] + " lost",
+          );
+        }
         gameover.visible(true);
         board_layer.off("click tap");
       } else {
@@ -958,6 +974,27 @@ function gameInfo(init = false, redraw = false) {
         } else {
           board_layer.off("click tap");
           movelabel_text = `Draw voting\nin progress`;
+        }
+      } else if (data.vote_resign_needed && !data.finished) {
+        if (data.onmove == view_pid) {
+          const modalDraw = new bootstrap.Modal(
+            document.getElementById("voteResignDialog"),
+          );
+          const pspan = document.getElementById("voteResignPlayers");
+          pspan.innerHTML = "";
+          if (data.vote_resign_results.includes(0)) {
+            pspan.innerHTML += seat[(3 - view_pid) % 3] + " ";
+          }
+          if (data.vote_resign_results.includes(1)) {
+            pspan.innerHTML += seat[(4 - view_pid) % 3] + " ";
+          }
+          if (data.vote_resign_results.includes(2)) {
+            pspan.innerHTML += seat[(5 - view_pid) % 3];
+          }
+          modalDraw.show();
+        } else {
+          board_layer.off("click tap");
+          movelabel_text = `Resign voting\nin progress`;
         }
       } else {
         board_layer.on("click tap", function (evt) {
