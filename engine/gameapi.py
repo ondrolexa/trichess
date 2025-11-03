@@ -13,7 +13,31 @@ class Voting:
         self.kind = None
         self.accepts = []
         self.n_voted = 0
-        self.slog = ""
+        self.log = ["X", "X", "X"]
+
+    @property
+    def slog(self):
+        if self.kind == "resign":
+            return "r" + self.log
+        if self.kind == "draw":
+            return "s" + "".join(self.log)
+        return ""
+
+    def set_resign_voting(self, v0, v1, v2):
+        self.n_voted = 3
+        self.kind = "resign"
+        for player, vote in enumerate([v0, v1, v2]):
+            self.log[player] = vote
+            if vote == "A":
+                self.accepts.append(player)
+
+    def set_draw_voting(self, v0, v1, v2):
+        self.n_voted = 3
+        self.kind = "draw"
+        for player, vote in enumerate([v0, v1, v2]):
+            self.log[player] = vote
+            if vote == "A":
+                self.accepts.append(player)
 
     def resign_vote(self, player, code):
         if self.kind is None:
@@ -22,9 +46,7 @@ class Voting:
             if code != "X":
                 if code == "A":
                     self.accepts.append(player)
-                    self.slog += self.resign_slog(player, True)
-                else:
-                    self.slog += self.resign_slog(player, False)
+                self.log[player] = code
                 self.n_voted += 1
         else:
             raise ValueError(f"{self.kind} voting is in progress")
@@ -36,9 +58,7 @@ class Voting:
             if code != "X":
                 if code == "A":
                     self.accepts.append(player)
-                    self.slog += self.draw_slog(player, True)
-                else:
-                    self.slog += self.draw_slog(player, False)
+                self.log[player] = code
                 self.n_voted += 1
         else:
             raise ValueError(f"{self.kind} voting is in progress")
@@ -116,7 +136,7 @@ class GameAPI:
     """
 
     def __init__(self, view_pid, **kwargs):
-        self.log = []
+        self.slog = ""
         self.move_number = 0
         self.voting = Voting()
         self.players = {
@@ -173,7 +193,7 @@ class GameAPI:
             player0=self.players[0], player1=self.players[1], player2=self.players[2]
         )
 
-        ga.replay_from_log(log=self.log.copy())
+        ga.replay_from_slog(self.slog)
         return ga
 
     @property
@@ -186,11 +206,13 @@ class GameAPI:
 
     @property
     def last_move(self):
-        if self.log:
-            return {
-                "from": self.pos2gid[self.log[-1][0]],
-                "to": self.pos2gid[self.log[-1][1]],
-            }
+        if self.slog:
+            if self.slog[-4] not in ["R", "S", "r", "s"]:
+                from_pos, to_pos, new_piece = self.slog2pos(*self.slog[-4:])
+                return {
+                    "from": self.pos2gid[from_pos],
+                    "to": self.pos2gid[to_pos],
+                }
 
     @property
     def in_chess(self):
@@ -245,44 +267,55 @@ class GameAPI:
     def undo(self):
         """Undo last move."""
         if self.move_number > 0:
-            self.replay_from_log(self.log[:-1])
+            self.replay_from_slog(self.slog[:-4])
 
-    def replay_from_log(self, log: list):
-        """Initalize board and replay all moves from log."""
-        self.log = log
-        self.move_number = len(log)
-        self.board = Board(players=self.players, log=log)
-        self.update_ui_mappings()
-
-    @property
-    def slog(self):
-        """Returns game log as string."""
-        nlog = []
-        for p1, p2, label in self.log:
-            q1, r1 = p1.q, p1.r
-            q2, r2 = p2.q, p2.r
-            match label:
-                case "Q":
-                    q1 += 32
-                case "R":
-                    r1 += 32
-                case "B":
-                    q2 += 32
-                case "N":
-                    r2 += 32
-            nlog.append(chr(72 + q1) + chr(72 + r1) + chr(72 + q2) + chr(72 + r2))
-        if self.voting.needed():
-            return "".join(nlog) + self.voting.slog
+    def slog2pos(self, q1, r1, q2, r2):
+        # check promotion
+        if q1 > "O":
+            q1 = chr(ord(q1) - 32)
+            new_label = "Q"
+        elif r1 > "O":
+            r1 = chr(ord(r1) - 32)
+            new_label = "R"
+        elif q2 > "O":
+            q2 = chr(ord(q2) - 32)
+            new_label = "B"
+        elif r2 > "O":
+            r2 = chr(ord(r2) - 32)
+            new_label = "N"
         else:
-            return "".join(nlog)
+            new_label = ""
+        return (
+            Pos(ord(q1) - 72, ord(r1) - 72),
+            Pos(ord(q2) - 72, ord(r2) - 72),
+            new_label,
+        )
+
+    def move2slog(self, p1, p2, label):
+        """Returns game move as slog string."""
+        q1, r1 = p1.q, p1.r
+        q2, r2 = p2.q, p2.r
+        match label:
+            case "Q":
+                q1 += 32
+            case "R":
+                r1 += 32
+            case "B":
+                q2 += 32
+            case "N":
+                r2 += 32
+        return chr(72 + q1) + chr(72 + r1) + chr(72 + q2) + chr(72 + r2)
 
     def replay_from_slog(self, s: str):
         """Initalize board and replay all moves from string log."""
-        log = []
-        # clean votings
+        self.slog = ""
+        self.move_number = 0
+        self.board = Board(players=self.players)
         self.voting.clean()
+        self.update_ui_mappings()
+        # replay
         for q1, r1, q2, r2 in zip(s[::4], s[1::4], s[2::4], s[3::4]):
-            # clean previous finished votings
+            # clean previously finished voting
             if self.voting.finished():
                 self.voting.clean()
             if q1 == "R":
@@ -293,30 +326,21 @@ class GameAPI:
                 self.voting.draw_vote(0, r1)
                 self.voting.draw_vote(1, q2)
                 self.voting.draw_vote(2, r2)
+            elif q1 == "r":
+                self.voting.set_resign_voting(r1, q2, r2)
+            elif q1 == "s":
+                self.voting.set_draw_voting(r1, q2, r2)
             else:
-                # check promotion
-                if q1 > "O":
-                    q1 = chr(ord(q1) - 32)
-                    new_label = "Q"
-                elif r1 > "O":
-                    r1 = chr(ord(r1) - 32)
-                    new_label = "R"
-                elif q2 > "O":
-                    q2 = chr(ord(q2) - 32)
-                    new_label = "B"
-                elif r2 > "O":
-                    r2 = chr(ord(r2) - 32)
-                    new_label = "N"
-                else:
-                    new_label = ""
-                log.append(
-                    (
-                        Pos(ord(q1) - 72, ord(r1) - 72),
-                        Pos(ord(q2) - 72, ord(r2) - 72),
-                        new_label,
-                    )
-                )
-        self.replay_from_log(log)
+                from_pos, to_pos, new_piece = self.slog2pos(q1, r1, q2, r2)
+                # make move
+                self.board.move_piece(from_pos, to_pos, new_piece)
+                self.move_number += 1
+
+            if self.voting.finished():
+                # replace votes with finished voting slog
+                self.slog = self.slog[:-12] + self.voting.slog
+            else:
+                self.slog += q1 + r1 + q2 + r2
 
     def logtail(self, n=5):
         return self.slog[-4 * n :]
@@ -361,9 +385,9 @@ class GameAPI:
         """Make move from from_gid to to_gid and record it to the log."""
         # add move to log
         from_pos, to_pos = self.gid2hex[from_gid].pos, self.gid2hex[to_gid].pos
-        self.log.append((from_pos, to_pos, new_piece))
         # make move
         self.board.move_piece(from_pos, to_pos, new_piece)
+        self.slog += self.move2slog(from_pos, to_pos, new_piece)
         self.move_number += 1
 
     def resignation_vote(self, vote: bool):
