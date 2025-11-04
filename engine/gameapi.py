@@ -18,9 +18,9 @@ class Voting:
     @property
     def slog(self):
         if self.kind == "resign":
-            return "r" + self.log
+            return "R" + "".join(self.log)
         if self.kind == "draw":
-            return "s" + "".join(self.log)
+            return "S" + "".join(self.log)
         return ""
 
     def set_resign_voting(self, v0, v1, v2):
@@ -69,7 +69,7 @@ class Voting:
             votelog[player] = "A"
         else:
             votelog[player] = "D"
-        return "R" + "".join(votelog)
+        return "r" + "".join(votelog)
 
     def draw_slog(self, player, vote):
         votelog = ["X", "X", "X"]
@@ -77,7 +77,7 @@ class Voting:
             votelog[player] = "A"
         else:
             votelog[player] = "D"
-        return "S" + "".join(votelog)
+        return "s" + "".join(votelog)
 
     def needed(self, kind="any"):
         active = 0 < self.n_voted < 3
@@ -318,17 +318,17 @@ class GameAPI:
             # clean previously finished voting
             if self.voting.finished():
                 self.voting.clean()
-            if q1 == "R":
+            if q1 == "r":
                 self.voting.resign_vote(0, r1)
                 self.voting.resign_vote(1, q2)
                 self.voting.resign_vote(2, r2)
-            elif q1 == "S":
+            elif q1 == "s":
                 self.voting.draw_vote(0, r1)
                 self.voting.draw_vote(1, q2)
                 self.voting.draw_vote(2, r2)
-            elif q1 == "r":
+            elif q1 == "R":
                 self.voting.set_resign_voting(r1, q2, r2)
-            elif q1 == "s":
+            elif q1 == "S":
                 self.voting.set_draw_voting(r1, q2, r2)
             else:
                 from_pos, to_pos, new_piece = self.slog2pos(q1, r1, q2, r2)
@@ -336,9 +336,9 @@ class GameAPI:
                 self.board.move_piece(from_pos, to_pos, new_piece)
                 self.move_number += 1
 
-            if self.voting.finished():
-                # replace votes with finished voting slog
-                self.slog = self.slog[:-12] + self.voting.slog
+            # fix slog when just finished voting
+            if self.voting.finished() and q1 in ["r", "s"]:
+                self.slog = self.slog[:-8] + self.voting.slog
             else:
                 self.slog += q1 + r1 + q2 + r2
 
@@ -383,12 +383,16 @@ class GameAPI:
 
     def make_move(self, from_gid, to_gid, new_piece=""):
         """Make move from from_gid to to_gid and record it to the log."""
-        # add move to log
-        from_pos, to_pos = self.gid2hex[from_gid].pos, self.gid2hex[to_gid].pos
-        # make move
-        self.board.move_piece(from_pos, to_pos, new_piece)
-        self.slog += self.move2slog(from_pos, to_pos, new_piece)
-        self.move_number += 1
+        if not self.voting.needed():
+            # add move to log
+            from_pos, to_pos = self.gid2hex[from_gid].pos, self.gid2hex[to_gid].pos
+            # make move
+            self.board.move_piece(from_pos, to_pos, new_piece)
+            self.slog += self.move2slog(from_pos, to_pos, new_piece)
+            self.move_number += 1
+            # clean previously finished voting
+            if self.voting.finished():
+                self.voting.clean()
 
     def resignation_vote(self, vote: bool):
         """Get slog with resignation voting"""

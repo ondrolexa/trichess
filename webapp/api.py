@@ -565,8 +565,6 @@ class GameBoard(Resource):
                             username=players[ga2.on_move].username
                         ).first()
                         if not ga2.move_possible():
-                            # for finished keep possible voting codes
-                            tb.slog = state.slog
                             # Game finshed do all needed
                             tb.status = 2
                             in_chess, gid, who = ga2.in_chess
