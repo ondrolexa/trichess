@@ -30,7 +30,7 @@ const button_color = '#919595';
 // todo vsetky konstanty vytiahnut sem
 let SemaforGreen = true
 let SemaforWait = false
-
+let SemaforVoteDraw = true //todo
 // tools /////////////////////////////////////////////
 function wait_msg(yes) {
     var modal = document.getElementById("myModal2")
@@ -260,13 +260,17 @@ class iinfo {
         if (iinfo_id == 3) {
             this.lines[0] =  new llines('', ipos_x, ipos_y+nam_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
             this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[2] =  new llines('11', ipos_x, ipos_y+line_high*2*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[3] =  new llines('22', ipos_x, ipos_y+line_high*3*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[4] =  new llines('33', ipos_x, ipos_y+line_high*4*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[5] =  new llines('44', ipos_x, ipos_y+line_high*5*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[6] =  new llines('44', ipos_x, ipos_y+line_high*6*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
         }
         // player info
         else {
             // player name
             this.lines[0] =  new llines('', ipos_x, ipos_y + nam_ofs, ialign, line_len, mame_size+" "+theme["canvas"]["font-family"] , theme["canvas"]["name"] )
             this.lines[1] =  new llines('', ipos_x, ipos_y + inf_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["pieces"]["color"][iinfo_id], 10, theme["pieces"]["stroke-color"])
-
         }
         // elimited
         var ofs  = inf_ofs + (Number(mame_size.substring(0, mame_size.length - 2)))*ivert
@@ -299,7 +303,12 @@ class iinfo {
             this.lines[i].write()
         }
     for (let i = 2; i < 7; i++) {
+        if (this.info_id != 3 ) {
             this.lines[i].draw()
+        }
+        else {
+            this.lines[i].write()
+        }
         }
     }
   }
@@ -317,8 +326,23 @@ class iinfos {
     }
     set (idata) {
         this.index = rotateArray([0,1,2], B.view_player) //todo
-        this.panel[3].lines[1].text = 'Game ID: '+ID.toString()
         this.panel[3].lines[0].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
+        this.panel[3].lines[1].text = 'Game ID: '+ID.toString()
+        if ( idata.vote_results != null ) {
+            let verb = ' offers '
+            for (let i = 0; i < 3 ; i++) {
+                if (idata.vote_results[i] == 'A') {
+                    this.panel[3].lines[4-i].text = this.players[i] + verb + idata.vote_results.kind+' .'
+                    verb = ' accepts '
+                }
+                else if (idata.vote_results[i] == 'D') {
+                    this.panel[3].lines[4-i].text = this.players[i] + ' declines ' +idata.vote_results.kind+' .'
+                }
+                else {
+                    //this.panel[3].lines[4-i].text = this .players[i]+' XXXX'
+                }
+            }
+        }
         for (let i = 0; i < 3; i++) {
             this.panel[i].lines[0].text = this.players[this.index[i] ] // set players names
             for (let z= 0; z < 7; z++) {
@@ -770,25 +794,54 @@ function Step_2_setplayers(idata) {
     B.slog = idata.slog
     F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
+
+function Step_4_set_votedraw(idata) {
+    B.slog = idata.slog
+    F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.slog},function () {} )
+    F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
+    SemaforVoteDraw = false
+}
+
 function Step_3_setelim_board_and_draw(idata) {
     B.set(idata);
     B.draw_tile();
     B.draw_pieces();
-    B.set(idata);
     II.clear()
     II.set(idata);
     II.write()
-
     //draw_piece_common( "K", i_lineWidth = epiece_lineWidth, i_lineColor = "#000000", i_fillColor = "#dddd00", 800, 400, 20)
     //draw_piece_common( "K", i_lineWidth = epiece_lineWidth, i_lineColor = "#000000", i_fillColor = "#dddd00", 800, 400, -20)
-
     button_control()
+    //setTimeout(function (){
+    if ( idata.vote_needed && B.view_player_org == B.onmove) {
+        let msg = ''
+        for (let i = 0; i < 3 ; i++) {
+                msg =  msg + II.panel[3].lines[4-i].text+'\n'
+        }
+        if (window.confirm(msg)) {
+            Click_Draw_Accept()
+        }
+        else {
+             Click_Draw_Decline()
+        }
+    }
+    //}, 0)
+
     if (B.finished) {
-        // Get the modal
+        // todo
         var name = II.players[B.onmove]
         var modal = document.getElementById("myModal");
-        modal.style.color = theme["pieces"]["color"][(B.onmove+2)%3]
-        modal.innerHTML = "GAME OVER <br>"+name+" lost :-("
+        if (idata.vote_results == null) {
+            modal.style.color = theme["pieces"]["color"][(B.onmove+2)%3]
+            modal.innerHTML = "GAME OVER <br>"+name+" lost :-("
+            }
+        else if (idata.vote_results.kind == 'draw') {
+            modal.style.color = theme["canvas"]["name_onmove"]
+            modal.innerHTML = "GAME OVER <br> draw"
+            }
+        else {
+            let  a=1
+            }
         modal.style.display = "block";
         window.onclick = function(event) {
             if (event.target == modal) {
@@ -797,8 +850,20 @@ function Step_3_setelim_board_and_draw(idata) {
         }
     }
 }
+
 function button_control() {
-        if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 && !(B.hist_changed)  ) {
+        if (B.move_number_org == B.move_number && B.view_player_org == B.onmove && SemaforVoteDraw) {
+            b_dr.disabled = false;
+            b_rs.disabled = false;
+        }
+        else {
+            b_dr.disabled = true;
+            b_rs.disabled = true;
+        }
+        b_dr.update()
+        b_rs.update()
+
+        if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 && !(B.hist_changed)) {
             b_ok.disabled = false;
         }
         else {
@@ -821,6 +886,21 @@ function button_control() {
         b_fw.update()
 }
 // Click ////////////////////////////////////////////////////////////////////////////////
+function Click_Draw() {
+    if (window.confirm("Do you want to offer the draw? ")) {
+         let a = 1
+         F.fetchPOST(url+'/api/v1/vote/draw', {"slog": B.slog, "view_pid": B.view_player, "vote":true }, Step_4_set_votedraw )
+    }
+}
+function Click_Draw_Accept() {
+    F.fetchPOST(url+'/api/v1/vote/draw', {"slog": B.slog, "view_pid": B.view_player, "vote":true }, Step_4_set_votedraw )
+    //SemaforVoteDraw = true
+}
+function Click_Draw_Decline() {
+    F.fetchPOST(url+'/api/v1/vote/draw', {"slog": B.slog, "view_pid": B.view_player, "vote":false }, Step_4_set_votedraw )
+    //SemaforVoteDraw = true
+}
+
 function Click_Backward() {
     B.move_number = B.move_number -1
     let slog = B.slog.substring(0,B.move_number*4)
@@ -854,8 +934,12 @@ function Click_Rotate() {
     F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Click_CloseModal() {
+
     document.getElementById("myModal").style.display = "none";
 }
+
+
+
 function Click_Board(event) {
     function getMouesPosition(e) {
         var mouseX = e.offsetX * canvas0.width / canvas0.clientWidth | 0;
@@ -911,6 +995,8 @@ var b_ok = new butt('b_ok', theme["canvas"]["name_onmove"])
 var b_rf = new butt('b_rf', button_color )
 var b_fw = new butt('b_fw', button_color )
 var b_bw = new butt('b_bw', button_color )
+var b_dr = new butt('b_dr', button_color )
+var b_rs = new butt('b_rs', button_color )
 var II = new iinfos()
 var SS = new ssel()
 B.init();
