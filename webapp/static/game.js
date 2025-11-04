@@ -34,6 +34,7 @@ var seat = {};
 var slog = "";
 var server_slog = "";
 var game_slog = "";
+var game_moves = 0;
 var on_move = false;
 var view_pid = 0;
 const active_tween = { active: false, tween: null };
@@ -577,7 +578,7 @@ function updateStats(eliminated, eliminated_value, pieces_value, move_number) {
   }
 
   slogtext.innerHTML = slog;
-  movelabel_text = `Move\n${move_number}/${game_slog.length / 4}`;
+  movelabel_text = `Move\n${move_number}/${game_moves}`;
 }
 
 function setCoordHints(gid) {
@@ -954,6 +955,13 @@ function gameInfo(init = false, redraw = false) {
         }
       }
 
+      if (data.vote_results != null) {
+        movelabel_text = `Results of\n${data.vote_results["kind"]} voting`;
+        for (var p = 0; p < 3; p++) {
+          player_names[p] = `${seat[p]} (${data.vote_results[p]})`;
+        }
+      }
+
       if (data.vote_draw_needed && !data.finished) {
         if (data.onmove == view_pid) {
           const modalDraw = new bootstrap.Modal(
@@ -1035,6 +1043,7 @@ function boardInfo() {
       slog = data.slog;
       server_slog = data.slog;
       game_slog = data.slog;
+      game_moves = data.move_number;
       gameInfo(true, true);
       // Create mappings
       let gid = 0;

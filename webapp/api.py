@@ -37,7 +37,7 @@ def post_notification(username, text, title, gameid, board):
         pass
 
     except Exception as err:
-        print(f"Unexpected {err=}, {type(err)=}")
+        print(f"Unexpected post notification {err=}, {type(err)=}")
 
 
 # rating update
@@ -137,7 +137,11 @@ class ValidMoves(Resource):
     @moveapi.doc(
         description="Returns all valid moves from given position",
         security="jsonWebToken",
-        responses={400: "slog parsing error", 404: "gid not found"},
+        responses={
+            404: "gid not found",
+            406: "slog parsing error",
+            417: "Unexpected error",
+        },
     )
     @jwt_required()
     @moveapi.response(200, "Success", valid_response)
@@ -150,14 +154,14 @@ class ValidMoves(Resource):
             if slog:
                 ga.replay_from_slog(slog)
         except Exception:
-            moveapi.abort(400, message="slog parsing error")
+            moveapi.abort(406, message="slog parsing error")
         else:
             try:
                 return {"targets": ga.valid_moves(gid)}
             except KeyError:
                 moveapi.abort(404, message="gid not found")
             except Exception as err:
-                moveapi.abort(404, message=f"Unexpected error {err}")
+                moveapi.abort(417, message=f"Unexpected error {err}")
 
 
 MakeMoveParser = reqparse.RequestParser()
@@ -191,7 +195,11 @@ class MakeMove(Resource):
     @moveapi.doc(
         description="Make move and return updated slog",
         security="jsonWebToken",
-        responses={400: "slog parsing error", 404: "gid not found"},
+        responses={
+            404: "gid not found",
+            406: "slog parsing error",
+            417: "Unexpected error",
+        },
     )
     @jwt_required()
     @moveapi.response(200, "Success", move_response)
@@ -206,7 +214,7 @@ class MakeMove(Resource):
             if slog:
                 ga.replay_from_slog(slog)
         except Exception:
-            moveapi.abort(400, message="slog parsing error")
+            moveapi.abort(406, message="slog parsing error")
         else:
             try:
                 print(from_gid, to_gid, new_piece)
@@ -215,7 +223,7 @@ class MakeMove(Resource):
             except KeyError:
                 moveapi.abort(404, message="gid not found")
             except Exception as err:
-                moveapi.abort(404, message=f"Unexpected error {err}")
+                moveapi.abort(417, message=f"Unexpected error {err}")
 
 
 # game API
@@ -281,6 +289,16 @@ game_pieces_value = api.model(
     },
 )
 
+votes = api.model(
+    "Voting results",
+    {
+        "kind": fields.String(enum=["resign", "draw"]),
+        0: fields.String(enum=["A", "D"]),
+        1: fields.String(enum=["A", "D"]),
+        2: fields.String(enum=["A", "D"]),
+    },
+)
+
 game_response = api.model(
     "Game response",
     {
@@ -298,9 +316,8 @@ game_response = api.model(
         "eliminated": fields.Nested(game_eliminated),
         "eliminated_value": fields.Nested(game_pieces_value),
         "vote_draw_needed": fields.Boolean,
-        "vote_draw_results": fields.List(fields.Integer),
         "vote_resign_needed": fields.Boolean,
-        "vote_resign_results": fields.List(fields.Integer),
+        "vote_results": fields.Nested(votes),
     },
 )
 
@@ -311,7 +328,7 @@ class GameInfo(Resource):
     @gameapi.doc(
         description="Get information about game",
         security="jsonWebToken",
-        responses={400: "slog parsing error", 404: "Unexpected error"},
+        responses={406: "slog parsing error", 417: "Unexpected error"},
     )
     @jwt_required()
     @gameapi.response(200, "Success", game_response)
@@ -323,7 +340,7 @@ class GameInfo(Resource):
             if slog:
                 ga.replay_from_slog(slog)
         except Exception:
-            gameapi.abort(400, message="slog parsing error")
+            gameapi.abort(406, message="slog parsing error")
         else:
             try:
                 res = {}
@@ -331,20 +348,19 @@ class GameInfo(Resource):
                 res["onmove"] = ga.on_move
                 res["last_move"] = ga.last_move
                 res["finished"] = not ga.move_possible()
-                res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess
-                res["resignation"] = ga.voting.resignation()
-                res["draw"] = ga.voting.draw()
-                res["pieces"] = ga.pieces
-                res["pieces_value"] = ga.pieces_value
-                res["eliminated"] = ga.eliminated
-                res["eliminated_value"] = ga.eliminated_value
+                res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess()
+                res["resignation"] = ga.resignation()
+                res["draw"] = ga.draw()
+                res["pieces"] = ga.pieces()
+                res["pieces_value"] = ga.pieces_value()
+                res["eliminated"] = ga.eliminated()
+                res["eliminated_value"] = ga.eliminated_value()
                 res["vote_draw_needed"] = ga.voting.needed(kind="draw")
-                res["vote_draw_results"] = ga.voting.results(kind="draw")
                 res["vote_resign_needed"] = ga.voting.needed(kind="resign")
-                res["vote_resign_results"] = ga.voting.results(kind="resign")
+                res["vote_results"] = ga.voting.votes()
                 return res
             except Exception as err:
-                gameapi.abort(404, message=f"Unexpected error {err}")
+                gameapi.abort(417, message=f"Unexpected error {err}")
 
 
 # vote API
@@ -380,7 +396,7 @@ class DrawVote(Resource):
     @voteapi.doc(
         description="Vote for draw and return updated slog",
         security="jsonWebToken",
-        responses={400: "slog parsing error"},
+        responses={406: "slog parsing error", 417: "Unexpected error"},
     )
     @jwt_required()
     @voteapi.response(200, "Success", vote_response)
@@ -393,12 +409,12 @@ class DrawVote(Resource):
             if slog:
                 ga.replay_from_slog(slog)
         except Exception:
-            voteapi.abort(400, message="slog parsing error")
+            voteapi.abort(406, message="slog parsing error")
         else:
             try:
                 return {"slog": ga.draw_vote(vote)}
             except Exception as err:
-                voteapi.abort(404, message=f"Unexpected error {err}")
+                voteapi.abort(417, message=f"Unexpected error {err}")
 
 
 @voteapi.route("/resign")
@@ -407,7 +423,7 @@ class ResignVote(Resource):
     @voteapi.doc(
         description="Vote for resign and return updated slog",
         security="jsonWebToken",
-        responses={400: "slog parsing error"},
+        responses={406: "slog parsing error", 417: "Unexpected error"},
     )
     @jwt_required()
     @voteapi.response(200, "Success", vote_response)
@@ -420,12 +436,12 @@ class ResignVote(Resource):
             if slog:
                 ga.replay_from_slog(slog)
         except Exception:
-            voteapi.abort(400, message="slog parsing error")
+            voteapi.abort(406, message="slog parsing error")
         else:
             try:
                 return {"slog": ga.resignation_vote(vote)}
             except Exception as err:
-                voteapi.abort(404, message=f"Unexpected error {err}")
+                voteapi.abort(417, message=f"Unexpected error {err}")
 
 
 # manager API
@@ -458,6 +474,7 @@ board_response = api.model(
         "player_2": fields.String,
         "slog": fields.String,
         "view_pid": fields.Integer,
+        "move_number": fields.Integer,
     },
 )
 
@@ -468,7 +485,11 @@ class GameBoard(Resource):
         description="Get trichess board",
         params={"id": "Board ID"},
         security="jsonWebToken",
-        responses={400: "Board not found", 404: "Unexpected error"},
+        responses={
+            404: "Board not found",
+            406: "slog parsing error",
+            417: "Unexpected error",
+        },
     )
     @jwt_required()
     @managerapi.response(200, "Success", board_response)
@@ -495,7 +516,7 @@ class GameBoard(Resource):
                 .first()
             )
         except Exception as err:
-            managerapi.abort(404, message=f"Unexpected error {err}")
+            managerapi.abort(417, message=f"Unexpected error {err}")
         else:
             try:
                 pid = {
@@ -509,17 +530,26 @@ class GameBoard(Resource):
                 res["player_2"] = tb.player_2.username
                 res["slog"] = tb.slog
                 res["view_pid"] = pid[username]
+                ga = GameAPI(pid[username])
+                try:
+                    if tb.slog:
+                        ga.replay_from_slog(tb.slog)
+                        res["move_number"] = ga.move_number
+                    else:
+                        res["move_number"] = 0
+                except Exception:
+                    gameapi.abort(406, message="slog parsing error")
                 return res
             except Exception:
-                managerapi.abort(400, message="Board not found")
+                managerapi.abort(404, message="Board not found")
 
     @managerapi.doc(
         description="Update trichess board slog",
         security="jsonWebToken",
         responses={
-            400: "Board not found",
-            404: "Unexpected error",
+            404: "Board not found",
             409: "Posted slog is in conflict with server one",
+            417: "Unexpected error",
         },
     )
     @jwt_required()
@@ -537,7 +567,7 @@ class GameBoard(Resource):
             )
             tb = TriBoard.query.filter_by(status=1, id=state.id).filter(user_in).first()
         except Exception as err:
-            managerapi.abort(404, message=f"Unexpected error {err}")
+            managerapi.abort(417, message=f"Unexpected error {err}")
         else:
             if tb:
                 try:
@@ -567,8 +597,8 @@ class GameBoard(Resource):
                         if not ga2.move_possible():
                             # Game finshed do all needed
                             tb.status = 2
-                            in_chess, gid, who = ga2.in_chess
-                            if ga2.voting.draw():
+                            in_chess, gid, who = ga2.in_chess()
+                            if ga2.draw():
                                 for uid in players:
                                     new_score = Score(
                                         board_id=tb.id,
@@ -585,7 +615,7 @@ class GameBoard(Resource):
                                             state.id,
                                             user.board,
                                         )
-                            elif ga2.voting.resignation():
+                            elif ga2.resignation():
                                 resigned = ga2.voting.results(kind="resign")
                                 uid = set([0, 1, 2]).difference(resigned).pop()
                                 new_score = Score(
@@ -676,9 +706,9 @@ class GameBoard(Resource):
                         print(err.message)
                     else:
                         print(err)
-                    managerapi.abort(404, message=f"Unexpected error {err}")
+                    managerapi.abort(417, message=f"Unexpected error {err}")
             else:
-                managerapi.abort(400, message="Board not found")
+                managerapi.abort(404, message="Board not found")
 
 
 board_view_fields = api.model(

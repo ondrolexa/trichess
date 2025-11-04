@@ -92,23 +92,19 @@ class Voting:
         else:
             return []
 
+    def votes(self):
+        if self.finished():
+            res = {"kind": self.kind}
+            res[0] = self.log[0]
+            res[1] = self.log[1]
+            res[2] = self.log[2]
+            return res
+
     def finished(self):
         return self.n_voted == 3
 
     def active(self):
         return self.n_voted > 0
-
-    def resignation(self):
-        if self.kind == "resign" and self.finished() and len(self.accepts) == 2:
-            return True
-        else:
-            return False
-
-    def draw(self):
-        if self.kind == "draw" and self.finished() and len(self.accepts) == 3:
-            return True
-        else:
-            return False
 
 
 class GameAPI:
@@ -214,7 +210,6 @@ class GameAPI:
                     "to": self.pos2gid[to_pos],
                 }
 
-    @property
     def in_chess(self):
         """Check if player on move has chess"""
         res = {0: [], 1: [], 2: []}
@@ -223,7 +218,6 @@ class GameAPI:
             res[p.player.pid].append({"gid": self.pos2gid[p.pos], "piece": p.label})
         return inchess, self.pos2gid[kingpos], res
 
-    @property
     def eliminated(self):
         """Return eliminated pieces for player pid"""
         res = {0: [], 1: [], 2: []}
@@ -231,7 +225,6 @@ class GameAPI:
             res[p.player.pid].append(p.label)
         return res
 
-    @property
     def eliminated_value(self):
         """Return total values of eliminated pieces for player pid"""
         res = {0: 0, 1: 0, 2: 0}
@@ -239,7 +232,6 @@ class GameAPI:
             res[p.player.pid] += p.value
         return res
 
-    @property
     def pieces(self):
         res = {0: [], 1: [], 2: []}
         for hex in self.board:
@@ -250,7 +242,6 @@ class GameAPI:
                 )
         return res
 
-    @property
     def pieces_value(self):
         """Return total values of pieces for player pid"""
         res = {0: 0, 1: 0, 2: 0}
@@ -402,9 +393,29 @@ class GameAPI:
         """Get slog with draw voting"""
         return self.slog + self.voting.draw_slog(self.on_move, vote)
 
+    def resignation(self):
+        if (
+            self.voting.kind == "resign"
+            and self.voting.finished()
+            and len(self.voting.accepts) == 2
+        ):
+            return True
+        else:
+            return False
+
+    def draw(self):
+        if (
+            self.voting.kind == "draw"
+            and self.voting.finished()
+            and len(self.voting.accepts) == 3
+        ):
+            return True
+        else:
+            return False
+
     def move_possible(self):
         """Return True if there is any move possible"""
-        if self.voting.resignation() or self.voting.draw():
+        if self.resignation() or self.draw():
             return False
         for hex in self.board:
             if hex.has_piece:
