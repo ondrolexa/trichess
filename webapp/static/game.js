@@ -884,9 +884,9 @@ function gameInfo(init = false, redraw = false) {
           gameover_text.text("GAME OVER\nDraw agreed");
         } else if (data.resignation) {
           let wid;
-          if (!data.vote_resign_results.includes(0)) {
+          if (!data.vote_results["0"] == "D") {
             wid = 0;
-          } else if (!data.vote_resign_results.includes(1)) {
+          } else if (!data.vote_results["1"] == "D") {
             wid = 1;
           } else {
             wid = 2;
@@ -958,7 +958,8 @@ function gameInfo(init = false, redraw = false) {
       if (data.vote_results != null) {
         movelabel_text = `Results of\n${data.vote_results["kind"]} voting`;
         for (var p = 0; p < 3; p++) {
-          player_names[p] = `${seat[p]} (${data.vote_results[p]})`;
+          player_names[p] =
+            `${seat[p]} (${data.vote_results[(p + view_pid) % 3]})`;
         }
       }
 
@@ -970,14 +971,10 @@ function gameInfo(init = false, redraw = false) {
             );
             const pspan = document.getElementById("voteDrawPlayers");
             pspan.innerHTML = "";
-            if (data.vote_draw_results.includes(0)) {
-              pspan.innerHTML += seat[(3 - view_pid) % 3] + " ";
-            }
-            if (data.vote_draw_results.includes(1)) {
-              pspan.innerHTML += seat[(4 - view_pid) % 3] + " ";
-            }
-            if (data.vote_draw_results.includes(2)) {
-              pspan.innerHTML += seat[(5 - view_pid) % 3];
+            for (var p = 0; p < 3; p++) {
+              if (data.vote_results[p] != "X") {
+                pspan.innerHTML += `${seat[(p + 3 - view_pid) % 3]} (${data.vote_results[p]}) `;
+              }
             }
             modalDraw.show();
           } else {
@@ -991,14 +988,10 @@ function gameInfo(init = false, redraw = false) {
             );
             const pspan = document.getElementById("voteResignPlayers");
             pspan.innerHTML = "";
-            if (data.vote_resign_results.includes(0)) {
-              pspan.innerHTML += seat[(3 - view_pid) % 3] + " ";
-            }
-            if (data.vote_resign_results.includes(1)) {
-              pspan.innerHTML += seat[(4 - view_pid) % 3] + " ";
-            }
-            if (data.vote_resign_results.includes(2)) {
-              pspan.innerHTML += seat[(5 - view_pid) % 3];
+            for (var p = 0; p < 3; p++) {
+              if (data.vote_results[p] != "X") {
+                pspan.innerHTML += `${seat[(p + 3 - view_pid) % 3]} (${data.vote_results[p]}) `;
+              }
             }
             modalDraw.show();
           } else {
