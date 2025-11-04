@@ -962,47 +962,49 @@ function gameInfo(init = false, redraw = false) {
         }
       }
 
-      if (data.vote_draw_needed && !data.finished) {
-        if (data.onmove == view_pid) {
-          const modalDraw = new bootstrap.Modal(
-            document.getElementById("voteDrawDialog"),
-          );
-          const pspan = document.getElementById("voteDrawPlayers");
-          pspan.innerHTML = "";
-          if (data.vote_draw_results.includes(0)) {
-            pspan.innerHTML += seat[(3 - view_pid) % 3] + " ";
+      if (data.vote_needed && !data.finished) {
+        if (data.vote_results["kind"] == "draw") {
+          if (data.onmove == view_pid) {
+            const modalDraw = new bootstrap.Modal(
+              document.getElementById("voteDrawDialog"),
+            );
+            const pspan = document.getElementById("voteDrawPlayers");
+            pspan.innerHTML = "";
+            if (data.vote_draw_results.includes(0)) {
+              pspan.innerHTML += seat[(3 - view_pid) % 3] + " ";
+            }
+            if (data.vote_draw_results.includes(1)) {
+              pspan.innerHTML += seat[(4 - view_pid) % 3] + " ";
+            }
+            if (data.vote_draw_results.includes(2)) {
+              pspan.innerHTML += seat[(5 - view_pid) % 3];
+            }
+            modalDraw.show();
+          } else {
+            board_layer.off("click tap");
+            movelabel_text = `Draw voting\nin progress`;
           }
-          if (data.vote_draw_results.includes(1)) {
-            pspan.innerHTML += seat[(4 - view_pid) % 3] + " ";
-          }
-          if (data.vote_draw_results.includes(2)) {
-            pspan.innerHTML += seat[(5 - view_pid) % 3];
-          }
-          modalDraw.show();
         } else {
-          board_layer.off("click tap");
-          movelabel_text = `Draw voting\nin progress`;
-        }
-      } else if (data.vote_resign_needed && !data.finished) {
-        if (data.onmove == view_pid) {
-          const modalDraw = new bootstrap.Modal(
-            document.getElementById("voteResignDialog"),
-          );
-          const pspan = document.getElementById("voteResignPlayers");
-          pspan.innerHTML = "";
-          if (data.vote_resign_results.includes(0)) {
-            pspan.innerHTML += seat[(3 - view_pid) % 3] + " ";
+          if (data.onmove == view_pid) {
+            const modalDraw = new bootstrap.Modal(
+              document.getElementById("voteResignDialog"),
+            );
+            const pspan = document.getElementById("voteResignPlayers");
+            pspan.innerHTML = "";
+            if (data.vote_resign_results.includes(0)) {
+              pspan.innerHTML += seat[(3 - view_pid) % 3] + " ";
+            }
+            if (data.vote_resign_results.includes(1)) {
+              pspan.innerHTML += seat[(4 - view_pid) % 3] + " ";
+            }
+            if (data.vote_resign_results.includes(2)) {
+              pspan.innerHTML += seat[(5 - view_pid) % 3];
+            }
+            modalDraw.show();
+          } else {
+            board_layer.off("click tap");
+            movelabel_text = `Resign voting\nin progress`;
           }
-          if (data.vote_resign_results.includes(1)) {
-            pspan.innerHTML += seat[(4 - view_pid) % 3] + " ";
-          }
-          if (data.vote_resign_results.includes(2)) {
-            pspan.innerHTML += seat[(5 - view_pid) % 3];
-          }
-          modalDraw.show();
-        } else {
-          board_layer.off("click tap");
-          movelabel_text = `Resign voting\nin progress`;
         }
       } else {
         board_layer.on("click tap", function (evt) {

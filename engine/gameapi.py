@@ -79,12 +79,8 @@ class Voting:
             votelog[player] = "D"
         return "s" + "".join(votelog)
 
-    def needed(self, kind="any"):
-        active = 0 < self.n_voted < 3
-        if kind in (self.kind, "any"):
-            return active
-        else:
-            return False
+    def needed(self):
+        return 0 < self.n_voted < 3
 
     def results(self, kind="any"):
         if kind in (self.kind, "any"):
@@ -93,7 +89,7 @@ class Voting:
             return []
 
     def votes(self):
-        if self.finished():
+        if self.active():
             res = {"kind": self.kind}
             res[0] = self.log[0]
             res[1] = self.log[1]

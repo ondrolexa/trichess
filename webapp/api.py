@@ -355,8 +355,7 @@ class GameInfo(Resource):
                 res["pieces_value"] = ga.pieces_value()
                 res["eliminated"] = ga.eliminated()
                 res["eliminated_value"] = ga.eliminated_value()
-                res["vote_draw_needed"] = ga.voting.needed(kind="draw")
-                res["vote_resign_needed"] = ga.voting.needed(kind="resign")
+                res["vote_needed"] = ga.voting.needed()
                 res["vote_results"] = ga.voting.votes()
                 return res
             except Exception as err:
