@@ -884,9 +884,9 @@ function gameInfo(init = false, redraw = false) {
           gameover_text.text("GAME OVER\nDraw agreed");
         } else if (data.resignation) {
           let wid;
-          if (!data.vote_results["0"] == "D") {
+          if (!data.vote_results[0] == "D") {
             wid = 0;
-          } else if (!data.vote_results["1"] == "D") {
+          } else if (!data.vote_results[1] == "D") {
             wid = 1;
           } else {
             wid = 2;
@@ -972,8 +972,8 @@ function gameInfo(init = false, redraw = false) {
             const pspan = document.getElementById("voteDrawPlayers");
             pspan.innerHTML = "";
             for (var p = 0; p < 3; p++) {
-              if (data.vote_results[p] != "X") {
-                pspan.innerHTML += `${seat[(p + 3 - view_pid) % 3]} (${data.vote_results[p]}) `;
+              if (data.vote_results[(p + view_pid) % 3] != "X") {
+                pspan.innerHTML += `${seat[p]} (${data.vote_results[(p + view_pid) % 3]}) `;
               }
             }
             modalDraw.show();
@@ -989,8 +989,8 @@ function gameInfo(init = false, redraw = false) {
             const pspan = document.getElementById("voteResignPlayers");
             pspan.innerHTML = "";
             for (var p = 0; p < 3; p++) {
-              if (data.vote_results[p] != "X") {
-                pspan.innerHTML += `${seat[(p + 3 - view_pid) % 3]} (${data.vote_results[p]}) `;
+              if (data.vote_results[(p + view_pid) % 3] != "X") {
+                pspan.innerHTML += `${seat[p]} (${data.vote_results[(p + view_pid) % 3]}) `;
               }
             }
             modalDraw.show();
