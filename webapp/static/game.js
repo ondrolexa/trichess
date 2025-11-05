@@ -857,7 +857,7 @@ function gameInfo(init = false, redraw = false) {
         draw.disabled = true;
         resign.disabled = true;
       }
-
+      // Setup buttons
       if (slog.slice(0, -4) == server_slog && on_move) {
         submit.disabled = false;
         submit.className = "btn btn-danger mb-2 col-12";
@@ -879,6 +879,116 @@ function gameInfo(init = false, redraw = false) {
         backmove.disabled = true;
         backmove.className = "btn btn-secondary mb-2 col-12";
       }
+      // Show last move
+      if (data.last_move != null) {
+        if (lastmove["from"] != -1) {
+          gid2high[lastmove["from"]].visible(false);
+        }
+        lastmove["from"] = data.last_move["from"];
+        gid2high[lastmove["from"]].visible(true);
+        if (current == lastmove["from"]) {
+          gid2high[lastmove["from"]].stroke(theme["board"]["selection"]);
+        } else {
+          gid2high[lastmove["from"]].stroke(theme["board"]["last_move"]);
+        }
+        if (lastmove["to"] != -1) {
+          gid2high[lastmove["to"]].visible(false);
+        }
+        lastmove["to"] = data.last_move["to"];
+        gid2high[lastmove["to"]].visible(true);
+        if (current == lastmove["to"]) {
+          gid2high[lastmove["to"]].stroke(theme["board"]["selection"]);
+        } else {
+          gid2high[lastmove["to"]].stroke(theme["board"]["last_move"]);
+        }
+      }
+      // show piece in chess
+      if (data.in_chess) {
+        active_tween["tween"] = new Konva.Tween({
+          node: gid2piece[data.king_pos],
+          easing: Konva.Easings.EaseInOut,
+          duration: 0.5,
+          scaleX: 0.1,
+          scaleY: 0.1,
+          yoyo: true,
+        });
+        active_tween["tween"].play();
+        active_tween["active"] = true;
+        gid2high[data.king_pos].visible(true);
+        gid2high[data.king_pos].stroke(theme["board"]["hex_inchess"]);
+        for (var player in data.chess_by) {
+          for (var pcs in data.chess_by[player]) {
+            gid2high[data.chess_by[player][pcs].gid].visible(true);
+            gid2high[data.chess_by[player][pcs].gid].stroke(
+              theme["board"]["hex_inchess"],
+            );
+          }
+        }
+      }
+      // Show voting results
+      if (data.vote_results != null) {
+        movelabel_text = `${data.vote_results["kind"]}\nvoting`;
+        for (var p = 0; p < 3; p++) {
+          player_names[p] =
+            `${seat[p]} (${data.vote_results[(p + view_pid) % 3]})`;
+        }
+      }
+      // Open voting if needed
+      if (data.vote_needed && !data.finished) {
+        if (data.vote_results["kind"] == "draw") {
+          if (data.onmove == view_pid) {
+            const modalDraw = new bootstrap.Modal(
+              document.getElementById("voteDrawDialog"),
+            );
+            const aspan = document.getElementById("voteDrawAcceptPlayers");
+            const dspan = document.getElementById("voteDrawDeclinePlayers");
+            const accepting = [];
+            const declining = [];
+            for (var p = 0; p < 3; p++) {
+              if (data.vote_results[(p + view_pid) % 3] == "A") {
+                accepting.push(seat[p]);
+              } else if (data.vote_results[(p + view_pid) % 3] == "D") {
+                declining.push(seat[p]);
+              }
+              aspan.innerHTML = accepting.join(" ");
+              dspan.innerHTML = declining.join(" ");
+            }
+            modalDraw.show();
+          } else {
+            board_layer.off("click tap");
+            movelabel_text = `Draw voting\nin progress`;
+          }
+        } else {
+          if (data.onmove == view_pid) {
+            const modalDraw = new bootstrap.Modal(
+              document.getElementById("voteResignDialog"),
+            );
+            const aspan = document.getElementById("voteResignAcceptPlayers");
+            const dspan = document.getElementById("voteResignDeclinePlayers");
+            const accepting = [];
+            const declining = [];
+            for (var p = 0; p < 3; p++) {
+              if (data.vote_results[(p + view_pid) % 3] == "A") {
+                accepting.push(seat[p]);
+              } else if (data.vote_results[(p + view_pid) % 3] == "D") {
+                declining.push(seat[p]);
+              }
+              aspan.innerHTML = accepting.join(" ");
+              dspan.innerHTML = declining.join(" ");
+            }
+            modalDraw.show();
+          } else {
+            board_layer.off("click tap");
+            movelabel_text = `Resign voting\nin progress`;
+          }
+        }
+      } else {
+        board_layer.on("click tap", function (evt) {
+          const shape = evt.target;
+          manageMove(shape.id());
+        });
+      }
+      // Game over or continue
       if (data.finished) {
         if (data.draw) {
           gameover_text.text("GAME OVER\nDraw agreed");
@@ -903,103 +1013,6 @@ function gameInfo(init = false, redraw = false) {
         board_layer.off("click tap");
       } else {
         gameover.visible(false);
-        board_layer.on("click tap", function (evt) {
-          const shape = evt.target;
-          manageMove(shape.id());
-        });
-      }
-
-      if (data.last_move != null) {
-        if (lastmove["from"] != -1) {
-          gid2high[lastmove["from"]].visible(false);
-        }
-        lastmove["from"] = data.last_move["from"];
-        gid2high[lastmove["from"]].visible(true);
-        if (current == lastmove["from"]) {
-          gid2high[lastmove["from"]].stroke(theme["board"]["selection"]);
-        } else {
-          gid2high[lastmove["from"]].stroke(theme["board"]["last_move"]);
-        }
-        if (lastmove["to"] != -1) {
-          gid2high[lastmove["to"]].visible(false);
-        }
-        lastmove["to"] = data.last_move["to"];
-        gid2high[lastmove["to"]].visible(true);
-        if (current == lastmove["to"]) {
-          gid2high[lastmove["to"]].stroke(theme["board"]["selection"]);
-        } else {
-          gid2high[lastmove["to"]].stroke(theme["board"]["last_move"]);
-        }
-      }
-
-      if (data.in_chess) {
-        active_tween["tween"] = new Konva.Tween({
-          node: gid2piece[data.king_pos],
-          easing: Konva.Easings.EaseInOut,
-          duration: 0.5,
-          scaleX: 0.1,
-          scaleY: 0.1,
-          yoyo: true,
-        });
-        active_tween["tween"].play();
-        active_tween["active"] = true;
-        gid2high[data.king_pos].visible(true);
-        gid2high[data.king_pos].stroke(theme["board"]["hex_inchess"]);
-        for (var player in data.chess_by) {
-          for (var pcs in data.chess_by[player]) {
-            gid2high[data.chess_by[player][pcs].gid].visible(true);
-            gid2high[data.chess_by[player][pcs].gid].stroke(
-              theme["board"]["hex_inchess"],
-            );
-          }
-        }
-      }
-
-      if (data.vote_results != null) {
-        movelabel_text = `Results of\n${data.vote_results["kind"]} voting`;
-        for (var p = 0; p < 3; p++) {
-          player_names[p] =
-            `${seat[p]} (${data.vote_results[(p + view_pid) % 3]})`;
-        }
-      }
-
-      if (data.vote_needed && !data.finished) {
-        if (data.vote_results["kind"] == "draw") {
-          if (data.onmove == view_pid) {
-            const modalDraw = new bootstrap.Modal(
-              document.getElementById("voteDrawDialog"),
-            );
-            const pspan = document.getElementById("voteDrawPlayers");
-            pspan.innerHTML = "";
-            for (var p = 0; p < 3; p++) {
-              if (data.vote_results[(p + view_pid) % 3] != "X") {
-                pspan.innerHTML += `${seat[p]} (${data.vote_results[(p + view_pid) % 3]}) `;
-              }
-            }
-            modalDraw.show();
-          } else {
-            board_layer.off("click tap");
-            movelabel_text = `Draw voting\nin progress`;
-          }
-        } else {
-          if (data.onmove == view_pid) {
-            const modalDraw = new bootstrap.Modal(
-              document.getElementById("voteResignDialog"),
-            );
-            const pspan = document.getElementById("voteResignPlayers");
-            pspan.innerHTML = "";
-            for (var p = 0; p < 3; p++) {
-              if (data.vote_results[(p + view_pid) % 3] != "X") {
-                pspan.innerHTML += `${seat[p]} (${data.vote_results[(p + view_pid) % 3]}) `;
-              }
-            }
-            modalDraw.show();
-          } else {
-            board_layer.off("click tap");
-            movelabel_text = `Resign voting\nin progress`;
-          }
-        }
-      } else {
         board_layer.on("click tap", function (evt) {
           const shape = evt.target;
           manageMove(shape.id());
