@@ -1,6 +1,4 @@
-import pytest
-
-from engine import Move, Pos
+from engine import GameAPI, Move, Pos
 
 
 class Test_Player_Steps:
@@ -32,9 +30,41 @@ class Test_Board:
 
 
 class Test_GameAPI:
-    def test_game_play(self, api):
-        p1, p2 = Pos(-5, 6), Pos(-5, 5)
-        api.make_move(api.pos2gid[p1], api.pos2gid[p2])
-        p1, p2 = Pos(-1, -5), Pos(-1, -4)
-        api.make_move(api.pos2gid[p1], api.pos2gid[p2])
+    def test_game_init(self, api):
+        api.make_move(154, 144)
+        api.make_move(18, 29)
         assert api.move_number == 2
+
+    def test_slog(self, slog1):
+        api = GameAPI(0)
+        api.replay_from_slog(slog1)
+        assert api.move_number == 74
+        assert api.on_move == 2
+        assert not api.draw()
+        assert not api.resignation()
+        assert api.move_possible()
+
+    def test_declined_voting_parse(self, slog2):
+        api = GameAPI(0)
+        api.replay_from_slog(slog2)
+        assert api.move_number == 28
+        assert api.voting.votes() == {"kind": "draw", 0: "D", 1: "A", 2: "A"}
+        assert api.on_move == 1
+        assert api.slog[-4:] == "SDAA"
+
+    def test_voting_vote(self, slog3):
+        api = GameAPI(0)
+        api.replay_from_slog(slog3)
+        onmove = api.on_move
+        api.replay_from_slog(api.draw_vote(True))
+        api.replay_from_slog(api.draw_vote(True))
+        api.replay_from_slog(api.draw_vote(False))
+        assert api.on_move == onmove
+        assert api.voting.votes() == {"kind": "draw", 0: "A", 1: "D", 2: "A"}
+
+    def test_chess(self, slog4):
+        api = GameAPI(0)
+        api.replay_from_slog(slog4)
+        inchess, kingpos, pieces = api.in_chess()
+        assert inchess
+        assert pieces[2][0]["piece"] == "Q"
