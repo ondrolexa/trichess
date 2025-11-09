@@ -60,34 +60,34 @@ def resend_notification():
     """Send notification each 24 hours when on move"""
     with scheduler.app.app_context():
         with db.engine.connect() as connection:
-            result = connection.execute(text("SELECT * FROM triboard WHERE status=1;"))
-            for r in result.mappings().all():
-                delta = datetime.now() - datetime.strptime(
-                    r["modified_at"], "%Y-%m-%d %H:%M:%S"
+            result = connection.execute(
+                text(
+                    "SELECT * FROM triboard WHERE status=1 AND datetime(modified_at) <=datetime('now', '-24 Hour');"
                 )
-                if delta.days >= 1:
-                    slog = r["slog"]
-                    moves = [
-                        slog[i : i + 4]
-                        for i in range(0, len(slog), 4)
-                        if slog[i] not in ["S", "R"]
-                    ]
-                    onmove = f"player_{len(moves) % 3}_id"
-                    user = (
-                        connection.execute(
-                            text(f"SELECT * FROM user WHERE id={r[onmove]};")
-                        )
-                        .mappings()
-                        .first()
+            )
+            for r in result.mappings().all():
+                slog = r["slog"]
+                moves = [
+                    slog[i : i + 4]
+                    for i in range(0, len(slog), 4)
+                    if slog[i] not in ["S", "R"]
+                ]
+                onmove = f"player_{len(moves) % 3}_id"
+                user = (
+                    connection.execute(
+                        text(f"SELECT * FROM user WHERE id={r[onmove]};")
                     )
-                    # notify next player
-                    post_notification(
-                        user["username"],
-                        f"It's still your turn in game {r['id']}",
-                        "Your turn reminder",
-                        r["id"],
-                        user["board"],
-                    )
+                    .mappings()
+                    .first()
+                )
+                # notify next player
+                post_notification(
+                    user["username"],
+                    f"It's still your turn in game {r['id']}",
+                    "Your turn reminder",
+                    r["id"],
+                    user["board"],
+                )
 
 
 class SchedulerConfig:
