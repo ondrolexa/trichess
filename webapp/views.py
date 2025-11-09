@@ -45,6 +45,15 @@ def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
     return native.strftime(fmt)
 
 
+def add_onmove(games):
+    for game in games:
+        slog = game.slog
+        moves = [
+            slog[i : i + 4] for i in range(0, len(slog), 4) if slog[i] not in ["S", "R"]
+        ]
+        game.onmove = len(moves) % 3
+
+
 def render_template(*args, **kwargs):
     navailable = TriBoard.query.filter_by(status=0).count()
     if g.user is not None and g.user.is_authenticated:
@@ -91,6 +100,7 @@ def active():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
+    add_onmove(active)
     return render_template(
         "games.html", games=active, uid=g.user.id, board=g.user.board
     )
@@ -110,6 +120,7 @@ def archive():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
+    add_onmove(archive)
     return render_template("archive.html", games=archive, board=g.user.board)
 
 
@@ -402,6 +413,8 @@ def admin_games():
                 .order_by(TriBoard.modified_at.desc())
                 .all()
             )
+            add_onmove(active)
+            add_onmove(archive)
             return render_template(
                 "admin-games.html", available=available, active=active, archive=archive
             )

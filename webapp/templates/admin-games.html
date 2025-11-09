@@ -56,44 +56,43 @@
     </thead>
     <tbody>
         {% for game in active %}
-        {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
         <form action=""{{ url_for('admin_games') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
-        {% if onmove == 0 %}
+        {% if game.onmove == 0 %}
         <td><strong class="text-success">{{game.player_0.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_0.username}}</strong></td>
         {% endif %}
         {% else %}
-        {% if onmove == 0 %}
+        {% if game.onmove == 0 %}
         <td><span class="text-success">{{game.player_0.username}}</span></td>
         {% else %}
         <td><span>{{game.player_0.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_1.id == game.owner_id %}
-        {% if onmove == 1 %}
+        {% if game.onmove == 1 %}
         <td><strong class="text-success">{{game.player_1.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_1.username}}</strong></td>
         {% endif %}
         {% else %}
-        {% if onmove == 1 %}
+        {% if game.onmove == 1 %}
         <td><span class="text-success">{{game.player_1.username}}</span></td>
         {% else %}
         <td><span>{{game.player_1.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_2.id == game.owner_id %}
-        {% if onmove == 2 %}
+        {% if game.onmove == 2 %}
         <td><strong class="text-success">{{game.player_2.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_2.username}}</strong></td>
         {% endif %}
         {% else %}
-        {% if onmove == 2 %}
+        {% if game.onmove == 2 %}
         <td><span class="text-success">{{game.player_2.username}}</span></td>
         {% else %}
         <td><span>{{game.player_2.username}}</span></td>
@@ -115,44 +114,43 @@
     </thead>
     <tbody>
         {% for game in archive %}
-        {% set onmove = (game.slog|length // 4) % 3 %}
         <tr>
         <form action=""{{ url_for('admin_games') }}"" method="post" class="form" role="form">
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
-        {% if onmove == 0 %}
+        {% if game.onmove == 0 %}
         <td><strong class="text-danger">{{game.player_0.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_0.username}}</strong></td>
         {% endif %}
         {% else %}
-        {% if onmove == 0 %}
+        {% if game.onmove == 0 %}
         <td><span class="text-danger">{{game.player_0.username}}</span></td>
         {% else %}
         <td><span>{{game.player_0.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_1.id == game.owner_id %}
-        {% if onmove == 1 %}
+        {% if game.onmove == 1 %}
         <td><strong class="text-danger">{{game.player_1.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_1.username}}</strong></td>
         {% endif %}
         {% else %}
-        {% if onmove == 1 %}
+        {% if game.onmove == 1 %}
         <td><span class="text-danger">{{game.player_1.username}}</span></td>
         {% else %}
         <td><span>{{game.player_1.username}}</span></td>
         {% endif %}
         {% endif %}
         {% if game.player_2.id == game.owner_id %}
-        {% if onmove == 2 %}
+        {% if game.onmove == 2 %}
         <td><strong class="text-danger">{{game.player_2.username}}</strong></td>
         {% else %}
         <td><strong>{{game.player_2.username}}</strong></td>
         {% endif %}
         {% else %}
-        {% if onmove == 2 %}
+        {% if game.onmove == 2 %}
         <td><span class="text-danger">{{game.player_2.username}}</span></td>
         {% else %}
         <td><span>{{game.player_2.username}}</span></td>

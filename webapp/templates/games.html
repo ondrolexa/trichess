@@ -17,14 +17,13 @@
   </thead>
   <tbody>
     {% for game in games %}
-    {% set onmove = (game.slog|length // 4) % 3 %}
-    {% if onmove == 0 %}
+    {% if game.onmove == 0 %}
     {% if game.player_0.id == uid %}
     <tr class="table-active">
     {% else %}
     <tr>
     {% endif %}
-    {% elif onmove == 1 %}
+    {% elif game.onmove == 1 %}
     {% if game.player_1.id == uid %}
     <tr class="table-active">
     {% else %}
@@ -38,17 +37,17 @@
     {% endif %}
     {% endif %}
     <th scope="row">{{game.id}}</th>
-    {% if onmove == 0 %}
+    {% if game.onmove == 0 %}
     <td><strong class="text-success">{{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})</strong></td>
     {% else %}
     <td><span>{{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})</span></td>
     {% endif %}
-    {% if onmove == 1 %}
+    {% if game.onmove == 1 %}
     <td><strong class="text-success">{{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})</strong></td>
     {% else %}
     <td><span>{{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})</span></td>
     {% endif %}
-    {% if onmove == 2 %}
+    {% if game.onmove == 2 %}
     <td><strong class="text-success">{{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})</strong></td>
     {% else %}
     <td><span>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})</span></td>
