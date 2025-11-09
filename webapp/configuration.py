@@ -24,3 +24,7 @@ class DevelopmentConfig(Config):
 
 class TestingConfig(Config):
     TESTING = True
+
+
+class Scheduler:
+    SCHEDULER_API_ENABLED = True

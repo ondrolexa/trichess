@@ -1,4 +1,3 @@
-import requests
 from flask import Blueprint
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
@@ -6,7 +5,7 @@ from sqlalchemy import and_, func
 from sqlalchemy.orm import aliased
 
 from engine import GameAPI
-from webapp.main import app, db
+from webapp.main import db, post_notification
 from webapp.models import Score, TriBoard, User
 
 blueprint = Blueprint("api", __name__)
@@ -16,28 +15,6 @@ api = Api(blueprint, version="1.0", title="TriChess API")
 authorizations = {
     "jsonWebToken": {"type": "apiKey", "in": "header", "name": "Authorization"}
 }
-
-
-# notifications
-def post_notification(username, text, title, gameid, board):
-    if board == "ondro":
-        click = f"https://trichess.mykuna.eu/playlx/{gameid}"
-    else:
-        click = f"https://trichess.mykuna.eu/play/{gameid}"
-    try:
-        requests.post(
-            f"https://ntfy.mykuna.eu/trichess_{username}",
-            data=text.encode("utf-8"),
-            headers={
-                "Title": title,
-                "Click": click,
-            },
-        )
-    except requests.exceptions.ConnectionError:
-        pass
-
-    except Exception as err:
-        print(f"Unexpected post notification {err=}, {type(err)=}")
 
 
 # rating update
@@ -606,14 +583,13 @@ class GameBoard(Resource):
                                     )
                                     db.session.add(new_score)
                                     # notify
-                                    if not app.debug:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"Draw agreed in game {state.id}",
-                                            "Game over",
-                                            state.id,
-                                            user.board,
-                                        )
+                                    post_notification(
+                                        players[uid].username,
+                                        f"Draw agreed in game {state.id}",
+                                        "Game over",
+                                        state.id,
+                                        user.board,
+                                    )
                             elif ga2.resignation():
                                 resigned = ga2.voting.results(kind="resign")
                                 uid = set([0, 1, 2]).difference(resigned).pop()
@@ -624,22 +600,21 @@ class GameBoard(Resource):
                                 )
                                 db.session.add(new_score)
                                 # notify
-                                if not app.debug:
+                                post_notification(
+                                    players[uid].username,
+                                    f"You win in game {state.id} by resignation",
+                                    "Game over",
+                                    state.id,
+                                    user.board,
+                                )
+                                for uid in resigned:
                                     post_notification(
                                         players[uid].username,
-                                        f"You win in game {state.id} by resignation",
+                                        f"You lost in game {state.id} by resignation",
                                         "Game over",
                                         state.id,
                                         user.board,
                                     )
-                                    for uid in resigned:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"You lost in game {state.id} by resignation",
-                                            "Game over",
-                                            state.id,
-                                            user.board,
-                                        )
                             elif in_chess:
                                 tot = [len(p) for p in who.values()]
                                 for uid, v in enumerate(tot):
@@ -651,23 +626,21 @@ class GameBoard(Resource):
                                             score=score,
                                         )
                                         db.session.add(new_score)
-                                        if not app.debug:
-                                            post_notification(
-                                                players[uid].username,
-                                                f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score:g}",
-                                                "Game over",
-                                                state.id,
-                                                user.board,
-                                            )
+                                        post_notification(
+                                            players[uid].username,
+                                            f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score:g}",
+                                            "Game over",
+                                            state.id,
+                                            user.board,
+                                        )
                                 # notify
-                                if not app.debug:
-                                    post_notification(
-                                        players[ga2.on_move].username,
-                                        f"You lost in game {state.id}",
-                                        "Game over",
-                                        state.id,
-                                        user.board,
-                                    )
+                                post_notification(
+                                    players[ga2.on_move].username,
+                                    f"You lost in game {state.id}",
+                                    "Game over",
+                                    state.id,
+                                    user.board,
+                                )
                             else:
                                 for uid in players:
                                     new_score = Score(
@@ -676,24 +649,22 @@ class GameBoard(Resource):
                                         score=2.0 / 3,
                                     )
                                     db.session.add(new_score)
-                                    if not app.debug:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"The game {state.id} ended in a stalemate",
-                                            "Game over",
-                                            state.id,
-                                            user.board,
-                                        )
+                                    post_notification(
+                                        players[uid].username,
+                                        f"The game {state.id} ended in a stalemate",
+                                        "Game over",
+                                        state.id,
+                                        user.board,
+                                    )
                         else:
                             # notify next player
-                            if not app.debug:
-                                post_notification(
-                                    players[ga2.on_move].username,
-                                    f"It's your turn in game {state.id}",
-                                    "Your turn",
-                                    state.id,
-                                    user.board,
-                                )
+                            post_notification(
+                                players[ga2.on_move].username,
+                                f"It's your turn in game {state.id}",
+                                "Your turn",
+                                state.id,
+                                user.board,
+                            )
                         db.session.commit()
                         recalculate_rating()
                     else:
