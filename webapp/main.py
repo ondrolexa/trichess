@@ -97,7 +97,7 @@ class SchedulerConfig:
             "id": "resend",
             "func": resend_notification,
             "trigger": "interval",
-            "seconds": 3600,
+            "seconds": 86400,
         }
     ]
 
