@@ -20,42 +20,40 @@
     </div>
 </div>
 
-<div id="myModal" class="modal1">
-<!-- Modal content -->
+<div id="myModal" class="modalwait">
     <div class="modal-conxtent">
-        <span class="close">&times;</span>
         <p>GAME OVER!!!</p>
     </div>
 </div>
 
-<div id="waitingMsg" class="modal1">
-<!-- Modal content -->
-    <div class="1">
-        <span class="close">&times;</span>
-        <p>Waiting for connection...</p>
-    </div>
+<div id="waitingMsg" class="modalwait">
+        <p>"Waiting<br/>for<br/>connection..."</p>
 </div>
 
-<div class="modal fade" id="voteDialog" tabindex="-1" role="dialog" data-bs-keyboard="false" data-bs-backdrop="static" >
-  <div class="modal-dialog" >
-    <div >
-      <div class="pokus">
-        <h5 class="modal-title" >Game <span id="voteKind1"></span> voting</h5>
+<div class="modal" id="voteDialog" tabindex="-1">
+  <div class="modal-dialog ">
+    <div class="modal-content">
+      <div class="modal-header">
+          <div class="col-sm-11 text-center">
+            <h5 class="modal-title">Game <span id="voteKind1"></span> voting</h5>
+          </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="pokus">
-        <p><strong><span id="votePlayers"></span></strong><br></p>
+      <div class="modal-body text-center">
+        <h4><strong><span id="votePlayers"></span></strong><br></h4>
         <hr>
-        <h5 class="modal-title" onclick="Click_Cancel()">For game <span id="voteKind2"></span> all players must accept</h5>
+        <h6 class="modal-title" onclick="Click_Cancel()">For game <span id="voteKind2"></span> all players must <span id="acceptVote"></span></h6>
       </div>
-      <div class="modal-content">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="Click_Cancel()">Chancel</button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="Click_Vote(false)">Decline</button>
-        <button type="button" class="btn btn-primary"  data-bs-dismiss="modal" onclick="Click_Vote(true)">Accept</button>
+      <div class="modal-footer">
+          <div class="col-sm-12 text-center">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="Click_Cancel()">Chancel</button>
+              <button type="button" class="btn btn-danger" data-bs-dismiss="modal" onclick="Click_Vote(false)">Decline</button>
+              <button type="button" class="btn btn-success"  data-bs-dismiss="modal" onclick="Click_Vote(true)">Accept</button>
+          </div>
       </div>
     </div>
   </div>
 </div>
-
 
 
 {%endblock%}

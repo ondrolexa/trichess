@@ -3,15 +3,6 @@ canvas0.addEventListener('mouseclick', Click_Board);
 
 const canW = canvas0.width
 const canH = canvas0.   height
-
-//canvas0.style.width = canvas0.width*scale  + 'px';
-//canvas0.style.height = canvas0.height*scale + 'px';
-//window.onresize = function(){var scale =  (canvas0.clientWidth / 800)
-//                            canvas0.style.width = canvas0.width*scale  + 'px';
-//                            canvas0.style.height = canvas0.height*scale + 'px';
-//                            window.location.reload()
-//                            };
-
 const ctx0 = canvas0.getContext('2d');
 ctx0.lineCap = 'round';
 
@@ -839,7 +830,7 @@ function Step_3_setelim_board_and_draw(idata) {
         }
     //}, 0)
 
-    if (B.finished) {
+    if (B.finished || B.vote_results_kind == 'resign'|| B.vote_results_kind == 'draw') {
         // todo
         var name = II.players[B.onmove]
         var modal = document.getElementById("myModal");
@@ -915,12 +906,17 @@ function window_vote(ikind,itext) {
     const vp = document.getElementById("votePlayers")
     const vk1 = document.getElementById("voteKind1")
     const vk2 = document.getElementById("voteKind2")
+    const av = document.getElementById("acceptVote")
     vp.innerHTML = itext.join("<br>")
     vk1.innerHTML = ikind
     vk2.innerHTML = ikind
+    if (ikind == 'draw') {
+        av.innerHTML = 'accept'
+    }
+    else {
+        av.innerHTML = 'vote'
+    }
     modalDraw.show()
-    //modalDraw.disabled = true;
-    //document.getElementById("voteDrawDialog").style.display = "none";
 }
 
 // Click ////////////////////////////////////////////////////////////////////////////////
@@ -1040,4 +1036,3 @@ B.init();
 B.draw_tile();
 II.write()
 Step_1_settoken()
-
