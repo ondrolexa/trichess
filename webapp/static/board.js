@@ -30,10 +30,9 @@ const button_color = '#919595';
 // todo vsetky konstanty vytiahnut sem
 let SemaforGreen = true
 let SemaforWait = false
-let SemaforVoteDraw = true //todo
 // tools /////////////////////////////////////////////
 function wait_msg(yes) {
-    var modal = document.getElementById("myModal2")
+    var modal = document.getElementById("waitingMsg")
     if (yes) {
         SemaforWait = true
         setTimeout(function (){
@@ -330,16 +329,26 @@ class iinfos {
         this.panel[3].lines[1].text = 'Game ID: '+ID.toString()
         if ( idata.vote_results != null ) {
             let verb = ' offers '
+            let j = 0
+            let vc = 0  // vote count
             for (let i = 0; i < 3 ; i++) {
-                if (idata.vote_results[i] == 'A') {
-                    this.panel[3].lines[4-i].text = this.players[i] + verb + idata.vote_results.kind+' .'
-                    verb = ' accepts '
+                if (idata.vote_results[i] != "X") {
+                    vc++
                 }
-                else if (idata.vote_results[i] == 'D') {
-                    this.panel[3].lines[4-i].text = this.players[i] + ' declines ' +idata.vote_results.kind+' .'
+            }
+            let index2 = rotateArray([0,1,2], idata.onmove-vc ) //todo
+            for (let i = 0; i < 3 ; i++) {
+                if (idata.vote_results[index2[i]] == 'A') {
+                    this.panel[3].lines[4-j].text = this.players[index2[i]] + verb + idata.vote_results.kind+' .'
+                    verb = ' accepts '
+                    j++
+                }
+                else if (idata.vote_results[index2[i]] == 'D') {
+                    this.panel[3].lines[4-j].text = this.players[index2[i]] + ' declines ' +idata.vote_results.kind+' .'
+                    j++
                 }
                 else {
-                    //this.panel[3].lines[4-i].text = this .players[i]+' XXXX'
+                    //this.panel[3].lines[4-i].text = this .players[index2[i]]+' XXXX'
                 }
             }
         }
@@ -541,6 +550,9 @@ class board {
         this.hist_changed =  false;
         this.border = []
         this.bishop_elim = []
+        this.slog_pointer = -1
+        this.vote_needed = false
+        this.vote_results_kind = 'x'
     }
     init() {
         let cnt = 0;
@@ -577,22 +589,24 @@ class board {
         }
         this.bishop_elim = c
     }
-
-
     set(idata) {
         const jdata = idata;
-        this.move_number =  jdata.move_number;
+        this.move_number =  jdata.move_number //this.slog.length/4//jdata.move_number;
         this.finished = jdata.finished;
         this.onmove = jdata.onmove;
+        this.vote_needed = jdata.vote_needed
+        if (jdata.vote_results != null) {
+            this.vote_results_kind= jdata.vote_results.kind
+        }
         if (jdata.last_move != null) {
             this.last_move_from =  jdata.last_move.from
             this.last_move_to =  jdata.last_move.to
         }
         if (this.move_number_org == -1) {
-            this.move_number_org = jdata.move_number;
+            this.move_number_org = jdata.move_number //this.slog.length/4//jdata.move_number;
         }
         if (this.move_number_max == -1) {
-            this.move_number_max = jdata.move_number;
+            this.move_number_max = jdata.move_number //this.slog.length/4 //jdata.move_number;
         }
         for (let z= 0; z < 169; z++) {   // clear
             this.hexs[z].set({"piece":"", "player_id":-1})
@@ -707,12 +721,16 @@ class board {
     this.gid_new = r_i;
     return this.gid_new;
 };
+    getSlog() {
+        let slog = this.slog.substr(0,this.slog_pointer*4)
+        return slog
+    }
     // move ---------------------------------------------
     moveValid() {
         if (!(this.hexs[this.gid_new].piece.piece != undefined && this.hexs[this.gid_new].piece.player_id == this.onmove)) {
             return
         }
-        F.fetchPOST(url+'/api/v1/move/valid', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_new}, Step_valid_moves);
+        F.fetchPOST(url+'/api/v1/move/valid', {"slog":  this.getSlog(), "view_pid": this.view_player, "gid": this.gid_new}, Step_valid_moves);
     }
     moveMake(inew_piece = "") {
         if (this.gid_old == -1 || this.gid_old == this.gid_new)  {return}
@@ -722,7 +740,7 @@ class board {
         if (!(this.hexs[this.gid_new].valid_flag)) {
             return;
         }
-        F.fetchPOST(url+'/api/v1/move/make', {"slog": this.slog.substring(0,this.move_number*4), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new, "new_piece": inew_piece}, Step_make_move);
+        F.fetchPOST(url+'/api/v1/move/make', {"slog": this.getSlog(), "view_pid": this.view_player, "gid": this.gid_old, "tgid": this.gid_new, "new_piece": inew_piece}, Step_make_move);
     }
 }
 // Button ////////////////////////////////////////////////////////////////////////////////
@@ -761,12 +779,14 @@ function elim2array(idata) {
 }
 function Step_make_move(idata) {
          B.slog = idata.slog;
+         B.slog_pointer = idata.slog.length/4
          B.hexs[B.gid_old].piece.piece = "";
          B.hexs[B.gid_old].piece.player_id = -1;
          if (B.move_number_org > B.move_number) {
              B.hist_changed =  true;
          }
          B.move_number_max = B.move_number+1;
+         B.slog_pointer = B.slog_pointer+1;
          F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player}, Step_3_setelim_board_and_draw);
 }
 function Step_valid_moves(idata) {
@@ -792,16 +812,17 @@ function Step_2_setplayers(idata) {
     B.view_player = (idata.view_pid)%3
     B.view_player_org = (idata.view_pid)%3
     B.slog = idata.slog
+    B.slog_pointer = idata.slog.length/4
     F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
-
+function Step_5_game_info() {
+    F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
+}
 function Step_4_set_votedraw(idata) {
     B.slog = idata.slog
-    F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.slog},function () {} )
-    F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
-    SemaforVoteDraw = false
+    B.slog_pointer = idata.slog.length/4
+    F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.slog}, Step_5_game_info )
 }
-
 function Step_3_setelim_board_and_draw(idata) {
     B.set(idata);
     B.draw_tile();
@@ -809,22 +830,13 @@ function Step_3_setelim_board_and_draw(idata) {
     II.clear()
     II.set(idata);
     II.write()
-    //draw_piece_common( "K", i_lineWidth = epiece_lineWidth, i_lineColor = "#000000", i_fillColor = "#dddd00", 800, 400, 20)
-    //draw_piece_common( "K", i_lineWidth = epiece_lineWidth, i_lineColor = "#000000", i_fillColor = "#dddd00", 800, 400, -20)
     button_control()
     //setTimeout(function (){
-    if ( idata.vote_needed && B.view_player_org == B.onmove) {
-        let msg = ''
-        for (let i = 0; i < 3 ; i++) {
-                msg =  msg + II.panel[3].lines[4-i].text+'\n'
+    if ( idata.vote_needed && B.view_player_org == B.onmove && B.slog_pointer == B.slog.length/4) {
+        const msg = II.panel[3].lines.map(({ text }) => text)
+        const msg1 = msg.reverse().slice(2,5)
+        window_vote(B.vote_results_kind , msg1)
         }
-        if (window.confirm(msg)) {
-            Click_Draw_Accept()
-        }
-        else {
-             Click_Draw_Decline()
-        }
-    }
     //}, 0)
 
     if (B.finished) {
@@ -835,9 +847,21 @@ function Step_3_setelim_board_and_draw(idata) {
             modal.style.color = theme["pieces"]["color"][(B.onmove+2)%3]
             modal.innerHTML = "GAME OVER <br>"+name+" lost :-("
             }
-        else if (idata.vote_results.kind == 'draw') {
+        else if (B.vote_results_kind == 'draw') {
             modal.style.color = theme["canvas"]["name_onmove"]
-            modal.innerHTML = "GAME OVER <br> draw"
+            let msg = "GAME OVER <br> draw<br>"
+            for (let i = 0; i < 3 ; i++) {
+                msg = msg + II.panel[3].lines[4-i].text+'<br>'
+            }
+            modal.innerHTML = msg
+            }
+        else if (B.vote_results_kind == 'resign') {
+            modal.style.color = theme["canvas"]["name_onmove"]
+            let msg = "GAME OVER <br> resign<br>"
+            for (let i = 0; i < 3 ; i++) {
+                msg = msg + II.panel[3].lines[4-i].text+'<br>'
+            }
+            modal.innerHTML = msg
             }
         else {
             let  a=1
@@ -850,9 +874,8 @@ function Step_3_setelim_board_and_draw(idata) {
         }
     }
 }
-
 function button_control() {
-        if (B.move_number_org == B.move_number && B.view_player_org == B.onmove && SemaforVoteDraw) {
+        if (B.move_number_org == B.move_number && B.view_player_org == B.onmove ) {  //&& SemaforVoteDraw
             b_dr.disabled = false;
             b_rs.disabled = false;
         }
@@ -877,7 +900,7 @@ function button_control() {
             b_bw.disabled = false;
         }
         b_bw.update()
-        if (B.move_number_max == B.move_number) {
+        if (B.slog_pointer == B.slog.length/4) {
             b_fw.disabled = true;
         }
         else {
@@ -885,36 +908,54 @@ function button_control() {
         }
         b_fw.update()
 }
-// Click ////////////////////////////////////////////////////////////////////////////////
-function Click_Draw() {
-    if (window.confirm("Do you want to offer the draw? ")) {
-         let a = 1
-         F.fetchPOST(url+'/api/v1/vote/draw', {"slog": B.slog, "view_pid": B.view_player, "vote":true }, Step_4_set_votedraw )
-    }
-}
-function Click_Draw_Accept() {
-    F.fetchPOST(url+'/api/v1/vote/draw', {"slog": B.slog, "view_pid": B.view_player, "vote":true }, Step_4_set_votedraw )
-    //SemaforVoteDraw = true
-}
-function Click_Draw_Decline() {
-    F.fetchPOST(url+'/api/v1/vote/draw', {"slog": B.slog, "view_pid": B.view_player, "vote":false }, Step_4_set_votedraw )
-    //SemaforVoteDraw = true
+
+function window_vote(ikind,itext) {
+    //var modal = document.getElementById("voteDrawDialog");
+    const modalDraw = new bootstrap.Modal(document.getElementById("voteDialog"))
+    const vp = document.getElementById("votePlayers")
+    const vk1 = document.getElementById("voteKind1")
+    const vk2 = document.getElementById("voteKind2")
+    vp.innerHTML = itext.join("<br>")
+    vk1.innerHTML = ikind
+    vk2.innerHTML = ikind
+    modalDraw.show()
+    //modalDraw.disabled = true;
+    //document.getElementById("voteDrawDialog").style.display = "none";
 }
 
-function Click_Backward() {
-    B.move_number = B.move_number -1
-    let slog = B.slog.substring(0,B.move_number*4)
+// Click ////////////////////////////////////////////////////////////////////////////////
+function Click_Cancel() {
+ }
+function Click_Vote(ivalue)   {
+    if ( !B.vote_needed &&  !ivalue) {
+        return //chncel decline
+    }
+    F.fetchPOST(url+'/api/v1/vote/'+B.vote_results_kind, {"slog": B.slog, "view_pid": B.view_player, "vote":ivalue }, Step_4_set_votedraw )
+}
+function Click_Draw() {
+    B.vote_results_kind = 'draw'
+    window_vote('draw', ["Do you want to offer the draw?"])
+}
+function Click_Resign() {
+    B.vote_results_kind = 'resign'
+    window_vote('resign', ["Do you want to offer the resignation?"])
+}
+function Click_Backward() { //todo
+    B.slog_pointer = B.slog_pointer-1
+    let slog = B.slog.substr(0,B.slog_pointer*4)
+    //let slog = SlogBack(B.slog)
     F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
-function Click_Forward() {
-    B.move_number = B.move_number +1
-    let slog = B.slog.substring(0,B.move_number*4)
+function Click_Forward() { //todo
+    B.slog_pointer = B.slog_pointer+1
+    let slog = B.slog.substr(0,B.slog_pointer*4)
     F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Click_OK() {
     if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 ) {
     //if (B.move_number_org == B.move_number-1 && 0 == (B.onmove+2)%3 ) {
-        F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.slog.substring(0,B.move_number*4)},function () {} );
+        B.slog_pointer = B.move_number+1;
+        F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.getSlog()},function () {} );
     }
     B.move_number_org = -1
     B.move_number_max = -1
@@ -929,17 +970,13 @@ function Click_Refresh()    {
     F.fetchGET(url+'/api/v1/manager/board?id='+ID.toString(), Step_2_setplayers)
 };
 function Click_Rotate() {
-    let slog = B.slog.substring(0,B.move_number*4)
+    let slog = B.getSlog()
     B.view_player = (B.view_player+1)%3
     F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
 function Click_CloseModal() {
-
     document.getElementById("myModal").style.display = "none";
 }
-
-
-
 function Click_Board(event) {
     function getMouesPosition(e) {
         var mouseX = e.offsetX * canvas0.width / canvas0.clientWidth | 0;

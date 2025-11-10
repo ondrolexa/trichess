@@ -20,21 +20,43 @@
     </div>
 </div>
 
-<div id="myModal" class="modal">
+<div id="myModal" class="modal1">
 <!-- Modal content -->
-    <div class="modal-content">
+    <div class="modal-conxtent">
         <span class="close">&times;</span>
         <p>GAME OVER!!!</p>
     </div>
 </div>
 
-<div id="myModal2" class="modal">
+<div id="waitingMsg" class="modal1">
 <!-- Modal content -->
-    <div class="modal-content">
+    <div class="1">
         <span class="close">&times;</span>
         <p>Waiting for connection...</p>
     </div>
 </div>
+
+<div class="modal fade" id="voteDialog" tabindex="-1" role="dialog" data-bs-keyboard="false" data-bs-backdrop="static" >
+  <div class="modal-dialog" >
+    <div >
+      <div class="pokus">
+        <h5 class="modal-title" >Game <span id="voteKind1"></span> voting</h5>
+      </div>
+      <div class="pokus">
+        <p><strong><span id="votePlayers"></span></strong><br></p>
+        <hr>
+        <h5 class="modal-title" onclick="Click_Cancel()">For game <span id="voteKind2"></span> all players must accept</h5>
+      </div>
+      <div class="modal-content">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="Click_Cancel()">Chancel</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="Click_Vote(false)">Decline</button>
+        <button type="button" class="btn btn-primary"  data-bs-dismiss="modal" onclick="Click_Vote(true)">Accept</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 
 {%endblock%}
 
@@ -45,6 +67,6 @@ var ID = parseInt("{{ id }}");
 const theme = JSON.parse('{{ theme|tojson }}');
 const pieces_paths = JSON.parse('{{ pieces_paths|tojson }}');
 </script>
-</script>
+
 <script type="text/javascript" src="{{ url_for('static', filename='board.js') }}"></script>
 {% endblock %}
