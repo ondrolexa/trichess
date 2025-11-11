@@ -13,18 +13,5 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = True
 
 
-class ProductionConfig(Config):
-    SQLALCHEMY_DATABASE_URI = "mysql://user@localhost/foo"
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-
-class DevelopmentConfig(Config):
-    DEBUG = True
-
-
-class TestingConfig(Config):
-    TESTING = True
-
-
 class Scheduler:
     SCHEDULER_API_ENABLED = True
