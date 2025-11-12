@@ -8,7 +8,7 @@
 <!-- The Modal -->
 
 <div id="main" class="divmain">
-    <canvas id="canvas" width="4320" height="2180"  onclick="Click_Board(event)" ></canvas>
+    <canvas id="canvas" width="4320" height="2180" width="4320" onclick="Click_Board(event)"></canvas>
     <div class="divbutt" onclick="Click_CloseModal()">
         <button id="b_dr" class="button"  onclick="Click_Draw()">Draw</button>
         <button id="b_rs" class="button"  onclick="Click_Resign()">Resignation</button>
@@ -18,16 +18,6 @@
         <button id="b_rt" class="button"  onclick="Click_Rotate()">Rotate</button>
         <button id="b_ok" class="button"  onclick="Click_OK()">OK</button>
     </div>
-</div>
-
-<div id="myModal" class="modalwait">
-    <div class="modal-conxtent">
-        <p>GAME OVER!!!</p>
-    </div>
-</div>
-
-<div id="waitingMsg" class="modalwait">
-        <p>"Waiting<br/>for<br/>connection..."</p>
 </div>
 
 <div class="modal" id="voteDialog" tabindex="-1">
@@ -55,6 +45,32 @@
   </div>
 </div>
 
+<div class="modal" id="gameOver" tabindex="-1">
+  <div class="modal-dialog ">
+    <div class="modal-content">
+      <div class="modal-header">
+          <div class="col-sm-11 text-center">
+          </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+        <div class="modal-body text-center">
+            <h1><strong><span id="gameOverText" >GAME OVER !!!</span></strong><br></h1>
+            <hr>
+            <h2><strong><span id="goVotePlayers"></span></strong><br></h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="waitingMsg" tabindex="-1">
+  <div class="modal-dialog ">
+    <div class="modal-content">
+        <div class="modal-body text-center">
+            <h1><strong><span id="waitingText">Waiting<br/>for<br/>connection...</span></strong></h1>
+        </div>
+    </div>
+  </div>
+</div>
 
 {%endblock%}
 

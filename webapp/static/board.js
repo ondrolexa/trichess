@@ -28,10 +28,10 @@ function wait_msg(yes) {
         SemaforWait = true
         setTimeout(function (){
             if ( SemaforWait ) {
-                modal.style.color = theme["canvas"]["name_inchess"]
-                modal.innerHTML = "Waiting<br/>for<br/>connection..."
-                modal.style.fontSize = "40px"
-                modal.style.display = "block";
+                const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"))
+                const tx = document.getElementById("waitingText")
+                tx.style.color = theme["canvas"]["name_inchess"]
+                modal_wt.show()
             }
         }, 1000);
     }
@@ -383,6 +383,11 @@ class iinfos {
         for (let i = 0; i < 4; i++) { //draw hex tile
             this.panel[i].clear()
         }
+    }
+    getVoteHist() {
+        const msg = this.panel[3].lines.map(({ text }) => text)
+        const msg1 = msg.reverse().slice(2,5)
+        return msg1.join("<br>")
     }
 }
 // hex ///////////////////////////////////////////////////
@@ -824,45 +829,28 @@ function Step_3_setelim_board_and_draw(idata) {
     button_control()
     //setTimeout(function (){
     if ( idata.vote_needed && B.view_player_org == B.onmove && B.slog_pointer == B.slog.length/4) {
-        const msg = II.panel[3].lines.map(({ text }) => text)
-        const msg1 = msg.reverse().slice(2,5)
-        window_vote(B.vote_results_kind , msg1)
+        window_vote(B.vote_results_kind , II.getVoteHist())
         }
     //}, 0)
-
-    if (B.finished || B.vote_results_kind == 'resign'|| B.vote_results_kind == 'draw') {
-        // todo
-        var name = II.players[B.onmove]
-        var modal = document.getElementById("myModal");
+        if (B.finished ) {
+            var name = II.players[B.onmove]
+            const modal_go = new bootstrap.Modal(document.getElementById("gameOver"))
+            const vp = document.getElementById("goVotePlayers")
+            //const a =  document.querySelectorAll('.modalwait')[0].style
+            //const b =  document.getElementById("gameOverText").style.cssText
         if (idata.vote_results == null) {
-            modal.style.color = theme["pieces"]["color"][(B.onmove+2)%3]
-            modal.innerHTML = "GAME OVER <br>"+name+" lost :-("
+            vp.innerHTML = "<br>"+name+" lost :-("
+            //vp.style.color = theme["pieces"]["color"][(B.onmove+2)%3]
+            //vp.style.backgroundColor = "#000000"
             }
-        else if (B.vote_results_kind == 'draw') {
-            modal.style.color = theme["canvas"]["name_onmove"]
-            let msg = "GAME OVER <br> draw<br>"
-            for (let i = 0; i < 3 ; i++) {
-                msg = msg + II.panel[3].lines[4-i].text+'<br>'
-            }
-            modal.innerHTML = msg
-            }
-        else if (B.vote_results_kind == 'resign') {
-            modal.style.color = theme["canvas"]["name_onmove"]
-            let msg = "GAME OVER <br> resign<br>"
-            for (let i = 0; i < 3 ; i++) {
-                msg = msg + II.panel[3].lines[4-i].text+'<br>'
-            }
-            modal.innerHTML = msg
+        else if (B.vote_results_kind == 'draw' || B.vote_results_kind == 'resign') {
+            const modal_go = new bootstrap.Modal(document.getElementById("gameOver"))
+            vp.innerHTML = II.getVoteHist()
+            modal_go.show()
             }
         else {
-            let  a=1
             }
-        modal.style.display = "block";
-        window.onclick = function(event) {
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
-        }
+        modal_go.show()
     }
 }
 function button_control() {
@@ -907,7 +895,7 @@ function window_vote(ikind,itext) {
     const vk1 = document.getElementById("voteKind1")
     const vk2 = document.getElementById("voteKind2")
     const av = document.getElementById("acceptVote")
-    vp.innerHTML = itext.join("<br>")
+    vp.innerHTML = itext
     vk1.innerHTML = ikind
     vk2.innerHTML = ikind
     if (ikind == 'draw') {
@@ -970,9 +958,6 @@ function Click_Rotate() {
     B.view_player = (B.view_player+1)%3
     F.fetchPOST(url+'/api/v1/game/info', {"slog": slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
 }
-function Click_CloseModal() {
-    document.getElementById("myModal").style.display = "none";
-}
 function Click_Board(event) {
     function getMouesPosition(e) {
         var mouseX = e.offsetX * canvas0.width / canvas0.clientWidth | 0;
@@ -983,7 +968,6 @@ function Click_Board(event) {
     if (SemaforGreen) {
         SemaforGreen = false;
         const bounds = canvas0.getBoundingClientRect()
-        Click_CloseModal()
         let x = pos.x
         let y = pos.y
         //if pieces window is open
@@ -1036,3 +1020,4 @@ B.init();
 B.draw_tile();
 II.write()
 Step_1_settoken()
+
