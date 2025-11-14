@@ -11,16 +11,15 @@
     min-width: 100px;
 }
 .divbutt {
-    width: 10%;
+    width: 12%;
     display: flex;
     margin-top: 10px;
-    flex-wrap: wrap;
     min-width: 60px;
     max-width: 1200px;
-    justify-content: center;
+
 }
 #canvas {
-    width: 90%;
+    width: 88%;
     justify-content: left;
     min-width: 200px;
     max-width: 4320px;

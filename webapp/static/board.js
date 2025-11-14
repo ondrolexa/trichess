@@ -33,13 +33,13 @@ function wait_msg(yes) {
                 tx.style.color = theme["canvas"]["name_inchess"]
                 modal_wt.show()
             }
-        }, 1000);
+        }, 500);
     }
     else {
-        setTimeout(function (){
+        //setTimeout(function (){
                 SemaforWait = false
                 modal.style.display = "none";
-        }, 0);
+        //}, 0);
     }
  }
 function debug(itext) {
@@ -330,12 +330,12 @@ class iinfos {
             let index2 = rotateArray([0,1,2], idata.onmove-vc ) //todo
             for (let i = 0; i < 3 ; i++) {
                 if (idata.vote_results[index2[i]] == 'A') {
-                    this.panel[3].lines[4-j].text = this.players[index2[i]] + verb + idata.vote_results.kind+' .'
+                    this.panel[3].lines[4-j].text = this.players[index2[i]] + verb + idata.vote_results.kind+'.'
                     verb = ' accepts '
                     j++
                 }
                 else if (idata.vote_results[index2[i]] == 'D') {
-                    this.panel[3].lines[4-j].text = this.players[index2[i]] + ' declines ' +idata.vote_results.kind+' .'
+                    this.panel[3].lines[4-j].text = this.players[index2[i]] + ' declines ' +idata.vote_results.kind+'.'
                     j++
                 }
                 else {
@@ -748,12 +748,12 @@ class butt {
 }
     update = function() {
         if (this.disabled) {
-            document.getElementById(this.id).style.backgroundColor = '#c9c9d9'//button_color;
+            //document.getElementById(this.id).style.backgroundColor = '#c9c9d9'//button_color;
             document.getElementById(this.id).disabled = true;
             //document.getElementById(this.id).cursor = 'not-allowed';
         }
         else {
-        document.getElementById(this.id).style.backgroundColor = this.color_enable;//'#d9d9d9' //this.color_enable;
+        //document.getElementById(this.id).style.backgroundColor = this.color_enable;//'#d9d9d9' //this.color_enable;
         document.getElementById(this.id).disabled = false;
         }
     }
@@ -867,9 +867,11 @@ function button_control() {
 
         if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 && !(B.hist_changed)) {
             b_ok.disabled = false;
+            document.getElementById("b_ok").style.backgroundColor = theme["canvas"]["name_onmove"]
         }
         else {
             b_ok.disabled = true;
+            document.getElementById("b_ok").style.backgroundColor = "#6c757d"
         }
         b_ok.update()
         if (B.move_number == 0) {
@@ -888,7 +890,7 @@ function button_control() {
         b_fw.update()
 }
 
-function window_vote(ikind,itext) {
+    function window_vote(ikind,itext) {
     //var modal = document.getElementById("voteDrawDialog");
     const modalDraw = new bootstrap.Modal(document.getElementById("voteDialog"))
     const vp = document.getElementById("votePlayers")
@@ -921,6 +923,8 @@ function Click_Draw() {
     window_vote('draw', ["Do you want to offer the draw?"])
 }
 function Click_Resign() {
+    let b_decline = document.getElementById('b_decline');
+    b_decline.style.display = 'none'
     B.vote_results_kind = 'resign'
     window_vote('resign', ["Do you want to offer the resignation?"])
 }
