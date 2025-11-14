@@ -94,7 +94,8 @@ class fetchData {
             .then(data => { wait_msg(false);
                             icallback(data);
             })
-            .catch(error => { debug('Error:'+error+' url:'+iurl)
+            .catch(error => {wait_msg(false)
+                            debug('Error:'+error+' url:'+iurl)
             })
     }
     fetchGET(iurl,  icallback) {
@@ -118,7 +119,8 @@ class fetchData {
             })
             .then(data => { wait_msg(false)
                             icallback(data) })
-            .catch(error => { debug('Error:'+error+' url:'+iurl) })
+            .catch(error => {wait_msg(false)
+                             debug('Error:'+error+' url:'+iurl) })
     };
 }
 // ssel - promotion ////////////////////////////////////////////////
@@ -919,6 +921,8 @@ function Click_Vote(ivalue)   {
     F.fetchPOST(url+'/api/v1/vote/'+B.vote_results_kind, {"slog": B.slog, "view_pid": B.view_player, "vote":ivalue }, Step_4_set_votedraw )
 }
 function Click_Draw() {
+    let b_decline = document.getElementById('b_decline');
+    b_decline.style.display = 'none'
     B.vote_results_kind = 'draw'
     window_vote('draw', ["Do you want to offer the draw?"])
 }
