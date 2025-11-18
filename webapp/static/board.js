@@ -33,7 +33,7 @@ function wait_msg(yes) {
                 tx.style.color = theme["canvas"]["name_inchess"]
                 modal_wt.show()
             }
-        }, 500);
+        }, 1000);
     }
  }
 function debug(itext) {
@@ -75,7 +75,7 @@ class fetchData {
             wait_msg(true)
             if (!response.ok) {
                 if (response.status == 401) {
-                    window.alert('Token expired. Reload the page status: ${response.status}');
+                    window.alert('Token expired. Reload the page.');
                     location.reload();
                     return
                 }
@@ -85,7 +85,8 @@ class fetchData {
             }
             return response.json();
             })
-            .then(data => { icallback(data);
+            .then(data => {
+                            icallback(data);
             })
             .catch(error => {//wait_msg(false)
                             debug('status:'+response.status.toString()+'\n Error:'+error+' url:'+iurl)
@@ -792,7 +793,9 @@ function Step_valid_moves(idata) {
         B.hexs[obj.tgid].chang_flag = true;
         B.hexs[obj.tgid].promo_flag = obj.promotion
     }
-}
+    SemaforWait = false //todo
+    modal_wt.hide()
+ }
 function Step_1_settoken(idata) {
     F.headers.Authorization = TOKEN;
     F.fetchGET(url+'/api/v1/manager/board?id='+ID.toString(), Step_2_setplayers)
@@ -846,7 +849,7 @@ function Step_3_setelim_board_and_draw(idata) {
             }
         modal_go.show()
     }
-    setTimeout(function (){
+    setTimeout(function (){ //todo
                 SemaforWait = false
                 modal_wt.hide()
     }, 0);
@@ -943,7 +946,7 @@ function Click_Forward() { //todo
 function Click_OK() {
     if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 ) {
         B.slog_pointer = B.move_number+1;
-        F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.getSlog()},function () {} );
+        F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.getSlog()},function () {SemaforWait = false;modal_wt.hide()} );
     }
     B.move_number_org = -1
     B.move_number_max = -1
