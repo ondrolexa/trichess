@@ -16,7 +16,7 @@ CORS(app)
 
 # Configuration of application, see configuration.py, choose one and uncomment.
 app.config.from_object("webapp.configuration.Config")
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=0.01)
 app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
 
 bs = Bootstrap5(app)  # bootstrap-flask

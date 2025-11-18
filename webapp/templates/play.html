@@ -11,11 +11,9 @@
     <canvas id="canvas" width="4320" height="2180" width="4320" onclick="Click_Board(event)"></canvas>
     <div class="divbutt"  >
 
-
-
         <div class="d-grid gap-2 col-6 mx" >
             <button id="b_dr" class="btn btn-secondary"  onclick="Click_Draw()">Draw</button>
-            <button id="b_rs" class="btn btn-secondary"  onclick="Click_Resign()">Resignation</button>
+            <button id="b_rs" class="btn btn-secondary"  onclick="Click_Resign()">Resign</button>
             <button id="b_bw" class="btn btn-secondary"  onclick="Click_Backward()"><</button>
             <button id="b_fw" class="btn btn-secondary"  onclick="Click_Forward()">></button>
             <button id="b_rf" class="btn btn-secondary"  onclick="Click_Refresh()">Reload</button>
@@ -68,7 +66,7 @@
   </div>
 </div>
 
-<div class="modal" id="waitingMsg" tabindex="-1">
+<div class="modal" id="waitingMsg" data-bs-backdrop="static" data-bs-keyboard="false"  tabindex="-1">
   <div class="modal-dialog ">
     <div class="modal-content">
         <div class="modal-body text-center">

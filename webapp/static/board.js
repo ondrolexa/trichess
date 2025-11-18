@@ -16,30 +16,24 @@ const lineStroke = 20
 const boardXoffset = 450
 const boardYoffset = 8
 const mame_size = "150px";
-const info_size = "90px";//r.toString()+"px";
-const button_color = '#919595';
+const info_size = "100px";//r.toString()+"px";
+const button_color = '#919595'; //todo
+const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"))
 // todo vsetky konstanty vytiahnut sem
 let SemaforGreen = true
 let SemaforWait = false
+
 // tools /////////////////////////////////////////////
 function wait_msg(yes) {
-    var modal = document.getElementById("waitingMsg")
-    if (yes) {
+    const tx = document.getElementById("waitingText")
+    if (yes  && !(SemaforWait)) {
         SemaforWait = true
         setTimeout(function (){
             if ( SemaforWait ) {
-                const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"))
-                const tx = document.getElementById("waitingText")
                 tx.style.color = theme["canvas"]["name_inchess"]
                 modal_wt.show()
             }
         }, 500);
-    }
-    else {
-        //setTimeout(function (){
-                SemaforWait = false
-                modal.style.display = "none";
-        //}, 0);
     }
  }
 function debug(itext) {
@@ -81,7 +75,7 @@ class fetchData {
             wait_msg(true)
             if (!response.ok) {
                 if (response.status == 401) {
-                    window.alert('Token expired. Reload the page');
+                    window.alert('Token expired. Reload the page status: ${response.status}');
                     location.reload();
                     return
                 }
@@ -91,11 +85,10 @@ class fetchData {
             }
             return response.json();
             })
-            .then(data => { wait_msg(false);
-                            icallback(data);
+            .then(data => { icallback(data);
             })
-            .catch(error => {wait_msg(false)
-                            debug('Error:'+error+' url:'+iurl)
+            .catch(error => {//wait_msg(false)
+                            debug('status:'+response.status.toString()+'\n Error:'+error+' url:'+iurl)
             })
     }
     fetchGET(iurl,  icallback) {
@@ -117,10 +110,12 @@ class fetchData {
             }
             return response.json();
             })
-            .then(data => { wait_msg(false)
-                            icallback(data) })
-            .catch(error => {wait_msg(false)
-                             debug('Error:'+error+' url:'+iurl) })
+            .then(data => {
+                            icallback(data)
+                            })
+            .catch(error => {//wait_msg(false)
+                             debug('status:'+response.status.toString()+'\n Error:'+error+' url:'+iurl)
+                             })
     };
 }
 // ssel - promotion ////////////////////////////////////////////////
@@ -265,7 +260,7 @@ class iinfo {
             this.lines[1] =  new llines('', ipos_x, ipos_y + inf_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["pieces"]["color"][iinfo_id], 10, theme["pieces"]["stroke-color"])
         }
         // elimited
-        var ofs  = inf_ofs + (Number(mame_size.substring(0, mame_size.length - 2)))*ivert
+        var ofs  = inf_ofs + (40+Number(mame_size.substring(0, mame_size.length - 2)))*ivert
         if (ivert == 1) { ofs  = ofs -70 } //todo
         for (let i = 2; i < 7; i++) {
             line_len  = line_len-18
@@ -748,14 +743,11 @@ class butt {
         this.disabled = true;
         this.color_enable = icolor;
 }
-    update = function() {
+    update = function() { //todo
         if (this.disabled) {
-            //document.getElementById(this.id).style.backgroundColor = '#c9c9d9'//button_color;
             document.getElementById(this.id).disabled = true;
-            //document.getElementById(this.id).cursor = 'not-allowed';
         }
         else {
-        //document.getElementById(this.id).style.backgroundColor = this.color_enable;//'#d9d9d9' //this.color_enable;
         document.getElementById(this.id).disabled = false;
         }
     }
@@ -854,6 +846,11 @@ function Step_3_setelim_board_and_draw(idata) {
             }
         modal_go.show()
     }
+    setTimeout(function (){
+                SemaforWait = false
+                modal_wt.hide()
+    }, 0);
+
 }
 function button_control() {
         if (B.move_number_org == B.move_number && B.view_player_org == B.onmove ) {  //&& SemaforVoteDraw
@@ -866,7 +863,6 @@ function button_control() {
         }
         b_dr.update()
         b_rs.update()
-
         if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 && !(B.hist_changed)) {
             b_ok.disabled = false;
             document.getElementById("b_ok").style.backgroundColor = theme["canvas"]["name_onmove"]
@@ -874,6 +870,7 @@ function button_control() {
         else {
             b_ok.disabled = true;
             document.getElementById("b_ok").style.backgroundColor = "#6c757d"
+            document.getElementById("b_ok").disabled = false;
         }
         b_ok.update()
         if (B.move_number == 0) {
@@ -945,14 +942,13 @@ function Click_Forward() { //todo
 }
 function Click_OK() {
     if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 ) {
-    //if (B.move_number_org == B.move_number-1 && 0 == (B.onmove+2)%3 ) {
         B.slog_pointer = B.move_number+1;
         F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.getSlog()},function () {} );
     }
     B.move_number_org = -1
     B.move_number_max = -1
-    b_ok.disabled = true
-    b_ok.update()
+    document.getElementById("b_ok").disabled = false;
+    document.getElementById("b_ok").style.backgroundColor = "#9fa5aa"
     B.hist_changed = false
 }
 function Click_Refresh()    {
