@@ -940,6 +940,7 @@ function gameInfo(init = false, redraw = false) {
             const modalDraw = new bootstrap.Modal(
               document.getElementById("voteDrawDialog"),
             );
+            const ispan = document.getElementById("voteDrawInitiated");
             const aspan = document.getElementById("voteDrawAcceptPlayers");
             const dspan = document.getElementById("voteDrawDeclinePlayers");
             const accepting = [];
@@ -950,6 +951,7 @@ function gameInfo(init = false, redraw = false) {
               } else if (data.vote_results[(p + view_pid) % 3] == "D") {
                 declining.push(seat[p]);
               }
+              ispan.innerHTML = seat[3 - data.vote_results["n_voted"]];
               aspan.innerHTML = accepting.join(" ");
               dspan.innerHTML = declining.join(" ");
             }
@@ -963,6 +965,7 @@ function gameInfo(init = false, redraw = false) {
             const modalDraw = new bootstrap.Modal(
               document.getElementById("voteResignDialog"),
             );
+            const ispan = document.getElementById("voteResignInitiated");
             const aspan = document.getElementById("voteResignAcceptPlayers");
             const dspan = document.getElementById("voteResignDeclinePlayers");
             const accepting = [];
@@ -973,6 +976,7 @@ function gameInfo(init = false, redraw = false) {
               } else if (data.vote_results[(p + view_pid) % 3] == "D") {
                 declining.push(seat[p]);
               }
+              ispan.innerHTML = seat[3 - data.vote_results["n_voted"]];
               aspan.innerHTML = accepting.join(" ");
               dspan.innerHTML = declining.join(" ");
             }

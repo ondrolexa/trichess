@@ -87,12 +87,12 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Game draw voting</h5>
+        <h5 class="modal-title">Game draw voting by <span id="voteDrawInitiated"></span></h5>
       </div>
       <div class="modal-body text-center">
         <p>Accepted by: <strong><span id="voteDrawAcceptPlayers"></span></strong><br>Declined by: <strong><span id="voteDrawDeclinePlayers"></span></strong></p>
         <hr>
-        <span><em>For game draw all players must accept</em></span>
+        <span><em>For game draw all players must accept draw</em></span>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="voteDraw(false)">Decline</button>
@@ -106,12 +106,12 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Game resign voting</h5>
+        <h5 class="modal-title">Game resign voting by <span id="voteResignInitiated"></span></h5>
       </div>
       <div class="modal-body text-center">
         <p>Accepted by: <strong><span id="voteResignAcceptPlayers"></span></strong><br>Declined by: <strong><span id="voteResignDeclinePlayers"></span></strong></p>
         <hr>
-        <span><em>For game resign just 2 players must accept</em></span>
+        <span><em>For game resignation 2 players must accept and winner decline</em></span>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="voteResign(false)">Decline</button>

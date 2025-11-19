@@ -270,6 +270,7 @@ votes = api.model(
     "Voting results",
     {
         "kind": fields.String(enum=["resign", "draw"]),
+        "n_voted": fields.Integer,
         0: fields.String(enum=["A", "D"]),
         1: fields.String(enum=["A", "D"]),
         2: fields.String(enum=["A", "D"]),
@@ -588,7 +589,7 @@ class GameBoard(Resource):
                                         f"Draw agreed in game {state.id}",
                                         "Game over",
                                         state.id,
-                                        user.board,
+                                        players[uid].board,
                                     )
                             elif ga2.resignation():
                                 resigned = ga2.voting.results(kind="resign")
@@ -605,7 +606,7 @@ class GameBoard(Resource):
                                     f"You win in game {state.id} by resignation",
                                     "Game over",
                                     state.id,
-                                    user.board,
+                                    players[uid].board,
                                 )
                                 for uid in resigned:
                                     post_notification(
@@ -613,7 +614,7 @@ class GameBoard(Resource):
                                         f"You lost in game {state.id} by resignation",
                                         "Game over",
                                         state.id,
-                                        user.board,
+                                        players[uid].board,
                                     )
                             elif in_chess:
                                 tot = [len(p) for p in who.values()]
@@ -631,7 +632,7 @@ class GameBoard(Resource):
                                             f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score:g}",
                                             "Game over",
                                             state.id,
-                                            user.board,
+                                            players[uid].board,
                                         )
                                 # notify
                                 post_notification(
@@ -639,7 +640,7 @@ class GameBoard(Resource):
                                     f"You lost in game {state.id}",
                                     "Game over",
                                     state.id,
-                                    user.board,
+                                    players[ga2.on_move].board,
                                 )
                             else:
                                 for uid in players:
@@ -654,7 +655,7 @@ class GameBoard(Resource):
                                         f"The game {state.id} ended in a stalemate",
                                         "Game over",
                                         state.id,
-                                        user.board,
+                                        players[uid].board,
                                     )
                         else:
                             # notify next player
@@ -663,7 +664,7 @@ class GameBoard(Resource):
                                 f"It's your turn in game {state.id}",
                                 "Your turn",
                                 state.id,
-                                user.board,
+                                players[ga2.on_move].board,
                             )
                         db.session.commit()
                         recalculate_rating()

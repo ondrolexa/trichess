@@ -45,6 +45,14 @@ def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
     return native.strftime(fmt)
 
 
+@app.template_filter("deltatime")
+def _jinja2_filter_timedelta(date, fmt="%b %d, %Y %H:%M:%S"):
+    utc = date.replace(tzinfo=ZoneInfo("UTC"))
+    native = utc.astimezone(ZoneInfo("Europe/Prague"))
+    now = datetime.now().replace(microsecond=0).astimezone(ZoneInfo("Europe/Prague"))
+    return str(now - native) + " ago"
+
+
 def add_onmove(games):
     for game in games:
         slog = game.slog

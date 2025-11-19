@@ -48,7 +48,13 @@ class Test_GameAPI:
         api = GameAPI(0)
         api.replay_from_slog(slog2)
         assert api.move_number == 28
-        assert api.voting.votes() == {"kind": "draw", 0: "D", 1: "A", 2: "A"}
+        assert api.voting.votes() == {
+            "kind": "draw",
+            "n_voted": 3,
+            0: "D",
+            1: "A",
+            2: "A",
+        }
         assert api.on_move == 1
         assert api.slog[-4:] == "SDAA"
 
@@ -60,7 +66,13 @@ class Test_GameAPI:
         api.replay_from_slog(api.draw_vote(True))
         api.replay_from_slog(api.draw_vote(False))
         assert api.on_move == onmove
-        assert api.voting.votes() == {"kind": "draw", 0: "A", 1: "D", 2: "A"}
+        assert api.voting.votes() == {
+            "kind": "draw",
+            "n_voted": 3,
+            0: "A",
+            1: "D",
+            2: "A",
+        }
 
     def test_chess(self, slog4):
         api = GameAPI(0)

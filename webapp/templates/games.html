@@ -59,7 +59,7 @@
       <a class="btn btn-success btn-sm" href="{{ url_for('play', id=game.id) }}" role="button">Play</a>
       {% endif %}
     </td>
-    <td>{{game.modified_at|strftime}}</td>
+    <td>{{game.modified_at|deltatime}}</td>
     <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
     </tr>
     {% endfor %}
