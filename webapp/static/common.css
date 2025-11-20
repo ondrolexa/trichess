@@ -21,3 +21,10 @@ body {
         display: none !important;
     }
 }
+
+@media (orientation: portrait) and (max-width: 420px) {
+    .seat {
+        word-wrap: break-word;
+        max-width: 70px;
+    }
+}

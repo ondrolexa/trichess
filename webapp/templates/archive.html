@@ -7,33 +7,38 @@
   <thead>
     <tr>
     <th scope="col">#</th>
-    <th scope="col">Player 1</th>
-    <th scope="col">Player 2</th>
-    <th scope="col">Player 3</th>
+    <th scope="col">Seat 1</th>
+    <th scope="col">Seat 2</th>
+    <th scope="col">Seat 3</th>
     <th scope="col"></th>
-    <th scope="col">Last move</th>
-    <th class="d-none d-sm-table-cell" scope="col">Created</th>
+    <th scope="col">Duration</th>
     </tr>
   </thead>
   <tbody>
     {% for game in games %}
     <tr>
     <th scope="row">{{game.id}}</th>
-    {% if game.onmove == 0 %}
-    <td><span style="color:#FF0000";>{{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})</span></td>
+    <td class="seat">
+    {% if game.player_0_score > 0 %}
+    <span class="text-success">{{game.player_0.username}} ({{ game.player_0_score|int }})</span>
     {% else %}
-    <td><span>{{game.player_0.username}} ({{ '%.2g' % game.player_0.score()|float }})</span></td>
+    <span>{{game.player_0.username}} ({{ game.player_0_score|int }})</span>
     {% endif %}
-    {% if game.onmove == 1 %}
-    <td><span style="color:#FF0000";>{{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})</span></td>
+    </td>
+    <td class="seat">
+      {% if game.player_1_score > 0 %}
+    <span class="text-success">{{game.player_1.username}} ({{ game.player_1_score|int }})</span>
     {% else %}
-    <td><span>{{game.player_1.username}} ({{ '%.2g' % game.player_1.score()|float }})</span></td>
+    <span>{{game.player_1.username}} ({{ game.player_1_score|int }})</span>
     {% endif %}
-    {% if game.onmove == 2 %}
-    <td><span style="color:#FF0000";>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})</span></td>
+    </td>
+    <td class="seat">
+      {% if game.player_2_score > 0 %}
+    <span class="text-success">{{game.player_2.username}} ({{ game.player_2_score|int }})</span>
     {% else %}
-    <td><span>{{game.player_2.username}} ({{ '%.2g' % game.player_2.score()|float }})</span></td>
+    <span>{{game.player_2.username}} ({{ game.player_2_score|int }})</span>
     {% endif %}
+    </td>
     <td>
       {% if board == "ondro" %}
       <a class="btn btn-success btn-sm" href="{{ url_for('playlx', id=game.id) }}" role="button">View</a>
@@ -41,8 +46,7 @@
       <a class="btn btn-success btn-sm" href="{{ url_for('play', id=game.id) }}" role="button">View</a>
       {% endif %}
     </td>
-    <td>{{game.modified_at|strftime}}</td>
-    <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
+    <td>{{game.modified_at - game.created_at}}</td>
     </tr>
     {% endfor %}
    </tbody>

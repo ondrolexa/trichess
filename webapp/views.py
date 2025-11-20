@@ -35,7 +35,7 @@ from webapp.forms import (
     RegistrationForm,
 )
 from webapp.main import app, db, lm
-from webapp.models import TriBoard, User
+from webapp.models import Score, TriBoard, User
 
 
 @app.template_filter("strftime")
@@ -46,7 +46,7 @@ def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
 
 
 @app.template_filter("deltatime")
-def _jinja2_filter_timedelta(date, fmt="%b %d, %Y %H:%M:%S"):
+def _jinja2_filter_timedelta(date):
     utc = date.replace(tzinfo=ZoneInfo("UTC"))
     native = utc.astimezone(ZoneInfo("Europe/Prague"))
     now = datetime.now().replace(microsecond=0).astimezone(ZoneInfo("Europe/Prague"))
@@ -60,6 +60,16 @@ def add_onmove(games):
             slog[i : i + 4] for i in range(0, len(slog), 4) if slog[i] not in ["S", "R"]
         ]
         game.onmove = len(moves) % 3
+
+
+def add_score(games):
+    for game in games:
+        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_0_id).first()
+        game.player_0_score = sc.score if sc else 0
+        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_1_id).first()
+        game.player_1_score = sc.score if sc else 0
+        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_2_id).first()
+        game.player_2_score = sc.score if sc else 0
 
 
 def render_template(*args, **kwargs):
@@ -128,7 +138,7 @@ def archive():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    add_onmove(archive)
+    add_score(archive)
     return render_template("archive.html", games=archive, board=g.user.board)
 
 
