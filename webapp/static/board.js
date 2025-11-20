@@ -24,6 +24,10 @@ let SemaforGreen = true
 let SemaforWait = false
 
 // tools /////////////////////////////////////////////
+function isMobile() {
+  const regex = /Mobi|Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+  return regex.test(navigator.userAgent);
+}
 function wait_msg(yes) {
     const tx = document.getElementById("waitingText")
     if (yes  && !(SemaforWait)) {
@@ -1013,16 +1017,21 @@ function Click_Board(event) {
     }
 };
 // Main ////////////////////////////////////////////////////////////////////////////////
+if (isMobile()) {
+    document.getElementById("baseFooter").classList.remove("footer");
+}
+//document.getElementById("baseFooter").classList.add('footer');
 var B = new board()
 var F = new fetchData()
 var b_ok = new butt('b_ok', theme["canvas"]["name_onmove"])
-var b_rf = new butt('b_rf', button_color )
+var b_rf = new butt('b_rf', button_color ) //todo?
 var b_fw = new butt('b_fw', button_color )
 var b_bw = new butt('b_bw', button_color )
 var b_dr = new butt('b_dr', button_color )
 var b_rs = new butt('b_rs', button_color )
 var II = new iinfos()
 var SS = new ssel()
+
 B.init();
 B.draw_tile();
 II.write()

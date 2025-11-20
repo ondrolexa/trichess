@@ -12,15 +12,13 @@
 }
 .divbutt {
     width: 12%;
-    display: flex;
     margin-top: 5px;
     margin-bottom: 15px;
-    min-width: 60px;
+    min-width: 75px;
     max-width: 1200px;
 }
 #canvas {
     width: 88%;
-    justify-content: left;
     min-width: 200px;
     max-width: 4320px;
     min-height: 160px;
