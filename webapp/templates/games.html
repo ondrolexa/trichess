@@ -39,21 +39,21 @@
     <th scope="row">{{game.id}}</th>
     <td class="seat">
     {% if game.onmove == 0 %}
-    <strong class="text-warning">{{game.player_0.username}} ({{ game.player_0.rating|round|int }})</strong>
+    <strong class="{{ on_move_color }}">{{game.player_0.username}} ({{ game.player_0.rating|round|int }})</strong>
     {% else %}
     <span>{{game.player_0.username}} ({{ game.player_0.rating|round|int }})</span>
     {% endif %}
     </td>
     <td class="seat">
     {% if game.onmove == 1 %}
-    <strong class="text-warning">{{game.player_1.username}} ({{ game.player_1.rating|round|int }})</strong>
+    <strong class="{{ on_move_color }}">{{game.player_1.username}} ({{ game.player_1.rating|round|int }})</strong>
     {% else %}
     <span>{{game.player_1.username}} ({{ game.player_1.rating|round|int }})</span>
     {% endif %}
     </td>
     <td class="seat">
     {% if game.onmove == 2 %}
-    <strong class="text-warning">{{game.player_2.username}} ({{ game.player_2.rating|round|int }})</strong>
+    <strong class="{{ on_move_color }}">{{game.player_2.username}} ({{ game.player_2.rating|round|int }})</strong>
     {% else %}
     <span>{{game.player_2.username}} ({{ game.player_2.rating|round|int }})</span>
     {% endif %}

@@ -20,21 +20,21 @@
     <th scope="row">{{game.id}}</th>
     <td class="seat">
     {% if game.player_0_score > 0 %}
-    <span class="text-success">{{game.player_0.username}} ({{ game.player_0_score|int }})</span>
+    <strong class="{{ winner_color }}">{{game.player_0.username}} ({{ game.player_0_score|int }})</strong>
     {% else %}
     <span>{{game.player_0.username}} ({{ game.player_0_score|int }})</span>
     {% endif %}
     </td>
     <td class="seat">
       {% if game.player_1_score > 0 %}
-    <span class="text-success">{{game.player_1.username}} ({{ game.player_1_score|int }})</span>
+    <strong class="{{ winner_color }}">{{game.player_1.username}} ({{ game.player_1_score|int }})</strong>
     {% else %}
     <span>{{game.player_1.username}} ({{ game.player_1_score|int }})</span>
     {% endif %}
     </td>
     <td class="seat">
       {% if game.player_2_score > 0 %}
-    <span class="text-success">{{game.player_2.username}} ({{ game.player_2_score|int }})</span>
+    <strong class="{{ winner_color }}">{{game.player_2.username}} ({{ game.player_2_score|int }})</strong>
     {% else %}
     <span>{{game.player_2.username}} ({{ game.player_2_score|int }})</span>
     {% endif %}
