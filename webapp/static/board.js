@@ -92,8 +92,10 @@ class fetchData {
             .then(data => {
                             icallback(data);
             })
-            .catch(error => {//wait_msg(false)
-                            debug('status:'+response.status.toString()+'\n Error:'+error+' url:'+iurl)
+            .catch(error => {//wait_msg(false )
+                             SemaforWait = false //todo
+                             modal_wt.hide()
+                             debug('Error:'+error+' url:'+iurl)
             })
     }
     fetchGET(iurl,  icallback) {
@@ -119,7 +121,9 @@ class fetchData {
                             icallback(data)
                             })
             .catch(error => {//wait_msg(false)
-                             debug('status:'+response.status.toString()+'\n Error:'+error+' url:'+iurl)
+                             SemaforWait = false //todo
+                             modal_wt.hide()
+                             debug('Error:'+error+' url:'+iurl)
                              })
     };
 }
@@ -249,9 +253,9 @@ class iinfo {
             inf_ofs = (Number(mame_size.substring(0, mame_size.length - 2))+dist_top)*ivert + dist_top*ivert
         }
         // info block
-        if (iinfo_id == 3) {
-            this.lines[0] =  new llines('', ipos_x, ipos_y+nam_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
-            this.lines[1] =  new llines('', ipos_x, ipos_y+line_high*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+        if (iinfo_id == 3) { //todo
+            this.lines[0] =  new llines('00', ipos_x, ipos_y+line_high*0*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            this.lines[1] =  new llines('11', ipos_x, ipos_y+line_high*1*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
             this.lines[2] =  new llines('11', ipos_x, ipos_y+line_high*2*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
             this.lines[3] =  new llines('22', ipos_x, ipos_y+line_high*3*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
             this.lines[4] =  new llines('33', ipos_x, ipos_y+line_high*4*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
@@ -263,31 +267,42 @@ class iinfo {
             // player name
             this.lines[0] =  new llines('', ipos_x, ipos_y + nam_ofs, ialign, line_len, mame_size+" "+theme["canvas"]["font-family"] , theme["canvas"]["name"] )
             this.lines[1] =  new llines('', ipos_x, ipos_y + inf_ofs, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["pieces"]["color"][iinfo_id], 10, theme["pieces"]["stroke-color"])
-        }
-        // elimited
-        var ofs  = inf_ofs + (40+Number(mame_size.substring(0, mame_size.length - 2)))*ivert
-        if (ivert == 1) { ofs  = ofs -70 } //todo
-        for (let i = 2; i < 7; i++) {
-            line_len  = line_len-18
-            this.lines[i] =  new llines('', ipos_x, ipos_y+ofs+(i-2)*line_high*ivert, ialign, line_len, (piece_size*15).toString()+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+            // elimited
+            var ofs  = inf_ofs + (40+Number(mame_size.substring(0, mame_size.length - 2)))*ivert
+            if (ivert == 1) { ofs  = ofs -70 } //todo
+            for (let i = 2; i < 7; i++) {
+                line_len  = line_len-18
+                this.lines[i] =  new llines('', ipos_x, ipos_y+ofs+(i-2)*line_high*ivert, ialign, line_len, (piece_size*15).toString()+" "+theme["canvas"]["font-family"] , theme["pieces"]["color"][iinfo_id], 2, theme["pieces"]["stroke-color"])
+            }
         }
     }
     clear() {
         var a = -1
         var h = canH/14
-        var w = canW/3.3
-        var d = canW/46 //sklon
+        var w = canW/3
+        var d = canW/45 //sklon
         if (this.align == "left") { a = 1}
-        // ctx0.save ()
-        // ctx0.beginPath()
-        // ctx0.fillStyle = "balck"
+         //ctx0.save ()
+         //ctx0.beginPath()
+         //ctx0.fillStyle = "balck"
         for (let i = 0; i < 7; i++) {
             this.lines[i].text = ""
-            ctx0.clearRect(this.x+(5*a*(-1)) ,this.y + this.vert*i*h  , a*(w-(i*d)), this.vert*h)
-        // ctx0.closePath();
-        // ctx0.fill()
-        // ctx0.restore()
+            if (a==1 && this.vert ==1) {
+                ctx0.clearRect(0, 0 + this.vert*i*h  , a*(w-(i*d)), this.vert*h)
+            }
+            else if (a==1 && this.vert == -1) {
+                ctx0.clearRect(0, canH + this.vert*i*h  , a*(w-(i*d)), this.vert*h)
+            }
+            if (a== -1 && this.vert ==1) {
+                ctx0.clearRect(canW, 0 + this.vert*i*h  , a*(w-(i*d)), this.vert*h)
+            }
+            else if (a== -1 && this.vert == -1) {
+                ctx0.clearRect(canW, canH + this.vert*i*h  , a*(w-(i*d)), this.vert*h)
+            }
         }
+        //ctx0.closePath();
+        //ctx0.fill()
+        ctx0.restore()
     }
     write() {
     //this.clear()
@@ -311,15 +326,15 @@ class iinfos {
     this.panel = []
     this.players = []
     this.index = []
-    this.panel[0] = new iinfo(0, canW-dist_rl   , canH   , 'right', -1)
+    this.panel[0] = new iinfo(0, canW-dist_rl   , canH-50   , 'right', -1)
     this.panel[1] = new iinfo(1, dist_rl        , 0      , 'left' ,  1)
     this.panel[2] = new iinfo(2, canW-dist_rl   , 0    , 'right', 1)
-    this.panel[3] = new iinfo(3, dist_rl        , canH   , 'left' , -1)
+    this.panel[3] = new iinfo(3, dist_rl        , canH-50   , 'left' , -1)
     }
     set (idata) {
         this.index = rotateArray([0,1,2], B.view_player) //todo
-        this.panel[3].lines[0].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
-        this.panel[3].lines[1].text = 'Game ID: '+ID.toString()
+        this.panel[3].lines[5].text = 'Game ID: '+ID.toString()
+        this.panel[3].lines[4].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
         if ( idata.vote_results != null ) {
             let verb = ' offers '
             let j = 0
@@ -332,12 +347,12 @@ class iinfos {
             let index2 = rotateArray([0,1,2], idata.onmove-vc ) //todo
             for (let i = 0; i < 3 ; i++) {
                 if (idata.vote_results[index2[i]] == 'A') {
-                    this.panel[3].lines[4-j].text = this.players[index2[i]] + verb + idata.vote_results.kind+'.'
+                    this.panel[3].lines[2-j].text =  this.players[index2[i]].substr(0,12)+ verb + idata.vote_results.kind+'.'
                     verb = ' accepts '
                     j++
                 }
                 else if (idata.vote_results[index2[i]] == 'D') {
-                    this.panel[3].lines[4-j].text = this.players[index2[i]] + ' declines ' +idata.vote_results.kind+'.'
+                    this.panel[3].lines[2-j].text = this.players[index2[i]] + ' declines ' +idata.vote_results.kind+'.'
                     j++
                 }
                 else {
@@ -345,8 +360,12 @@ class iinfos {
                 }
             }
         }
+        else {
+            // power lines
+            this.power_lines(idata)
+        }
         for (let i = 0; i < 3; i++) {
-            this.panel[i].lines[0].text = this.players[this.index[i] ] // set players names
+            this.panel[i].lines[0].text = this.players[this.index[i]] // set players names
             for (let z= 0; z < 7; z++) {
                 this.panel[i].lines[z].player_id = this.index[i]
             }
@@ -364,7 +383,7 @@ class iinfos {
                 }
             // eliminated_value / pieces_value
             this.panel[i].lines[1].color= theme["pieces"]["color"][(this.index[i]+2)%3]
-            this.panel[i].lines[1].text= idata.pieces_value[this.index[i]].toString() + ' / '+idata.eliminated_value[this.index[i]].toString()
+            this.panel[i].lines[1].text= ""// idata.eliminated_value[this.index[i]].toString()
             // eliminated pieces
             var e = elim2array(idata.eliminated[this.index[i]])
             if (e != undefined)
@@ -375,6 +394,28 @@ class iinfos {
                     }
                 }
         }
+    }
+    power_lines(idata){//i_width, i_color, i_r) {
+        let high = 100
+        let x = II.panel[3].x+5
+        let y = II.panel[3].y-5
+        let p = 0 //power
+        ctx0.save()
+        ctx0.lineWidth = 5//*epiece_lineWidth
+        ctx0.strokeStyle = theme["pieces"]["stroke-color"]
+        for (let i = 0; i < 3; i++) { //draw hex
+            ctx0.beginPath()
+            ctx0.fillStyle = theme["pieces"]["color"][(this.index[i]+2)%3]
+            y = y - high
+            p = idata.pieces_value[this.index[i]]
+            ctx0.rect(x,y, 1200/50*p, high)
+            ctx0.fill()
+            ctx0.stroke()
+            ctx0.closePath()
+        }
+        ctx0.restore()
+        this.panel[3].lines[3].pos_y = y - 20
+        this.panel[3].lines[3].text = 'Power:'
     }
     write() {
     for (let i = 0; i < 4; i++) {
@@ -388,7 +429,7 @@ class iinfos {
     }
     getVoteHist() {
         const msg = this.panel[3].lines.map(({ text }) => text)
-        const msg1 = msg.reverse().slice(2,5)
+        const msg1 = msg.reverse().slice(3,7)
         return msg1.join("<br>")
     }
 }
@@ -851,12 +892,14 @@ function Step_3_setelim_board_and_draw(idata) {
             }
         else {
             }
+        SemaforWait = false //todo
+        modal_wt.hide()
         modal_go.show()
     }
-    setTimeout(function (){ //todo
-                SemaforWait = false
-                modal_wt.hide()
-    }, 0);
+    //setTimeout(function (){
+    SemaforWait = false
+    modal_wt.hide()
+    //}, 0);
 
 }
 function button_control() {
@@ -895,8 +938,7 @@ function button_control() {
         }
         b_fw.update()
 }
-
-    function window_vote(ikind,itext) {
+function window_vote(ikind,itext) {
     //var modal = document.getElementById("voteDrawDialog");
     const modalDraw = new bootstrap.Modal(document.getElementById("voteDialog"))
     const vp = document.getElementById("votePlayers")
@@ -1031,9 +1073,7 @@ var b_dr = new butt('b_dr', button_color )
 var b_rs = new butt('b_rs', button_color )
 var II = new iinfos()
 var SS = new ssel()
-
 B.init();
 B.draw_tile();
-II.write()
 Step_1_settoken()
 
