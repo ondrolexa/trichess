@@ -1,6 +1,5 @@
 const canvas0 = document.getElementById('canvas');
 canvas0.addEventListener('mouseclick', Click_Board);
-
 const canW = canvas0.width
 const canH = canvas0.   height
 const ctx0 = canvas0.getContext('2d');
@@ -90,6 +89,9 @@ class fetchData {
             return response.json();
             })
             .then(data => {
+                             SemaforWait = false //todo
+                             modal_wt.hide()
+
                             icallback(data);
             })
             .catch(error => {//wait_msg(false )
@@ -789,14 +791,6 @@ class butt {
         this.disabled = true;
         this.color_enable = icolor;
 }
-    update = function() { //todo
-        if (this.disabled) {
-            document.getElementById(this.id).disabled = true;
-        }
-        else {
-        document.getElementById(this.id).disabled = false;
-        }
-    }
 };
 //----------------------------------------------------
 function elim2array(idata) {
@@ -855,6 +849,7 @@ function Step_2_setplayers(idata) {
 }
 function Step_5_game_info() {
     F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player }, Step_3_setelim_board_and_draw)
+
 }
 function Step_4_set_votedraw(idata) {
     B.slog = idata.slog
@@ -904,39 +899,33 @@ function Step_3_setelim_board_and_draw(idata) {
 }
 function button_control() {
         if (B.move_number_org == B.move_number && B.view_player_org == B.onmove ) {  //&& SemaforVoteDraw
-            b_dr.disabled = false;
-            b_rs.disabled = false;
+            document.getElementById("b_dr").disabled = false;
+            document.getElementById("b_rs").disabled = false;
         }
         else {
-            b_dr.disabled = true;
-            b_rs.disabled = true;
+            document.getElementById("b_dr").disabled = true;
+            document.getElementById("b_rs").disabled = true;
         }
-        b_dr.update()
-        b_rs.update()
         if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 && !(B.hist_changed)) {
-            b_ok.disabled = false;
+            document.getElementById("b_ok").disabled = false;
             document.getElementById("b_ok").style.backgroundColor = theme["canvas"]["name_onmove"]
         }
         else {
-            b_ok.disabled = true;
             document.getElementById("b_ok").style.backgroundColor = "#6c757d"
-            document.getElementById("b_ok").disabled = false;
+            document.getElementById("b_ok").disabled = true;
         }
-        b_ok.update()
         if (B.move_number == 0) {
-            b_bw.disabled = true;
+            document.getElementById("b_bw").disabled = true;
         }
         else {
-            b_bw.disabled = false;
+            document.getElementById("b_bw").disabled = false;
         }
-        b_bw.update()
         if (B.slog_pointer == B.slog.length/4) {
-            b_fw.disabled = true;
+            document.getElementById("b_fw").disabled = true
         }
         else {
-            b_fw.disabled = false;
+            document.getElementById("b_fw").disabled = false
         }
-        b_fw.update()
 }
 function window_vote(ikind,itext) {
     //var modal = document.getElementById("voteDrawDialog");
@@ -958,8 +947,6 @@ function window_vote(ikind,itext) {
 }
 
 // Click ////////////////////////////////////////////////////////////////////////////////
-function Click_Cancel() {
- }
 function Click_Vote(ivalue)   {
     if ( !B.vote_needed &&  !ivalue) {
         return //chncel decline
@@ -1065,12 +1052,6 @@ if (isMobile()) {
 //document.getElementById("baseFooter").classList.add('footer');
 var B = new board()
 var F = new fetchData()
-var b_ok = new butt('b_ok', theme["canvas"]["name_onmove"])
-var b_rf = new butt('b_rf', button_color ) //todo?
-var b_fw = new butt('b_fw', button_color )
-var b_bw = new butt('b_bw', button_color )
-var b_dr = new butt('b_dr', button_color )
-var b_rs = new butt('b_rs', button_color )
 var II = new iinfos()
 var SS = new ssel()
 B.init();
