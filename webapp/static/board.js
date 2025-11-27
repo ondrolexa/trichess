@@ -16,7 +16,6 @@ const boardXoffset = 450
 const boardYoffset = 8
 const mame_size = "150px";
 const info_size = "100px";//r.toString()+"px";
-const button_color = '#919595'; //todo
 const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"))
 // todo vsetky konstanty vytiahnut sem
 let SemaforGreen = true
@@ -91,8 +90,7 @@ class fetchData {
             .then(data => {
                              SemaforWait = false //todo
                              modal_wt.hide()
-
-                            icallback(data);
+                            icallback(data)
             })
             .catch(error => {//wait_msg(false )
                              SemaforWait = false //todo
@@ -256,13 +254,9 @@ class iinfo {
         }
         // info block
         if (iinfo_id == 3) { //todo
-            this.lines[0] =  new llines('00', ipos_x, ipos_y+line_high*0*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
-            this.lines[1] =  new llines('11', ipos_x, ipos_y+line_high*1*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
-            this.lines[2] =  new llines('11', ipos_x, ipos_y+line_high*2*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
-            this.lines[3] =  new llines('22', ipos_x, ipos_y+line_high*3*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
-            this.lines[4] =  new llines('33', ipos_x, ipos_y+line_high*4*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
-            this.lines[5] =  new llines('44', ipos_x, ipos_y+line_high*5*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
-            this.lines[6] =  new llines('44', ipos_x, ipos_y+line_high*6*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            for (let i = 0; i < 7; i++) {
+            this.lines[i] =  new llines('00', ipos_x, ipos_y+line_high*i*ivert, ialign, line_len, info_size+" "+theme["canvas"]["font-family"], theme["canvas"]["info"])
+            }
         }
         // player info
         else {
@@ -1049,7 +1043,6 @@ function Click_Board(event) {
 if (isMobile()) {
     document.getElementById("baseFooter").classList.remove("footer");
 }
-//document.getElementById("baseFooter").classList.add('footer');
 var B = new board()
 var F = new fetchData()
 var II = new iinfos()
