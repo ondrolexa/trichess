@@ -436,7 +436,7 @@ class  hex {
         this.y =  ((1 + b * 1.5) * r) + boardYoffset
         this.id = id;
         this.piece = {"piece":"" , "player_id":-1};
-        this.hex_color =  theme["board"]["hex_color"][(a+2*b)%3] ;
+        this.hex_color =  theme["board"]["hex_color"][((2 * a + b) % 3)]
         this.lumi = undefined  // R,G,B, luminiscence
         this.show_flag = true; // true means to redraw the hex
         this.valid_flag = false;
@@ -482,7 +482,7 @@ class  hex {
         draw_piece_common( this.piece.piece
                          , i_lineWidth
                          , i_lineColor
-                         , theme["pieces"]["color"][(this.piece.player_id+2)%3]
+                         , theme["pieces"]["color"][this.piece.player_id]
                          , this.x,this.y
                          )
     }
