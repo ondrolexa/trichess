@@ -150,7 +150,7 @@ class Board:
         """
         thex = self._board[pos_to]
         if thex.has_piece:
-            self.eliminated.append(thex.piece)
+            self.eliminated.append((self._board[pos_from].piece.player.pid, thex.piece))
         if label and self.promotion(self._board[pos_from].piece, pos_to):
             piece = self._board[pos_from].piece.player.promotion(label)
         else:

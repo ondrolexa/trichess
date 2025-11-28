@@ -257,6 +257,30 @@ game_eliminated = api.model(
     },
 )
 
+player_0_eliminations = api.model(
+    "Game player 0 eliminations of opponent pieces",
+    {1: fields.Integer, 2: fields.Integer},
+)
+
+player_1_eliminations = api.model(
+    "Game player 1 eliminations of opponent pieces",
+    {2: fields.Integer, 0: fields.Integer},
+)
+
+player_2_eliminations = api.model(
+    "Game player 2 eliminations of opponent pieces",
+    {0: fields.Integer, 1: fields.Integer},
+)
+
+game_player_eliminations = api.model(
+    "Game players eliminations of opponent pieces",
+    {
+        0: fields.Nested(player_0_eliminations),
+        1: fields.Nested(player_1_eliminations),
+        2: fields.Nested(player_2_eliminations),
+    },
+)
+
 game_pieces_value = api.model(
     "Game players pieces total value",
     {
@@ -293,6 +317,7 @@ game_response = api.model(
         "pieces_value": fields.Nested(game_pieces_value),
         "eliminated": fields.Nested(game_eliminated),
         "eliminated_value": fields.Nested(game_pieces_value),
+        "eliminations": fields.Nested(game_player_eliminations),
         "vote_draw_needed": fields.Boolean,
         "vote_resign_needed": fields.Boolean,
         "vote_results": fields.Nested(votes),
@@ -333,6 +358,7 @@ class GameInfo(Resource):
                 res["pieces_value"] = ga.pieces_value()
                 res["eliminated"] = ga.eliminated()
                 res["eliminated_value"] = ga.eliminated_value()
+                res["eliminations"] = ga.player_eliminations()
                 res["vote_needed"] = ga.voting.needed()
                 res["vote_results"] = ga.voting.votes()
                 return res

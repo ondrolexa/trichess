@@ -217,15 +217,22 @@ class GameAPI:
     def eliminated(self):
         """Return eliminated pieces for player pid"""
         res = {0: [], 1: [], 2: []}
-        for p in self.board.eliminated:
+        for _, p in self.board.eliminated:
             res[p.player.pid].append(p.label)
         return res
 
     def eliminated_value(self):
         """Return total values of eliminated pieces for player pid"""
         res = {0: 0, 1: 0, 2: 0}
-        for p in self.board.eliminated:
+        for _, p in self.board.eliminated:
             res[p.player.pid] += p.value
+        return res
+
+    def player_eliminations(self):
+        """Return values of opponent eliminated pieces by player"""
+        res = {0: {1: 0, 2: 0}, 1: {0: 0, 2: 0}, 2: {0: 0, 1: 0}}
+        for pid, p in self.board.eliminated:
+            res[pid][p.player.pid] += p.value
         return res
 
     def pieces(self):

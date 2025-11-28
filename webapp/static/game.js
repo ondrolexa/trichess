@@ -210,6 +210,32 @@ var p0name = new Konva.Shape({
   },
 });
 
+var p0el1 = new Konva.Rect({
+  x: 0,
+  y: 7.7,
+  width: 0,
+  height: 2,
+  fill: theme["pieces"]["color"][1],
+  offsetX: 0,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+});
+
+var p0el2 = new Konva.Rect({
+  x: 0,
+  y: 7.7,
+  width: 0,
+  height: 2,
+  fill: theme["pieces"]["color"][2],
+  offsetX: 0,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+});
+
 var p1name = new Konva.Shape({
   x: -9.2,
   y: -6.9,
@@ -227,6 +253,32 @@ var p1name = new Konva.Shape({
   },
 });
 
+var p1el2 = new Konva.Rect({
+  x: -9.2,
+  y: -7.8,
+  width: 0,
+  height: 2,
+  fill: theme["pieces"]["color"][2],
+  offsetX: 0,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+});
+
+var p1el0 = new Konva.Rect({
+  x: -9.2,
+  y: -7.8,
+  width: 0,
+  height: 2,
+  fill: theme["pieces"]["color"][0],
+  offsetX: 0,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+});
+
 var p2name = new Konva.Shape({
   x: 9.2,
   y: -6.9,
@@ -241,6 +293,32 @@ var p2name = new Konva.Shape({
     context.fillStyle = player_names_color[2];
     context.textAlign = "right";
     context.fillText(player_names[2], 0, 0);
+  },
+});
+
+var p2el0 = new Konva.Rect({
+  x: 9.2,
+  y: -7.8,
+  width: 0,
+  height: 2,
+  fill: theme["pieces"]["color"][0],
+  offsetX: 0,
+  scale: {
+    x: 0.07,
+    y: 0.07,
+  },
+});
+
+var p2el1 = new Konva.Rect({
+  x: 9.2,
+  y: -7.8,
+  width: 0,
+  height: 2,
+  fill: theme["pieces"]["color"][1],
+  offsetX: 0,
+  scale: {
+    x: 0.07,
+    y: 0.07,
   },
 });
 
@@ -564,7 +642,13 @@ function drawPieces(pieces) {
   }
 }
 
-function updateStats(eliminated, eliminated_value, pieces_value, move_number) {
+function updateStats(
+  eliminated,
+  eliminated_value,
+  eliminitations,
+  pieces_value,
+  move_number,
+) {
   for (var p = 0; p < 3; p++) {
     player_names[p] =
       `${seat[p]} (${pieces_value[(p + view_pid) % 3]}/${eliminated_value[(p + view_pid) % 3]})`;
@@ -576,6 +660,19 @@ function updateStats(eliminated, eliminated_value, pieces_value, move_number) {
       elpieces[p][i].data("");
     }
   }
+
+  p0el1.width(eliminitations[0][1]);
+  p0el1.offsetX(eliminitations[0][1]);
+  p0el2.width(eliminitations[0][2]);
+
+  p1el2.width(eliminitations[1][2]);
+  p1el0.width(eliminitations[1][0]);
+  p1el0.offsetX(-eliminitations[1][2]);
+
+  p2el0.width(eliminitations[2][0]);
+  p2el0.offsetX(eliminitations[2][0] + eliminitations[2][1]);
+  p2el1.width(eliminitations[2][1]);
+  p2el1.offsetX(eliminitations[2][1]);
 
   slogtext.innerHTML = slog;
   movelabel_text = `Move\n${move_number}/${game_moves}`;
@@ -846,6 +943,7 @@ function gameInfo(init = false, redraw = false) {
       updateStats(
         data.eliminated,
         data.eliminated_value,
+        data.eliminations,
         data.pieces_value,
         data.move_number,
       );
@@ -1133,8 +1231,14 @@ function boardInfo() {
 
       pieces_layer.add(movelabel);
       pieces_layer.add(p0name);
+      pieces_layer.add(p0el1);
+      pieces_layer.add(p0el2);
       pieces_layer.add(p1name);
+      pieces_layer.add(p1el2);
+      pieces_layer.add(p1el0);
       pieces_layer.add(p2name);
+      pieces_layer.add(p2el0);
+      pieces_layer.add(p2el1);
 
       // game over
       top_layer.add(gameover);
