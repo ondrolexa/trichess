@@ -4,15 +4,24 @@ const gid2valid = {};
 const gid2attack = {};
 const gid2piece = {};
 const pos2gid = {};
+const seat2pid = {};
+const seat2name = {};
+const pid2seat = {};
+const pid2name = {};
+
+var slog = "";
+var server_slog = "";
+var game_slog = "";
+var game_moves = 0;
+var on_move = false;
+var view_pid = 0;
+var active_tween = { active: false, tween: null };
+
 var elpieces = { 0: {}, 1: {}, 2: {} };
-const player_names = { 0: "", 1: "", 2: "" };
-const player_names_font = { 0: "", 1: "", 2: "" };
-const player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
+var player_names = { 0: "", 1: "", 2: "" };
+var player_names_font = { 0: "", 1: "", 2: "" };
+var player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
 var movelabel_text = "";
-const pieces_symbols = { P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
-var stageWidth = 20;
-var stageHeight = 17;
-var visual_shift = 20;
 var movestage = -1;
 var target = -1;
 var current = -1;
@@ -20,6 +29,7 @@ var ready = false;
 var targets = new Set();
 var promotions = new Set();
 var lastmove = { from: -1, to: -1 };
+
 const slogtext = document.getElementById("log");
 const submit = document.getElementById("submitGame");
 const draw = document.getElementById("voteDraw");
@@ -30,16 +40,22 @@ const backmove = document.getElementById("backMove");
 const forwardmove = document.getElementById("forwardMove");
 const modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
 const navbar = document.getElementById("header");
-var seat = {};
-var slog = "";
-var server_slog = "";
-var game_slog = "";
-var game_moves = 0;
-var on_move = false;
-var view_pid = 0;
-const active_tween = { active: false, tween: null };
+
+// to be improved
+var stageWidth = 20;
+var stageHeight = 17;
+var visual_shift = 20;
+
+// variuos settings
+var line_dash = [0.2, 0.1];
+var line_width = 0.04;
+var lastCenter = null;
+var lastDist = 0;
+var dragStopped = false;
 
 const api_url = `${window.location.protocol}//${window.location.host}`;
+
+// Konva objects and events
 
 var stage = new Konva.Stage({
   container: "canvas",
@@ -96,10 +112,6 @@ function getCenter(p1, p2) {
     y: (p1.y + p2.y) / 2,
   };
 }
-
-let lastCenter = null;
-let lastDist = 0;
-let dragStopped = false;
 
 stage.on("touchmove", function (e) {
   e.evt.preventDefault();
@@ -325,6 +337,7 @@ var p2el1 = new Konva.Rect({
 const gameover = new Konva.Group({
   visible: false,
 });
+
 const gameover_bg = new Konva.Rect({
   x: -8,
   y: -3,
@@ -347,14 +360,12 @@ var gameover_text = new Konva.Text({
   opacity: 0.65,
   listening: false,
 });
+
 gameover.add(gameover_bg);
 gameover.add(gameover_text);
 gameover.on("click tap", function (evt) {
   gameover.visible(false);
 });
-
-var line_dash = [0.2, 0.1];
-var line_width = 0.04;
 
 var qline = new Konva.Line({
   points: [],
@@ -392,7 +403,8 @@ stage.add(interactive_layer);
 stage.add(pieces_layer);
 stage.add(top_layer);
 
-// responsive canvas
+// helpers
+
 function fitStageIntoDiv() {
   const container = document.querySelector("#canvas");
   const containerWidth = container.offsetWidth;
@@ -532,6 +544,8 @@ function createHexLabel(gid, xy, color, data) {
   return label;
 }
 
+// Move cycle manager
+
 function manageMove(gid) {
   if (ready) {
     current = gid;
@@ -651,8 +665,8 @@ function updateStats(
 ) {
   for (var p = 0; p < 3; p++) {
     player_names[p] =
-      `${seat[p]} (${pieces_value[(p + view_pid) % 3]}/${eliminated_value[(p + view_pid) % 3]})`;
-    el = eliminated[(p + view_pid) % 3];
+      `${seat2name[p]} (${pieces_value[seat2pid[p]]}/${eliminated_value[seat2pid[p]]})`;
+    el = eliminated[seat2pid[p]];
     for (let pcs in el) {
       elpieces[p][pcs].data(pieces_paths["pieces"][el[pcs]]);
     }
@@ -661,27 +675,27 @@ function updateStats(
     }
   }
 
-  p0el1.width(eliminitations[(0 + view_pid) % 3][(1 + view_pid) % 3]);
-  p0el1.offsetX(eliminitations[(0 + view_pid) % 3][(1 + view_pid) % 3]);
-  p0el1.fill(theme["pieces"]["color"][(1 + view_pid) % 3]);
-  p0el2.width(eliminitations[(0 + view_pid) % 3][(2 + view_pid) % 3]);
-  p0el2.fill(theme["pieces"]["color"][(2 + view_pid) % 3]);
+  p0el1.width(eliminitations[seat2pid[0]][seat2pid[1]]);
+  p0el1.offsetX(eliminitations[seat2pid[0]][seat2pid[1]]);
+  p0el1.fill(theme["pieces"]["color"][seat2pid[1]]);
+  p0el2.width(eliminitations[seat2pid[0]][seat2pid[2]]);
+  p0el2.fill(theme["pieces"]["color"][seat2pid[2]]);
 
-  p1el2.width(eliminitations[(1 + view_pid) % 3][(2 + view_pid) % 3]);
-  p1el2.fill(theme["pieces"]["color"][(2 + view_pid) % 3]);
-  p1el0.width(eliminitations[(1 + view_pid) % 3][(0 + view_pid) % 3]);
-  p1el0.offsetX(-eliminitations[(1 + view_pid) % 3][(2 + view_pid) % 3]);
-  p1el0.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
+  p1el2.width(eliminitations[seat2pid[1]][seat2pid[2]]);
+  p1el2.fill(theme["pieces"]["color"][seat2pid[2]]);
+  p1el0.width(eliminitations[seat2pid[1]][seat2pid[0]]);
+  p1el0.offsetX(-eliminitations[seat2pid[1]][seat2pid[2]]);
+  p1el0.fill(theme["pieces"]["color"][seat2pid[0]]);
 
-  p2el0.width(eliminitations[(2 + view_pid) % 3][(0 + view_pid) % 3]);
+  p2el0.width(eliminitations[seat2pid[2]][seat2pid[0]]);
   p2el0.offsetX(
-    eliminitations[(2 + view_pid) % 3][(0 + view_pid) % 3] +
-      eliminitations[(2 + view_pid) % 3][(1 + view_pid) % 3],
+    eliminitations[seat2pid[2]][seat2pid[0]] +
+      eliminitations[seat2pid[2]][seat2pid[1]],
   );
-  p2el0.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
-  p2el1.width(eliminitations[(2 + view_pid) % 3][(1 + view_pid) % 3]);
-  p2el1.offsetX(eliminitations[(2 + view_pid) % 3][(1 + view_pid) % 3]);
-  p2el1.fill(theme["pieces"]["color"][(1 + view_pid) % 3]);
+  p2el0.fill(theme["pieces"]["color"][seat2pid[0]]);
+  p2el1.width(eliminitations[seat2pid[2]][seat2pid[1]]);
+  p2el1.offsetX(eliminitations[seat2pid[2]][seat2pid[1]]);
+  p2el1.fill(theme["pieces"]["color"][seat2pid[1]]);
 
   slogtext.innerHTML = slog;
   movelabel_text = `Move\n${move_number}/${game_moves}`;
@@ -718,6 +732,8 @@ function setCoordHints(gid) {
   rline.visible(true);
   sline.visible(true);
 }
+
+// API calls
 
 function validMoves(gid) {
   const url = `${api_url}/api/v1/move/valid`;
@@ -917,7 +933,7 @@ function gameInfo(init = false, redraw = false) {
       player_names_font[2] =
         "400 10px " + theme["canvas"]["font-family"] + ", sans-serif";
       player_names_color[2] = theme["canvas"]["name"];
-      if ((data.onmove + 3 - view_pid) % 3 == 0) {
+      if (pid2seat[data.onmove] == 0) {
         player_names_font[0] =
           "900 10px " + theme["canvas"]["font-family"] + ", sans-serif";
         if (data.in_chess) {
@@ -925,7 +941,7 @@ function gameInfo(init = false, redraw = false) {
         } else {
           player_names_color[0] = theme["canvas"]["name_onmove"];
         }
-      } else if ((data.onmove + 3 - view_pid) % 3 == 1) {
+      } else if (pid2seat[data.onmove] == 1) {
         player_names_font[1] =
           "900 10px " + theme["canvas"]["font-family"] + ", sans-serif";
         if (data.in_chess) {
@@ -1035,9 +1051,9 @@ function gameInfo(init = false, redraw = false) {
       // Show voting results
       if (data.vote_results != null) {
         movelabel_text = `${data.vote_results["kind"]}\nvoting`;
-        for (var p = 0; p < 3; p++) {
+        for (let p = 0; p < 3; p++) {
           player_names[p] =
-            `${seat[p]} (${data.vote_results[(p + view_pid) % 3]})`;
+            `${seat2name[p]} (${data.vote_results[seat2pid[p]]})`;
         }
       }
       // Open voting if needed
@@ -1053,12 +1069,12 @@ function gameInfo(init = false, redraw = false) {
             const accepting = [];
             const declining = [];
             for (var p = 0; p < 3; p++) {
-              if (data.vote_results[(p + view_pid) % 3] == "A") {
-                accepting.push(seat[p]);
-              } else if (data.vote_results[(p + view_pid) % 3] == "D") {
-                declining.push(seat[p]);
+              if (data.vote_results[seat2pid[p]] == "A") {
+                accepting.push(seat2name[p]);
+              } else if (data.vote_results[seat2pid[p]] == "D") {
+                declining.push(seat2name[p]);
               }
-              ispan.innerHTML = seat[3 - data.vote_results["n_voted"]];
+              ispan.innerHTML = seat2name[3 - data.vote_results["n_voted"]];
               aspan.innerHTML = accepting.join(" ");
               dspan.innerHTML = declining.join(" ");
             }
@@ -1078,12 +1094,12 @@ function gameInfo(init = false, redraw = false) {
             const accepting = [];
             const declining = [];
             for (var p = 0; p < 3; p++) {
-              if (data.vote_results[(p + view_pid) % 3] == "A") {
-                accepting.push(seat[p]);
-              } else if (data.vote_results[(p + view_pid) % 3] == "D") {
-                declining.push(seat[p]);
+              if (data.vote_results[seat2pid[p]] == "A") {
+                accepting.push(seat2name[p]);
+              } else if (data.vote_results[seat2pid[p]] == "D") {
+                declining.push(seat2name[p]);
               }
-              ispan.innerHTML = seat[3 - data.vote_results["n_voted"]];
+              ispan.innerHTML = seat2name[3 - data.vote_results["n_voted"]];
               aspan.innerHTML = accepting.join(" ");
               dspan.innerHTML = declining.join(" ");
             }
@@ -1112,13 +1128,9 @@ function gameInfo(init = false, redraw = false) {
           } else {
             wid = 2;
           }
-          gameover_text.text(
-            "GAME OVER\n" + seat[(wid + 3 - view_pid) % 3] + " win",
-          );
+          gameover_text.text("GAME OVER\n" + pid2name[wid] + " win");
         } else {
-          gameover_text.text(
-            "GAME OVER\n" + seat[(data.onmove + 3 - view_pid) % 3] + " lost",
-          );
+          gameover_text.text("GAME OVER\n" + pid2name[data.onmove] + " lost");
         }
         gameover.visible(true);
         board_layer.off("click tap");
@@ -1154,17 +1166,21 @@ function boardInfo() {
       return Promise.reject(response);
     })
     .then((data) => {
-      const seats = [data.player_0, data.player_1, data.player_2];
+      // Create seats mappings
+      var seats = [data.player_0, data.player_1, data.player_2];
       view_pid = data.view_pid;
-      seat[0] = seats[(0 + view_pid) % 3];
-      seat[1] = seats[(1 + view_pid) % 3];
-      seat[2] = seats[(2 + view_pid) % 3];
+      for (let p = 0; p < 3; p++) {
+        seat2pid[p] = (p + view_pid) % 3;
+        seat2name[p] = seats[seat2pid[p]];
+        pid2seat[p] = (p + 3 - view_pid) % 3;
+        pid2name[p] = seats[p];
+      }
       slog = data.slog;
       server_slog = data.slog;
       game_slog = data.slog;
       game_moves = data.move_number;
       gameInfo(true, true);
-      // Create mappings
+      // Create board mappings
       let gid = 0;
       for (let r = -7; r <= 7; r++) {
         for (let q = -7; q <= 7; q++) {
@@ -1221,7 +1237,7 @@ function boardInfo() {
           elpieces[p][i] = createHexLabel(
             0,
             [q[p][i] + 0.5 * r[p][i] - 0.5, (r[p][i] * Math.sqrt(3)) / 2],
-            theme["pieces"]["color"][(p + view_pid) % 3],
+            theme["pieces"]["color"][seat2pid[p]],
             "",
           );
           pieces_layer.add(elpieces[p][i]);
@@ -1313,5 +1329,7 @@ function boardSubmit() {
 
 window.addEventListener("resize", fitStageIntoDiv);
 window.addEventListener("orientationchange", doOnOrientationChange);
+
+// ready to go
 
 boardInfo();
