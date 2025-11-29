@@ -233,7 +233,7 @@ class iinfo {
         this.info_id = iinfo_id
         this.x     = ipos_x
         this.y     = ipos_y
-        this.align = ialign
+        this.align = ialign  // todo +1/-1
         this.vert  = ivert
         var line_len = 260
         var line_high = 1.5*r
@@ -360,6 +360,7 @@ class iinfos {
             // power lines
             this.power_lines(idata)
         }
+        this.elim_lines(idata)
         for (let i = 0; i < 3; i++) {
             this.panel[i].lines[0].text = this.players[this.index[i]] // set players names
             for (let z= 0; z < 7; z++) {
@@ -385,33 +386,52 @@ class iinfos {
             if (e != undefined)
                 {
                 for (let j = 0; j < e.length; j++) {
-                    this.panel[i].lines[j+2].color= theme["pieces"]["color"][(this.index[i]+2)%3]
+                    this.panel[i].lines[j+2].color= theme["pieces"]["color"][this.index[i]]
                     this.panel[i].lines[j+2].text= e[j]
                     }
                 }
         }
     }
-    power_lines(idata){//i_width, i_color, i_r) {
-        let high = 100
-        let x = II.panel[3].x+5
-        let y = II.panel[3].y-5
-        let p = 0 //power
+    daw_line(ix, iy, i_width, i_high, i_color) {
+        if (i_width == 0 || undefined ) { return}
         ctx0.save()
         ctx0.lineWidth = 5//*epiece_lineWidth
         ctx0.strokeStyle = theme["pieces"]["stroke-color"]
+        ctx0.beginPath()
+        ctx0.fillStyle = i_color
+        ctx0.rect(ix,iy, i_width, i_high)
+        ctx0.fill()
+        ctx0.stroke()
+        ctx0.closePath()
+        ctx0.restore()
+    }
+    power_lines(idata){
+        let high = 100
+        let x = this.panel[3].x+5
+        let y = this.panel[3].y-5
+        let p = 0 //power
         for (let i = 0; i < 3; i++) { //draw hex
-            ctx0.beginPath()
-            ctx0.fillStyle = theme["pieces"]["color"][(this.index[i]+2)%3]
             y = y - high
             p = idata.pieces_value[this.index[i]]
-            ctx0.rect(x,y, 1200/50*p, high)
-            ctx0.fill()
-            ctx0.stroke()
-            ctx0.closePath()
+            this.daw_line(x, y, 1200/50*p, high, theme["pieces"]["color"][(this.index[i]+2)%3])
         }
-        ctx0.restore()
         this.panel[3].lines[3].pos_y = y - 20
         this.panel[3].lines[3].text = 'Power:'
+    }
+    elim_lines(idata){
+        let high = 35
+        let step = 23
+        let al = -1
+        for (let i = 0; i < 3; i++) {
+            if (this.panel[i].align == 'left') { al=1 } else { al=-1 } //todo
+            let ind = rotateArray([0,1,2], i + B.view_player) //todo
+            let e1 = idata.eliminations[ind[0]][ind[1]]
+            let e2 = idata.eliminations[ind[0]][ind[2]]
+            let x = this.panel[i].lines[1].pos_x
+            let y = this.panel[i].lines[1].pos_y
+            this.daw_line(x, y     , al*e1*step, high*this.panel[i].vert, theme["pieces"]["color"][ind[1]])
+            this.daw_line(x, y-high, al*e2*step, high*this.panel[i].vert, theme["pieces"]["color"][ind[2]])
+        }
     }
     write() {
     for (let i = 0; i < 4; i++) {
@@ -437,12 +457,11 @@ class  hex {
         this.id = id;
         this.piece = {"piece":"" , "player_id":-1};
         this.hex_color =  theme["board"]["hex_color"][((2 * a + b) % 3)]
-        this.lumi = undefined  // R,G,B, luminiscence
+        this.lumi = undefined  // R,G,B, luminiscence todo
         this.show_flag = true; // true means to redraw the hex
         this.valid_flag = false;
         this.promo_flag = false;
     }
-
     set(ipiece) {
     if (ipiece.piece !=  this.piece.piece || ipiece.player_id !=  this.piece.player_id) {
         this.show_flag = true;
@@ -459,7 +478,6 @@ class  hex {
         ctx0.beginPath();
         //ctx0.lineWidth = 3;
         //ctx0.strokeStyle = "#ff9b09"//theme["board"]["valid_move"];
-
         for (let i = 0; i < 6; i++) { //draw hex tile
             ctx0.lineTo(this.x + r * Math.cos((i  + 0.5)*(Math.PI / 3 )),
                        this.y + r * Math.sin((i  + 0.5)*(Math.PI / 3 )));
@@ -867,17 +885,12 @@ function Step_3_setelim_board_and_draw(idata) {
             var name = II.players[B.onmove]
             const modal_go = new bootstrap.Modal(document.getElementById("gameOver"))
             const vp = document.getElementById("goVotePlayers")
-            //const a =  document.querySelectorAll('.modalwait')[0].style
-            //const b =  document.getElementById("gameOverText").style.cssText
         if (idata.vote_results == null) {
             vp.innerHTML = "<br>"+name+" lost :-("
-            //vp.style.color = theme["pieces"]["color"][(B.onmove+2)%3]
-            //vp.style.backgroundColor = "#000000"
             }
         else if (B.vote_results_kind == 'draw' || B.vote_results_kind == 'resign') {
             const modal_go = new bootstrap.Modal(document.getElementById("gameOver"))
             vp.innerHTML = II.getVoteHist()
-            modal_go.show()
             }
         else {
             }
@@ -889,7 +902,6 @@ function Step_3_setelim_board_and_draw(idata) {
     SemaforWait = false
     modal_wt.hide()
     //}, 0);
-
 }
 function button_control() {
         if (B.move_number_org == B.move_number && B.view_player_org == B.onmove ) {  //&& SemaforVoteDraw
@@ -939,7 +951,6 @@ function window_vote(ikind,itext) {
     }
     modalDraw.show()
 }
-
 // Click ////////////////////////////////////////////////////////////////////////////////
 function Click_Vote(ivalue)   {
     if ( !B.vote_needed &&  !ivalue) {
