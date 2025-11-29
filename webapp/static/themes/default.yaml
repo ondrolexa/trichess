@@ -27,7 +27,7 @@ board:
 
 pieces:
   font-family: "Roboto"
-  stroke-color: "white"
+  stroke-color: "#212529"
   color:
     - "#000599"
     - "#b33900"
