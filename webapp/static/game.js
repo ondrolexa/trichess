@@ -661,18 +661,27 @@ function updateStats(
     }
   }
 
-  p0el1.width(eliminitations[0][1]);
-  p0el1.offsetX(eliminitations[0][1]);
-  p0el2.width(eliminitations[0][2]);
+  p0el1.width(eliminitations[(0 + view_pid) % 3][(1 + view_pid) % 3]);
+  p0el1.offsetX(eliminitations[(0 + view_pid) % 3][(1 + view_pid) % 3]);
+  p0el1.fill(theme["pieces"]["color"][(1 + view_pid) % 3]);
+  p0el2.width(eliminitations[(0 + view_pid) % 3][(2 + view_pid) % 3]);
+  p0el2.fill(theme["pieces"]["color"][(2 + view_pid) % 3]);
 
-  p1el2.width(eliminitations[1][2]);
-  p1el0.width(eliminitations[1][0]);
-  p1el0.offsetX(-eliminitations[1][2]);
+  p1el2.width(eliminitations[(1 + view_pid) % 3][(2 + view_pid) % 3]);
+  p1el2.fill(theme["pieces"]["color"][(2 + view_pid) % 3]);
+  p1el0.width(eliminitations[(1 + view_pid) % 3][(0 + view_pid) % 3]);
+  p1el0.offsetX(-eliminitations[(1 + view_pid) % 3][(2 + view_pid) % 3]);
+  p1el0.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
 
-  p2el0.width(eliminitations[2][0]);
-  p2el0.offsetX(eliminitations[2][0] + eliminitations[2][1]);
-  p2el1.width(eliminitations[2][1]);
-  p2el1.offsetX(eliminitations[2][1]);
+  p2el0.width(eliminitations[(2 + view_pid) % 3][(0 + view_pid) % 3]);
+  p2el0.offsetX(
+    eliminitations[(2 + view_pid) % 3][(0 + view_pid) % 3] +
+      eliminitations[(2 + view_pid) % 3][(1 + view_pid) % 3],
+  );
+  p2el0.fill(theme["pieces"]["color"][(0 + view_pid) % 3]);
+  p2el1.width(eliminitations[(2 + view_pid) % 3][(1 + view_pid) % 3]);
+  p2el1.offsetX(eliminitations[(2 + view_pid) % 3][(1 + view_pid) % 3]);
+  p2el1.fill(theme["pieces"]["color"][(1 + view_pid) % 3]);
 
   slogtext.innerHTML = slog;
   movelabel_text = `Move\n${move_number}/${game_moves}`;
