@@ -537,7 +537,7 @@ function createHexAttack(xy) {
   return hex;
 }
 
-function createHexLabel(gid, xy, color, data) {
+function createHexLabel(gid, xy, color, strokewidth, data) {
   let label = new Konva.Path({
     id: gid,
     x: xy[0],
@@ -546,6 +546,8 @@ function createHexLabel(gid, xy, color, data) {
     fill: color,
     lineCap: "round",
     lineJoin: "round",
+    stroke: theme["pieces"]["stroke-color"],
+    strokeWidth: strokewidth,
     scale: {
       x: 0.075,
       y: 0.075,
@@ -1212,7 +1214,7 @@ function boardInfo() {
             gid2high[gid] = createHexHigh([x, y]);
             gid2valid[gid] = createHexValid([x, y]);
             gid2attack[gid] = createHexAttack([x, y]);
-            gid2piece[gid] = createHexLabel(gid, [x, y], "#ffffff", "");
+            gid2piece[gid] = createHexLabel(gid, [x, y], "#ffffff", 0, "");
             gid++;
           }
         }
@@ -1250,6 +1252,9 @@ function boardInfo() {
             0,
             [q[p][i] + 0.5 * r[p][i] - 0.5, (r[p][i] * Math.sqrt(3)) / 2],
             theme["pieces"]["color"][seat2pid[p]],
+            theme["pieces"]["stroke-color"] != theme["canvas"]["background"]
+              ? 0.25
+              : 0,
             "",
           );
           pieces_layer.add(elpieces[p][i]);
