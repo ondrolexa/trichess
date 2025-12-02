@@ -413,7 +413,7 @@ class iinfos {
         for (let i = 0; i < 3; i++) { //draw hex
             y = y - high
             p = idata.pieces_value[this.index[i]]
-            this.daw_line(x, y, 1200/50*p, high, theme["pieces"]["color"][(this.index[i]+2)%3])
+            this.daw_line(x, y, 1200/50*p, high, theme["pieces"]["color"][(this.index[i])%3])
         }
         this.panel[3].lines[3].pos_y = y - 20
         this.panel[3].lines[3].text = 'Power:'
