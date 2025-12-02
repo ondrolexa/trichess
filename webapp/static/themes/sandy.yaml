@@ -4,31 +4,31 @@ app:
 canvas:
   info: "white"
   name: "white"
-  name_inchess: "red"
-  name_onmove: "green"
+  name_inchess: "#ff00ff"
+  name_onmove: "#04d410"
   background: "#212529"
   font-family: "Roboto"
   game_over: "LightYellow"
 
 board:
-  last_move: "yellow"
-  valid_move: "white"
+  last_move: "#faff00"
+  valid_move: "#000000"
   selection: "#ffffff"
   attack_move: "lime"
   hex_color:
     - "#D4C4A8"
     - "#8B7D6B"
     - "#A0A0A0"
-  hex_inchess: "#ff0000"
-  hex_alpha: "a8"
+  hex_inchess: "#e363ff"
+  hex_alpha: "FF"
   hint_lines: "#ffffff"
   hex_border: "#000000"
   border: "#1b2024"
 
 pieces:
   font-family: "Roboto"
-  stroke-color: "white"
+  stroke-color: "#ffffff"
   color:
-    - "#0047AB"
-    - "#9B111E"
-    - "#096013"
+    - "#0023d8"
+    - "#bf0315"
+    - "#00ce02"
