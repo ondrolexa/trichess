@@ -1,0 +1,34 @@
+app:
+  theme: "light"
+
+canvas:
+  info: "#000000"
+  name: "black"
+  name_inchess: "red"
+  name_onmove: "green"
+  background: "#ffffff"
+  font-family: "Roboto"
+  game_over: "black"
+
+board:
+  last_move: "#00ff00"
+  valid_move: "black"
+  selection: "white"
+  attack_move: "red"
+  hex_color:
+    - "#797d87"
+    - "#feb486"
+    - "#87b8fc"
+  hex_inchess: "yellow"
+  hex_alpha: "a8"
+  hint_lines: "#222222"
+  hex_border: "#000000"
+  border: "#ffffff"
+
+pieces:
+  font-family: "Roboto"
+  stroke-color: "#212529"
+  color:
+    - "#000000"
+    - "#ff0000"
+    - "#0000ff"
