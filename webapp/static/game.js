@@ -790,6 +790,7 @@ function validMoves(gid) {
     })
     .catch((response) => {
       alert(`ValidMoves error ${response.status}: ${response.statusText}`);
+      window.location.reload();
     });
 }
 
@@ -832,6 +833,7 @@ function makeMove(gid, tgid, new_piece = "") {
     })
     .catch((response) => {
       alert(`MakeMove error ${response.status}: ${response.statusText}`);
+      window.location.reload();
     });
 }
 
@@ -870,6 +872,7 @@ function voteDraw(vote) {
     })
     .catch((response) => {
       alert(`VoteDraw error ${response.status}: ${response.statusText}`);
+      window.location.reload();
     });
 }
 
@@ -908,6 +911,7 @@ function voteResign(vote) {
     })
     .catch((response) => {
       alert(`VoteResign error ${response.status}: ${response.statusText}`);
+      window.location.reload();
     });
 }
 
@@ -1158,6 +1162,7 @@ function gameInfo(init = false, redraw = false) {
     })
     .catch((response) => {
       alert(`GameInfo error ${response.status}: ${response.statusText}`);
+      window.location.reload();
     });
 }
 
@@ -1301,6 +1306,7 @@ function boardInfo() {
     })
     .catch((response) => {
       alert(`BoardInfo error ${response.status}: ${response.statusText}`);
+      window.location.reload();
     });
 }
 
@@ -1341,6 +1347,7 @@ function boardSubmit() {
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
       alert(`BoardSubmit error ${response.status}: ${response.statusText}`);
+      window.location.reload();
     });
 }
 
