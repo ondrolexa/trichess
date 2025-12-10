@@ -16,19 +16,19 @@ board:
   selection: "#ffffff"
   attack_move: "lime"
   hex_color:
-    - "#D4C4A8"
-    - "#8B7D6B"
-    - "#A0A0A0"
+    - "#d4c4a8"
+    - "#8b7d6b"
+    - "#a0a0a0"
   hex_inchess: "#e363ff"
-  hex_alpha: "FF"
+  hex_alpha: "ff"
   hint_lines: "#ffffff"
   hex_border: "#000000"
   border: "#1b2024"
 
 pieces:
   font-family: "Roboto"
-  stroke-color: "#ffffff"
+  stroke-color: "#a0a0a0"
   color:
     - "#0023d8"
     - "#bf0315"
-    - "#00ce02"
+    - "#000000"
