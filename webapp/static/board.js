@@ -329,8 +329,8 @@ class iinfos {
     }
     set (idata) {
         this.index = rotateArray([0,1,2], B.view_player) //todo
-        this.panel[3].lines[5].text = 'Game ID: '+ID.toString()
-        this.panel[3].lines[4].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
+        this.panel[3].lines[4].text = '# '+ID.toString()
+        this.panel[3].lines[3].text= 'Move: '+B.move_number_org.toString()+'/'+B.move_number.toString()
         if ( idata.vote_results != null ) {
             let verb = ' offers '
             let j = 0
@@ -406,17 +406,17 @@ class iinfos {
         ctx0.restore()
     }
     power_lines(idata){
-        let high = 100
+        let high = 90
         let x = this.panel[3].x+5
-        let y = this.panel[3].y-5
+        let y = this.panel[3].y+50
         let p = 0 //power
         for (let i = 0; i < 3; i++) { //draw hex
             y = y - high
             p = idata.pieces_value[this.index[i]]
             this.daw_line(x, y, 1200/52*p, high, theme["pieces"]["color"][(this.index[i])%3])
         }
-        this.panel[3].lines[3].pos_y = y - 20
-        this.panel[3].lines[3].text = 'Power:'
+        //this.panel[3].lines[2].pos_y = y - 20
+        this.panel[3].lines[2].text = 'Power:'
     }
     elim_lines(idata){
         let high = 35

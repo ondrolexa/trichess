@@ -12,23 +12,23 @@ canvas:
 
 board:
   last_move: "#04d410"
-  valid_move: "#ff0000"
-  selection: "#00f6ff"
+  valid_move: "#00d1ff"
+  selection: "#00d1ff"
   attack_move: "#ff00ef"
   hex_color:
-    - "#8b6232"
-    - "#737373"
+    - "#603c0d"
+    - "#787878"
     - "#000000"
   hex_inchess: "#fa6eee"
   hex_alpha: "FF"
-  hint_lines: "#ffffff"
-  hex_border: "#000000"
-  border: "#1b2024"
+  hint_lines: "#00d1ff"
+  hex_border: "#212529"
+  border: "#212529"
 
 pieces:
   font-family: "Roboto"
   stroke-color: "#000000"
   color:
     - "#ffffff"
-    - "#00f6ff"
+    - "#ff6363"
     - "#faff00"
