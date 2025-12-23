@@ -828,7 +828,6 @@ function Step_make_move(idata) {
              B.hist_changed =  true;
          }
          B.move_number_max = B.move_number+1;
-         B.slog_pointer = B.slog_pointer+1;
          F.fetchPOST(url+'/api/v1/game/info', {"slog": B.slog, "view_pid": B.view_player}, Step_3_setelim_board_and_draw);
 }
 function Step_valid_moves(idata) {
@@ -983,7 +982,6 @@ function Click_Forward() { //todo
 }
 function Click_OK() {
     if (B.move_number_org == B.move_number-1 && B.view_player_org == (B.onmove+2)%3 ) {
-        B.slog_pointer = B.move_number+1;
         F.fetchPOST(url+'/api/v1/manager/board', {"id": ID, "slog": B.getSlog()},function () {SemaforWait = false;modal_wt.hide()} );
     }
     B.move_number_org = -1

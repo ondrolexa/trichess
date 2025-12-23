@@ -5,16 +5,16 @@ canvas:
   info: "#bda796"
   name: "#bda796"
   name_inchess: "#fa6eee"
-  name_onmove: "#04d410"
+  name_onmove: "#45c5f8"
   background: "#212529"
   font-family: "Roboto"
   game_over: "black"
 
 board:
-  last_move: "#04d410"
-  valid_move: "#00d1ff"
+  last_move: "#45c5f8"
+  valid_move: "#45c5f8"
   selection: "#00d1ff"
-  attack_move: "#ff00ef"
+  attack_move: "#45c5f8"
   hex_color:
     - "#603c0d"
     - "#787878"
@@ -30,5 +30,5 @@ pieces:
   stroke-color: "#000000"
   color:
     - "#ffffff"
-    - "#ff6363"
+    - "#04be00"
     - "#faff00"
