@@ -34,6 +34,7 @@
               <li class="nav-item">{{ render_nav_item('help', 'Help') }}</li>
               {% if current_user.is_authenticated %}
               <li class="nav-item">{{ render_nav_item('profile', 'Profile') }}</li>
+              <li class="nav-item">{{ render_nav_item('rating', 'Ratings') }}</li>
               {% endif %}
               {% else %}
               <li class="nav-item">{{ render_nav_item('admin_games', 'All games') }}</li>

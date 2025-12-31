@@ -79,6 +79,17 @@ class TriBoard(db.Model):
     scores = db.relationship("Score", backref="board")
 
 
+class Ratings(db.Model):
+    __tablename__ = "v_ratings"
+    #__table_args__ = {'info': dict(is_view=True)}
+    position = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.Text)
+    rating = db.Column(db.Integer)
+    score = db.Column(db.Float)
+    game_count = db.Column(db.Integer)
+    game_last = db.Column(db.DateTime, server_default=db.func.now())
+
+
 class Score(db.Model):
     __tablename__ = "score"
     id = db.Column(db.Integer, primary_key=True)

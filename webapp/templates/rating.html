@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{%block content%}
+<h2>Players rating</h2>
+<div class="table-responsive-sm">
+  <table class="table table-hover table-sm align-middle">
+  <thead>
+    <tr>
+    <th scope="col">#</th>
+    <th scope="col">Player</th>
+    <th scope="col">Rating</th>
+    <th scope="col">Score</th>
+    <th scope="col">Game count</th>
+    <th scope="col">Last game</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for game in games %}
+    <tr>
+    <th scope="row">{{game.position}}</th>
+    <td class="seat">
+    <span>{{game.username}}</span>
+    </td>
+    <td class="seat">
+    <span>{{game.rating}}</span>
+    </td>
+    <td class="seat">
+    <span>{{game.score}}</span>
+    </td>
+    <td class="seat">
+    <span>{{game.game_count}}</span>
+    </td>
+    <td class="seat">
+    <span>{{game.game_last|deltatime}}</span>
+    </td>
+    {% endfor %}
+   </tbody>
+   </table>
+</div>
+{%endblock%}

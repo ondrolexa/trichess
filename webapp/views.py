@@ -35,7 +35,7 @@ from webapp.forms import (
     RegistrationForm,
 )
 from webapp.main import app, db, lm
-from webapp.models import Score, TriBoard, User
+from webapp.models import Score, TriBoard, User, Ratings
 
 
 @app.template_filter("strftime")
@@ -140,6 +140,13 @@ def archive():
     )
     add_score(archive)
     return render_template("archive.html", games=archive, board=g.user.board)
+
+
+@app.route("/rating")
+@login_required
+def rating():
+    rating = Ratings.query.all()
+    return render_template("rating.html", games=rating )
 
 
 @app.route("/join", methods=["GET", "POST"])
