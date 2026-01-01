@@ -146,7 +146,7 @@ def archive():
 @login_required
 def rating():
     rating = Ratings.query.all()
-    return render_template("rating.html", games=rating )
+    return render_template("rating.html", games=rating, uid=g.user.id)
 
 
 @app.route("/join", methods=["GET", "POST"])

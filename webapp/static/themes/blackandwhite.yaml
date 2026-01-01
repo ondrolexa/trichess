@@ -2,8 +2,8 @@ app:
   theme: "dark"
 
 canvas:
-  info: "#bda796"
-  name: "#bda796"
+  info: "#b4b2b3"
+  name: "#b4b2b3"
   name_inchess: "#fa6eee"
   name_onmove: "#45c5f8"
   background: "#212529"
@@ -12,8 +12,8 @@ canvas:
 
 board:
   last_move: "#45c5f8"
-  valid_move: "#45c5f8"
-  selection: "#00d1ff"
+  valid_move: "#ffffff"
+  selection: "#ffffff"
   attack_move: "#45c5f8"
   hex_color:
     - "#603c0d"
@@ -21,7 +21,7 @@ board:
     - "#000000"
   hex_inchess: "#fa6eee"
   hex_alpha: "FF"
-  hint_lines: "#00d1ff"
+  hint_lines: "#ffffff"
   hex_border: "#212529"
   border: "#212529"
 
@@ -29,6 +29,6 @@ pieces:
   font-family: "Roboto"
   stroke-color: "#000000"
   color:
-    - "#ffffff"
-    - "#04be00"
+    - "#ff0000"
+    - "#04d400"
     - "#faff00"

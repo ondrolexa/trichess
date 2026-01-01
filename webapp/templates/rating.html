@@ -16,23 +16,23 @@
   </thead>
   <tbody>
     {% for game in games %}
-    <tr>
+    {% if game.uid == uid %}
+    <tr  class="table-active">
+    {% else %}
+    <tr class="seat">
+    {% endif %}
     <th scope="row">{{game.position}}</th>
-    <td class="seat">
+    <td>
+    {% if game.uid == uid %}
+    <strong class="{{ on_move_color }}">{{game.username}}</strong>
+    {% else %}
     <span>{{game.username}}</span>
+    {% endif %}
     </td>
-    <td class="seat">
-    <span>{{game.rating}}</span>
-    </td>
-    <td class="seat">
-    <span>{{game.score}}</span>
-    </td>
-    <td class="seat">
-    <span>{{game.game_count}}</span>
-    </td>
-    <td class="seat">
-    <span>{{game.game_last|deltatime}}</span>
-    </td>
+    <td><span>{{game.rating}}</span></td>
+    <td><span>{{game.score}}</span></td>
+    <td><span>{{game.game_count}}</span></td>
+    <td><span>{{game.game_last|deltatime}}</span></td>
     {% endfor %}
    </tbody>
    </table>

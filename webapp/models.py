@@ -81,8 +81,8 @@ class TriBoard(db.Model):
 
 class Ratings(db.Model):
     __tablename__ = "v_ratings"
-    #__table_args__ = {'info': dict(is_view=True)}
-    position = db.Column(db.Integer, primary_key=True)
+    uid = db.Column(db.Integer, primary_key=True)
+    position = db.Column(db.Integer)
     username = db.Column(db.Text)
     rating = db.Column(db.Integer)
     score = db.Column(db.Float)
