@@ -10,29 +10,29 @@
     <th scope="col">Player</th>
     <th scope="col">Rating</th>
     <th scope="col">Score</th>
-    <th scope="col">Game count</th>
+    <th scope="col">Games played</th>
     <th scope="col">Last game</th>
     </tr>
   </thead>
   <tbody>
-    {% for game in games %}
-    {% if game.uid == uid %}
+    {% for user in ratings %}
+    {% if user.id == uid %}
     <tr  class="table-active">
     {% else %}
     <tr class="seat">
     {% endif %}
-    <th scope="row">{{game.position}}</th>
+    <th scope="row">{{user.position}}</th>
     <td>
-    {% if game.uid == uid %}
-    <strong class="{{ on_move_color }}">{{game.username}}</strong>
+    {% if user.uid == uid %}
+    <strong class="{{ on_move_color }}">{{user.username}}</strong>
     {% else %}
-    <span>{{game.username}}</span>
+    <span>{{user.username}}</span>
     {% endif %}
     </td>
-    <td><span>{{game.rating}}</span></td>
-    <td><span>{{game.score}}</span></td>
-    <td><span>{{game.game_count}}</span></td>
-    <td><span>{{game.game_last|deltatime}}</span></td>
+    <td><span>{{user.rating|round|int}}</span></td>
+    <td><span>{{user.score}}</span></td>
+    <td><span>{{user.played_games}}</span></td>
+    <td><span>{{user.last_game|deltatime}}</span></td>
     {% endfor %}
    </tbody>
    </table>

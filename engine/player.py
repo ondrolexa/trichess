@@ -50,7 +50,6 @@ class Player:
     def __init__(self, pid: int, **kwargs):
         self.pid = pid
         self.name = kwargs.get("name", f"Player {pid}")
-        self.king_piece = None
 
     def __repr__(self) -> str:
         return f"[{self.name}]"
@@ -89,8 +88,13 @@ class Player:
     def king(self, **kwargs) -> King:
         """Create Player's instance of king piece."""
         # keep reference for king
-        self.king_piece = King(self, **kwargs)
-        return self.king_piece
+        if not hasattr(self, "__king_piece"):
+            self.__king_piece = King(self, **kwargs)
+        return self.__king_piece
+
+    @property
+    def king_piece(self) -> King:
+        return self.__king_piece
 
     def promotion(self, label, **kwargs) -> Piece:
         match label:

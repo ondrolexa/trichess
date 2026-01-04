@@ -182,7 +182,10 @@ class GameAPI:
 
     def copy(self):
         ga = GameAPI(
-            player0=self.players[0], player1=self.players[1], player2=self.players[2]
+            self.view_pid,
+            player0=self.players[0],
+            player1=self.players[1],
+            player2=self.players[2],
         )
 
         ga.replay_from_slog(self.slog)

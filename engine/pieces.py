@@ -112,7 +112,7 @@ class Piece:
         if self.hex is not None:
             return self.hex.pos
 
-    def pos_candidates(self, castling: bool) -> list[Pos]:
+    def pos_candidates(self, castling: bool) -> list[Pos] | None:
         """Returns list of new position candidates"""
         if self.hex is not None:
             res = []

@@ -301,6 +301,15 @@ votes = api.model(
     },
 )
 
+scores = api.model(
+    "Game score if ended",
+    {
+        0: fields.Float,
+        1: fields.Float,
+        2: fields.Float,
+    },
+)
+
 game_response = api.model(
     "Game response",
     {
@@ -321,6 +330,7 @@ game_response = api.model(
         "vote_draw_needed": fields.Boolean,
         "vote_resign_needed": fields.Boolean,
         "vote_results": fields.Nested(votes),
+        "score": fields.Nested(scores),
     },
 )
 
@@ -361,6 +371,23 @@ class GameInfo(Resource):
                 res["eliminations"] = ga.player_eliminations()
                 res["vote_needed"] = ga.voting.needed()
                 res["vote_results"] = ga.voting.votes()
+                res["score"] = {0: 0.0, 1: 0.0, 2: 0.0}
+                if not ga.move_possible():
+                    in_chess, gid, who = ga.in_chess()
+                    if ga.draw():
+                        res["score"] = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
+                    elif ga.resignation():
+                        resigned = ga.voting.results(kind="resign")
+                        uid = set([0, 1, 2]).difference(resigned).pop()
+                        res["score"][uid] = 2.0
+                    elif in_chess:
+                        tot = [len(p) for p in who.values()]
+                        for uid, v in enumerate(tot):
+                            score = v * 2 / sum(tot)
+                            if score > 0:
+                                res["score"][uid] = score
+                    else:
+                        res["score"] = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
                 return res
             except Exception as err:
                 gameapi.abort(417, message=f"Unexpected error {err}")

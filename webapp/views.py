@@ -35,7 +35,7 @@ from webapp.forms import (
     RegistrationForm,
 )
 from webapp.main import app, db, lm
-from webapp.models import Score, TriBoard, User, Ratings
+from webapp.models import Score, TriBoard, User
 
 
 @app.template_filter("strftime")
@@ -62,7 +62,7 @@ def add_onmove(games):
         game.onmove = len(moves) % 3
 
 
-def add_score(games):
+def add_game_score(games):
     for game in games:
         sc = Score.query.filter_by(board_id=game.id, player_id=game.player_0_id).first()
         game.player_0_score = sc.score if sc else 0
@@ -70,6 +70,29 @@ def add_score(games):
         game.player_1_score = sc.score if sc else 0
         sc = Score.query.filter_by(board_id=game.id, player_id=game.player_2_id).first()
         game.player_2_score = sc.score if sc else 0
+
+
+def add_user_score(users):
+    for ix, user in enumerate(users):
+        user.position = ix + 1
+        user.score = sum(
+            [s.score for s in Score.query.filter_by(player_id=user.id).all()]
+        )
+        user_in = db.or_(
+            TriBoard.player_0_id == user.id,
+            TriBoard.player_1_id == user.id,
+            TriBoard.player_2_id == user.id,
+        )
+        archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
+        user.played_games = len(archive)
+        last_game = (
+            TriBoard.query.filter_by(status=2)
+            .filter(user_in)
+            .order_by(TriBoard.modified_at.desc())
+            .first()
+        )
+        if last_game:
+            user.last_game = last_game.modified_at
 
 
 def render_template(*args, **kwargs):
@@ -138,15 +161,21 @@ def archive():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    add_score(archive)
+    add_game_score(archive)
     return render_template("archive.html", games=archive, board=g.user.board)
 
 
 @app.route("/rating")
 @login_required
 def rating():
-    rating = Ratings.query.all()
-    return render_template("rating.html", games=rating, uid=g.user.id)
+    ratings = (
+        User.query.filter(User.last_login is not None)
+        .order_by(User.rating.desc())
+        .all()
+    )
+    add_user_score(ratings)
+    ratings = [r for r in ratings if r.played_games > 0]
+    return render_template("rating.html", ratings=ratings, uid=g.user.id)
 
 
 @app.route("/join", methods=["GET", "POST"])

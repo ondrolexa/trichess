@@ -1,3 +1,5 @@
+from typing import Iterable
+
 from engine.pieces import King, Pawn, Piece, Pos
 from engine.player import Player
 
@@ -123,7 +125,7 @@ class Board:
         self.place_piece(Pos(-3, -4), self.players[1].king)
         self.place_piece(Pos(7, -3), self.players[2].king)
 
-    def __iter__(self) -> iter:
+    def __iter__(self) -> Iterable:
         return iter(self._board.values())
 
     def __getitem__(self, pos: Pos | int) -> Hex:
@@ -193,11 +195,11 @@ class Board:
         """Return true when pos in opposite base"""
         return (pos in self.opposite[piece.player.pid]) and isinstance(piece, Pawn)
 
-    def in_chess(self, player: Player) -> tuple[bool, list]:
+    def in_chess(self, player: Player) -> tuple[bool, list, list]:
         """Check if players king is under attack and returns list of attacking pieces"""
         return self.pos_in_chess(player, player.king_piece.hex.pos)
 
-    def pos_in_chess(self, player: Player, pos) -> tuple[bool, list]:
+    def pos_in_chess(self, player: Player, pos) -> tuple[bool, list, list]:
         """Check if players pos is under attack and returns list of attacking pieces"""
         pieces = []
         inchess = False
