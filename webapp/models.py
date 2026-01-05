@@ -30,14 +30,18 @@ class User(db.Model):
         )
 
     def stats(self):
-        win = 0
-        part = 0
+        stats = {"win": 0, "coop": 0, "pass": 0, "loss": 0}
         for score in self.scores:
             if score.score == 2:
-                win += 1
+                stats["win"] += 1
+            elif score.score > 0:
+                stats["coop"] += 1
             else:
-                part += 1
-        return win, part
+                if score.onmove or score.tag == "R":
+                    stats["loss"] += 1
+                else:
+                    stats["pass"] += 1
+        return stats
 
     def is_authenticated(self):
         return True

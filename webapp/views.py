@@ -129,25 +129,33 @@ def archive():
         .all()
     )
     for game in archive:
-        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_0_id).first()
-        game.player_0_score = sc.score if sc else 0
-        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_1_id).first()
-        game.player_1_score = sc.score if sc else 0
-        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_2_id).first()
-        game.player_2_score = sc.score if sc else 0
+        game.player_0_score = (
+            Score.query.filter_by(board_id=game.id, player_id=game.player_0_id)
+            .first()
+            .score
+        )
+        game.player_1_score = (
+            Score.query.filter_by(board_id=game.id, player_id=game.player_1_id)
+            .first()
+            .score
+        )
+        game.player_2_score = (
+            Score.query.filter_by(board_id=game.id, player_id=game.player_2_id)
+            .first()
+            .score
+        )
     return render_template("archive.html", games=archive, board=g.user.board)
 
 
 @app.route("/rating")
 @login_required
 def rating():
-    ratings = (
-        User.query.filter(User.last_login is not None)
-        .order_by(User.rating.desc())
-        .all()
-    )
-    for ix, user in enumerate(ratings):
-        user.position = ix + 1
+    users = User.query.order_by(  # .filter(User.last_login is not None)
+        User.rating.desc()
+    ).all()
+    ratings = []
+    pos = 1
+    for user in users:
         user.score = sum([s.score for s in user.scores])
         user_in = db.or_(
             TriBoard.player_0_id == user.id,
@@ -160,11 +168,13 @@ def rating():
             .order_by(TriBoard.modified_at.desc())
         )
         user.played_games = len(boards.all())
-        last_game = boards.first()
-        if last_game:
-            user.last_game = last_game.modified_at
-    # remove players without finished games
-    ratings = [r for r in ratings if r.played_games > 0]
+        if user.played_games > 0:
+            user.last_game = boards.first().modified_at
+            user.counts = {"win": 0, "coop": 0, "pass": 0, "loss": 0}
+            user.position = pos
+            pos += 1
+            user.counts = user.stats()
+            ratings.append(user)
     return render_template("rating.html", ratings=ratings, uid=g.user.id)
 
 
@@ -333,26 +343,6 @@ def profile():
     )
     active = TriBoard.query.filter_by(status=1).filter(user_in).all()
     archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
-    loss = (
-        len(
-            TriBoard.query.filter_by(status=2)
-            .filter(TriBoard.player_0_id == g.user.id)
-            .where((func.length(TriBoard.slog) // 4) % 3 == 0)
-            .all()
-        )
-        + len(
-            TriBoard.query.filter_by(status=2)
-            .filter(TriBoard.player_1_id == g.user.id)
-            .where((func.length(TriBoard.slog) // 4) % 3 == 1)
-            .all()
-        )
-        + len(
-            TriBoard.query.filter_by(status=2)
-            .filter(TriBoard.player_2_id == g.user.id)
-            .where((func.length(TriBoard.slog) // 4) % 3 == 2)
-            .all()
-        )
-    )
     avg = sum([t.modified_at - t.started_at for t in archive], timedelta(0))
     if avg.total_seconds() > 0:
         avg = avg / len(archive)
@@ -371,8 +361,7 @@ def profile():
         active=len(active),
         archive=len(archive),
         avg_length=avg_length,
-        wp=g.user.stats(),
-        loss=loss,
+        stats=g.user.stats(),
     )
 
 

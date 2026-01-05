@@ -8,6 +8,14 @@
     <div class="row">
       <div class="col-lg p-2">
         <div class="card h-100">
+          <h5 class="card-header">Settings</h5>
+          <div class="card-body">
+            {{ render_form(form_profile, action=url_for("profile"), form_type='horizontal', horizontal_columns=('lg', 4, 8)) }}
+          </div>
+        </div>
+      </div>
+      <div class="col-lg p-2">
+        <div class="card h-100">
           <h5 class="card-header">Statistics</h5>
           <div class="card-body">
             <table class="table">
@@ -16,8 +24,8 @@
                 <td>{{ '%0.2f' % rating|float }}</td>
               </tr>
               <tr>
-                <th scope="row">Win/Co-op/Loss</th>
-                <td>{{ wp[0] }}/{{ wp[1] }}/{{ loss }}</td>
+                <th scope="row">Win/Co-op/Pass/Loss</th>
+                <td>{{ stats["win"] }}/{{ stats["coop"] }}/{{ stats["pass"] }}/{{ stats["loss"] }}</td>
               </tr>
               <tr>
                 <th scope="row">Total score</th>
@@ -36,14 +44,6 @@
                 <td>{{ avg_length }}</td>
               </tr>
             </table>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg p-2">
-        <div class="card h-100">
-          <h5 class="card-header">Settings</h5>
-          <div class="card-body">
-            {{ render_form(form_profile, action=url_for("profile"), form_type='horizontal', horizontal_columns=('lg', 4, 8)) }}
           </div>
         </div>
       </div>

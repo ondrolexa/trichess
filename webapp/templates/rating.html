@@ -10,8 +10,9 @@
     <th scope="col">Player</th>
     <th scope="col">Rating</th>
     <th scope="col">Score</th>
-    <th scope="col">Games played</th>
-    <th scope="col">Last game</th>
+    <th scope="col">Games</th>
+    <th scope="col">WCPL</th>
+    <th scope="col">Last</th>
     </tr>
   </thead>
   <tbody>
@@ -32,6 +33,7 @@
     <td><span>{{user.rating|round|int}}</span></td>
     <td><span>{{user.score}}</span></td>
     <td><span>{{user.played_games}}</span></td>
+    <td><span>{{user.counts["win"]}}/{{user.counts["coop"]}}/{{user.counts["pass"]}}/{{user.counts["loss"]}}</span></td>
     <td><span>{{user.last_game|deltatime}}</span></td>
     {% endfor %}
    </tbody>
