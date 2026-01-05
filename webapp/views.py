@@ -62,36 +62,6 @@ def add_onmove(games):
         game.onmove = len(moves) % 3
 
 
-def add_game_score(games):
-    for game in games:
-        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_0_id).first()
-        game.player_0_score = sc.score if sc else 0
-        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_1_id).first()
-        game.player_1_score = sc.score if sc else 0
-        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_2_id).first()
-        game.player_2_score = sc.score if sc else 0
-
-
-def add_user_score(users):
-    for ix, user in enumerate(users):
-        user.position = ix + 1
-        user.score = sum([s.score for s in user.scores])
-        user_in = db.or_(
-            TriBoard.player_0_id == user.id,
-            TriBoard.player_1_id == user.id,
-            TriBoard.player_2_id == user.id,
-        )
-        boards = (
-            TriBoard.query.filter_by(status=2)
-            .filter(user_in)
-            .order_by(TriBoard.modified_at.desc())
-        )
-        user.played_games = len(boards.all())
-        last_game = boards.first()
-        if last_game:
-            user.last_game = last_game.modified_at
-
-
 def render_template(*args, **kwargs):
     navailable = TriBoard.query.filter_by(status=0).count()
     if g.user is not None and g.user.is_authenticated:
@@ -158,7 +128,13 @@ def archive():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    add_game_score(archive)
+    for game in archive:
+        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_0_id).first()
+        game.player_0_score = sc.score if sc else 0
+        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_1_id).first()
+        game.player_1_score = sc.score if sc else 0
+        sc = Score.query.filter_by(board_id=game.id, player_id=game.player_2_id).first()
+        game.player_2_score = sc.score if sc else 0
     return render_template("archive.html", games=archive, board=g.user.board)
 
 
@@ -170,7 +146,24 @@ def rating():
         .order_by(User.rating.desc())
         .all()
     )
-    add_user_score(ratings)
+    for ix, user in enumerate(ratings):
+        user.position = ix + 1
+        user.score = sum([s.score for s in user.scores])
+        user_in = db.or_(
+            TriBoard.player_0_id == user.id,
+            TriBoard.player_1_id == user.id,
+            TriBoard.player_2_id == user.id,
+        )
+        boards = (
+            TriBoard.query.filter_by(status=2)
+            .filter(user_in)
+            .order_by(TriBoard.modified_at.desc())
+        )
+        user.played_games = len(boards.all())
+        last_game = boards.first()
+        if last_game:
+            user.last_game = last_game.modified_at
+    # remove players without finished games
     ratings = [r for r in ratings if r.played_games > 0]
     return render_template("rating.html", ratings=ratings, uid=g.user.id)
 
