@@ -75,22 +75,19 @@ def add_game_score(games):
 def add_user_score(users):
     for ix, user in enumerate(users):
         user.position = ix + 1
-        user.score = sum(
-            [s.score for s in Score.query.filter_by(player_id=user.id).all()]
-        )
+        user.score = sum([s.score for s in user.scores])
         user_in = db.or_(
             TriBoard.player_0_id == user.id,
             TriBoard.player_1_id == user.id,
             TriBoard.player_2_id == user.id,
         )
-        archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
-        user.played_games = len(archive)
-        last_game = (
+        boards = (
             TriBoard.query.filter_by(status=2)
             .filter(user_in)
             .order_by(TriBoard.modified_at.desc())
-            .first()
         )
+        user.played_games = len(boards.all())
+        last_game = boards.first()
         if last_game:
             user.last_game = last_game.modified_at
 
