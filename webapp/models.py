@@ -85,6 +85,8 @@ class Score(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     board_id = db.Column(db.Integer, db.ForeignKey("triboard.id"))
     score = db.Column(db.Float)
+    tag = db.Column(db.String(1), default="N")
+    onmove = db.Column(db.Boolean, default=False)
 
 
 db.event.listen(

@@ -634,6 +634,8 @@ class GameBoard(Resource):
                                         board_id=tb.id,
                                         player_id=players[uid].id,
                                         score=2.0 / 3,
+                                        tag="D",
+                                        onmove=uid == ga2.on_move,
                                     )
                                     db.session.add(new_score)
                                     # notify
@@ -646,16 +648,21 @@ class GameBoard(Resource):
                                     )
                             elif ga2.resignation():
                                 resigned = ga2.voting.results(kind="resign")
-                                uid = set([0, 1, 2]).difference(resigned).pop()
-                                new_score = Score(
-                                    board_id=tb.id,
-                                    player_id=players[uid].id,
-                                    score=2.0,
-                                )
-                                db.session.add(new_score)
+                                ruid = set([0, 1, 2]).difference(resigned).pop()
+                                score = {0: 0.0, 1: 0.0, 2: 0.0}
+                                score[ruid] = 2.0
+                                for uid, value in score.items():
+                                    new_score = Score(
+                                        board_id=tb.id,
+                                        player_id=players[uid].id,
+                                        score=value,
+                                        tag="R",
+                                        onmove=uid == ga2.on_move,
+                                    )
+                                    db.session.add(new_score)
                                 # notify
                                 post_notification(
-                                    players[uid].username,
+                                    players[ruid].username,
                                     f"You win in game {state.id} by resignation",
                                     "Game over",
                                     state.id,
@@ -670,37 +677,46 @@ class GameBoard(Resource):
                                         players[uid].board,
                                     )
                             elif in_chess:
+                                score = {0: 0.0, 1: 0.0, 2: 0.0}
                                 tot = [len(p) for p in who.values()]
                                 for uid, v in enumerate(tot):
-                                    score = v * 2 / sum(tot)
-                                    if score > 0:
-                                        new_score = Score(
-                                            board_id=tb.id,
-                                            player_id=players[uid].id,
-                                            score=score,
-                                        )
-                                        db.session.add(new_score)
+                                    game_score = v * 2 / sum(tot)
+                                    if game_score > 0:
+                                        score[uid] = game_score
+                                for uid, value in score.items():
+                                    new_score = Score(
+                                        board_id=tb.id,
+                                        player_id=players[uid].id,
+                                        score=value,
+                                        tag="N",
+                                        onmove=uid == ga2.on_move,
+                                    )
+                                    db.session.add(new_score)
+                                    if uid == ga2.on_move:
                                         post_notification(
                                             players[uid].username,
-                                            f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score:g}",
+                                            f"You lost in game {state.id}",
                                             "Game over",
                                             state.id,
                                             players[uid].board,
                                         )
-                                # notify
-                                post_notification(
-                                    players[ga2.on_move].username,
-                                    f"You lost in game {state.id}",
-                                    "Game over",
-                                    state.id,
-                                    players[ga2.on_move].board,
-                                )
+                                    else:
+                                        post_notification(
+                                            players[uid].username,
+                                            f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score[uid]:g}",
+                                            "Game over",
+                                            state.id,
+                                            players[uid].board,
+                                        )
                             else:
-                                for uid in players:
+                                score = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
+                                for uid, value in score.items():
                                     new_score = Score(
                                         board_id=tb.id,
                                         player_id=players[uid].id,
-                                        score=2.0 / 3,
+                                        score=value,
+                                        tag="S",
+                                        onmove=uid == ga2.on_move,
                                     )
                                     db.session.add(new_score)
                                     post_notification(
