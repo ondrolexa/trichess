@@ -880,7 +880,7 @@ function Step_3_setelim_board_and_draw(idata) {
         window_vote(B.vote_results_kind , II.getVoteHist())
         }
     //}, 0)
-        if (B.finished ) {
+    if (B.finished ) {
             var name = II.players[B.onmove]
             const modal_go = new bootstrap.Modal(document.getElementById("gameOver"))
             const vp = document.getElementById("goVotePlayers")
@@ -893,6 +893,12 @@ function Step_3_setelim_board_and_draw(idata) {
             }
         else {
             }
+        const rp0 = document.getElementById("goRatingPlayer0")
+        const rp1 = document.getElementById("goRatingPlayer1")
+        const rp2 = document.getElementById("goRatingPlayer2")
+        rp0.innerHTML = "<td>"+II.players[0]+"</td> <td>"+idata.score[0]+"</td>"
+        rp1.innerHTML = "<td>"+II.players[1]+"</td> <td>"+idata.score[1]+"</td>"
+        rp2.innerHTML = "<td>"+II.players[2]+"</td> <td>"+idata.score[2]+"</td>"
         SemaforWait = false //todo
         modal_wt.hide()
         modal_go.show()

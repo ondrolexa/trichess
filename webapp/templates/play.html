@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {%block styles%}
-<link rel="stylesheet" href="{{ url_for('static', filename='board.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='board.css') }}" xmlns="http://www.w3.org/1999/html">
 {%endblock%}
 
 {%block content%}
@@ -51,14 +51,24 @@
   <div class="modal-dialog ">
     <div class="modal-content">
       <div class="modal-header">
-          <div class="col-sm-11 text-center">
-          </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-        <div class="modal-body text-center">
-            <h1><strong><span id="gameOverText" >GAME OVER !!!</span></strong><br></h1>
-            <hr>
-            <h2><strong><span id="goVotePlayers"></span></strong><br></h2>
+      <div class="modal-body text-center">
+        <h1><strong><span id="gameOverText" >GAME OVER !!!</span></strong></h1>
+        <hr>
+        <h2><strong><span id="goVotePlayers"></span></strong></h2>
+        <hr>
+        <h3><span>Score:</span></h3>
+      </div >
+      <h3 class="mx-auto">
+        <div >
+          <table class="table">
+              <tr id="goRatingPlayer0"></tr>
+              <tr id="goRatingPlayer1"></tr>
+              <tr id="goRatingPlayer2"></tr>
+          </table>
+        </div >
+        </h3>
       </div>
     </div>
   </div>
