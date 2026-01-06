@@ -96,7 +96,7 @@ class Player:
     def king_piece(self) -> King:
         return self.__king_piece
 
-    def promotion(self, label, **kwargs) -> Piece:
+    def promotion(self, label, **kwargs) -> Piece | None:
         match label:
             case "Q":
                 return Queen(self, **kwargs)

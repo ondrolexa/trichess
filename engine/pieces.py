@@ -108,7 +108,7 @@ class Piece:
             return f"{self.label}{self.player} {self.hex.pos}"
 
     @property
-    def pos(self) -> Pos:
+    def pos(self) -> Pos | None:
         if self.hex is not None:
             return self.hex.pos
 

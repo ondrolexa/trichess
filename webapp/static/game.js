@@ -354,7 +354,7 @@ const gameover_bg = new Konva.Rect({
   x: -8,
   y: -3,
   width: 16,
-  height: 7,
+  height: 6.5,
   opacity: 0.65,
   fill: theme["canvas"]["background"],
   listening: true,
@@ -365,7 +365,7 @@ var gameover_text = new Konva.Text({
   text: "GAME OVER",
   fontFamily: theme["canvas"]["font-family"],
   fill: theme["canvas"]["game_over"],
-  fontSize: 2.5,
+  fontSize: 2.4,
   fontStyle: "bold",
   align: "center",
   verticalAlign: "middle",
@@ -1149,6 +1149,9 @@ function gameInfo(init = false, redraw = false) {
           gameover_text.text("GAME OVER\n" + pid2name[wid] + " win");
         } else {
           gameover_text.text("GAME OVER\n" + pid2name[data.onmove] + " lost");
+        }
+        for (let p = 0; p < 3; p++) {
+          player_names[p] = `${seat2name[p]} (${data.score[seat2pid[p]]})`;
         }
         gameover.visible(true);
         board_layer.off("click tap");

@@ -78,6 +78,16 @@ class Board:
         for pos_from, pos_to, label in log:
             self.move_piece(pos_from, pos_to, label)
 
+    def __iter__(self) -> Iterable:
+        for hex in self._board.values():
+            yield hex
+
+    def __getitem__(self, pos: Pos | int) -> Hex | None:
+        return self._board.get(pos, None)
+
+    def __contains__(self, pos: Pos) -> bool:
+        return pos in self._board
+
     def init_pieces(self):
         """Initialize trichess board pieces to starting positions"""
 
@@ -124,15 +134,6 @@ class Board:
         self.place_piece(Pos(-4, 7), self.players[0].king)
         self.place_piece(Pos(-3, -4), self.players[1].king)
         self.place_piece(Pos(7, -3), self.players[2].king)
-
-    def __iter__(self) -> Iterable:
-        return iter(self._board.values())
-
-    def __getitem__(self, pos: Pos | int) -> Hex:
-        return self._board.get(pos, None)
-
-    def __contains__(self, pos: Pos) -> bool:
-        return pos in self._board
 
     def place_piece(self, pos: Pos, create_piece_fn):
         """Place piece on cell with given position.
