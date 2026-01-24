@@ -34,7 +34,7 @@ from webapp.forms import (
     ProfileForm,
     RegistrationForm,
 )
-from webapp.main import app, db, lm
+from webapp.main import app, db, jwt, lm
 from webapp.models import Score, TriBoard, User
 
 
@@ -80,6 +80,11 @@ def render_template(*args, **kwargs):
         kwargs["board"] = False
 
     return real_render_template(*args, **kwargs, navailable=navailable, theme=theme)
+
+
+@jwt.expired_token_loader
+def expired_token_response(_err):
+    return redirect(url_for("active"))
 
 
 @app.route("/", methods=["GET", "POST"])
