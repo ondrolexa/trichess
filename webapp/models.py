@@ -9,9 +9,9 @@ class User(db.Model):
     username = db.Column(db.String(64), unique=True)
     password = db.Column(db.String(500))
     email = db.Column(db.String(120))
-    theme = db.Column(db.String(), default="default")
-    board = db.Column(db.String(), default="ondro")
-    pieces = db.Column(db.String(), default="default")
+    theme = db.Column(db.String(16), default="default")
+    board = db.Column(db.String(16), default="ondro")
+    pieces = db.Column(db.String(16), default="default")
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     last_login = db.Column(db.DateTime)
     rating = db.Column(db.Float, default=500.0)
@@ -97,6 +97,6 @@ db.event.listen(
     User.__table__,
     "after_create",
     db.DDL(
-        """ INSERT INTO user (id, username, password) VALUES (1, 'admin', "scrypt:32768:8:1$5bsiJQZ4NcNXFiex$afc2dda97bb8cb9b609a9381ae044cabbcbc605d5e0e8618b259dde5fd2d568003fec3d3b19e86eb0cbd3f9c0fc5a62e7d94cbeb416cff89fea993ebcd41149e") """
+        """ INSERT INTO user (id, username, password, theme, board, pieces) VALUES (1, 'admin', "scrypt:32768:8:1$5bsiJQZ4NcNXFiex$afc2dda97bb8cb9b609a9381ae044cabbcbc605d5e0e8618b259dde5fd2d568003fec3d3b19e86eb0cbd3f9c0fc5a62e7d94cbeb416cff89fea993ebcd41149e", "night", "ondro", "default") """
     ),
 )
