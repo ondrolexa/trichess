@@ -92,7 +92,7 @@ class SchedulerConfig:
     JOBS = [
         {
             "id": "resend",
-            "func": "main:resend_notification",
+            "func": resend_notification,
             "trigger": "interval",
             "seconds": 86400,
         }
