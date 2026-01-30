@@ -59,7 +59,7 @@ def resend_notification():
         with db.engine.connect() as connection:
             result = connection.execute(
                 text(
-                    "SELECT * FROM triboard WHERE status=1 AND datetime(modified_at) <=datetime('now', '-24 Hour');"
+                    "SELECT * FROM triboard WHERE status=1 AND datetime(modified_at) <= datetime('now', '-1 day');"
                 )
             )
             for r in result.mappings().all():
