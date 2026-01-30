@@ -13,4 +13,4 @@ COPY ./webapp /code/webapp
 
 EXPOSE 80
 
-CMD ["gunicorn","--config", "gunicorn_config.py", "webapp:app"]
+CMD ["gunicorn", "--config", "gunicorn_config.py", "--preload", "webapp:app"]
