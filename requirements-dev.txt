@@ -3,13 +3,13 @@ flask-restx
 Flask-Login
 Flask-SQLAlchemy
 Flask-Migrate
-Flask-APScheduler
 flask-cors
 Bootstrap-Flask
 Flask-WTF
 WTForms-SQLAlchemy
 email_validator
 flask-jwt-extended
+apscheduler
 gunicorn
 pyyaml
 requests

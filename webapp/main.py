@@ -1,8 +1,8 @@
 from datetime import timedelta
 
 import requests
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask
-from flask_apscheduler import APScheduler
 from flask_bootstrap import Bootstrap5
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -55,7 +55,7 @@ def post_notification(username, text, title, gameid, board):
 # Background jobs
 def resend_notification():
     """Send notification each 24 hours when on move"""
-    with scheduler.app.app_context():
+    with app.app_context():
         with db.engine.connect() as connection:
             result = connection.execute(
                 text(
@@ -87,19 +87,6 @@ def resend_notification():
                 )
 
 
-class SchedulerConfig:
-    SCHEDULER_API_ENABLED = True
-    JOBS = [
-        {
-            "id": "resend",
-            "func": resend_notification,
-            "trigger": "interval",
-            "seconds": 86400,
-        }
-    ]
-
-
-app.config.from_object(SchedulerConfig())
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
+sched = BackgroundScheduler(daemon=True)
+sched.add_job(resend_notification, "interval", hours=24)
+sched.start()
