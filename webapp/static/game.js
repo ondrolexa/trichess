@@ -789,7 +789,9 @@ function validMoves(gid) {
       ready = true;
     })
     .catch((response) => {
-      alert(`ValidMoves error ${response.status}: ${response.statusText}`);
+      console.log(
+        `ValidMoves error ${response.status}: ${response.statusText}`,
+      );
       window.location.reload();
     });
 }
@@ -832,7 +834,7 @@ function makeMove(gid, tgid, new_piece = "") {
       cleanMove();
     })
     .catch((response) => {
-      alert(`MakeMove error ${response.status}: ${response.statusText}`);
+      console.log(`MakeMove error ${response.status}: ${response.statusText}`);
       window.location.reload();
     });
 }
@@ -871,7 +873,7 @@ function voteDraw(vote) {
       ready = true;
     })
     .catch((response) => {
-      alert(`VoteDraw error ${response.status}: ${response.statusText}`);
+      console.log(`VoteDraw error ${response.status}: ${response.statusText}`);
       window.location.reload();
     });
 }
@@ -910,7 +912,9 @@ function voteResign(vote) {
       ready = true;
     })
     .catch((response) => {
-      alert(`VoteResign error ${response.status}: ${response.statusText}`);
+      console.log(
+        `VoteResign error ${response.status}: ${response.statusText}`,
+      );
       window.location.reload();
     });
 }
@@ -1164,7 +1168,7 @@ function gameInfo(init = false, redraw = false) {
       }
     })
     .catch((response) => {
-      alert(`GameInfo error ${response.status}: ${response.statusText}`);
+      console.log(`GameInfo error ${response.status}: ${response.statusText}`);
       window.location.reload();
     });
 }
@@ -1308,7 +1312,7 @@ function boardInfo() {
       ready = true;
     })
     .catch((response) => {
-      alert(`BoardInfo error ${response.status}: ${response.statusText}`);
+      console.log(`BoardInfo error ${response.status}: ${response.statusText}`);
       window.location.reload();
     });
 }

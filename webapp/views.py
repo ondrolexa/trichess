@@ -83,8 +83,8 @@ def render_template(*args, **kwargs):
 
 
 @jwt.expired_token_loader
-def expired_token_response(_err):
-    return redirect(url_for("active"))
+def expired_token_response(jwt_header, jwt_payload):
+    return jsonify({"message": "Token has expired"}), 401
 
 
 @app.route("/", methods=["GET", "POST"])
