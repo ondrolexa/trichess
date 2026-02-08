@@ -1,5 +1,3 @@
-from typing import Iterable
-
 from engine.pieces import King, Pawn, Piece, Pos
 from engine.player import Player
 
@@ -78,7 +76,7 @@ class Board:
         for pos_from, pos_to, label in log:
             self.move_piece(pos_from, pos_to, label)
 
-    def __iter__(self) -> Iterable:
+    def __iter__(self):
         for hex in self._board.values():
             yield hex
 
@@ -218,25 +216,27 @@ class Board:
     def possible_moves(self, piece: Piece, castling: bool = True) -> list[Pos]:
         """Return list of all posiible moves for given piece."""
         all = []
-        for dest in piece.pos_candidates(castling):
-            if dest in self._board:
-                match dest.kind:
-                    case "s":
-                        if self._board[dest].has_piece:
-                            if self._board[dest].piece.player is not piece.player:
+        candidates = piece.pos_candidates(castling)
+        if candidates is not None:
+            for dest in candidates:
+                if dest in self._board:
+                    match dest.kind:
+                        case "s":
+                            if self._board[dest].has_piece:
+                                if self._board[dest].piece.player is not piece.player:
+                                    all.append(dest)
+                            else:
                                 all.append(dest)
-                        else:
+                        case "a":
+                            if self._board[dest].has_piece:
+                                if self._board[dest].piece.player is not piece.player:
+                                    all.append(dest)
+                        case "n":
+                            if self._board[dest].has_piece:
+                                if self._board[dest].piece.player is not piece.player:
+                                    all.append(dest)
+                            else:
+                                all.append(dest)
+                        case _:
                             all.append(dest)
-                    case "a":
-                        if self._board[dest].has_piece:
-                            if self._board[dest].piece.player is not piece.player:
-                                all.append(dest)
-                    case "n":
-                        if self._board[dest].has_piece:
-                            if self._board[dest].piece.player is not piece.player:
-                                all.append(dest)
-                        else:
-                            all.append(dest)
-                    case _:
-                        all.append(dest)
         return all

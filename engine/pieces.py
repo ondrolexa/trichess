@@ -1,6 +1,3 @@
-from typing import Self
-
-
 class Pos:
     """A class to represent axial coordinates on trichess board.
 
@@ -47,7 +44,7 @@ class Pos:
     def r(self) -> int:
         return int(self.value.imag)
 
-    def from_deltas(self, deltas: list, kind="s") -> Self:
+    def from_deltas(self, deltas: list, kind="s"):
         """Return new position calculated from current one and list of deltas."""
         res = self.value + sum(deltas)
         return Pos(res.real, res.imag, kind=kind)
@@ -106,6 +103,10 @@ class Piece:
             return f"{self.label}{self.player} (not placed)"
         else:
             return f"{self.label}{self.player} {self.hex.pos}"
+
+    @property
+    def _moves(self) -> list[Move]:
+        return NotImplemented
 
     @property
     def pos(self) -> Pos | None:

@@ -78,13 +78,14 @@ def resend_notification():
                     .first()
                 )
                 # notify next player
-                post_notification(
-                    user["username"],
-                    f"It's still your turn in game {r['id']}",
-                    "Your turn reminder",
-                    r["id"],
-                    user["board"],
-                )
+                if user is not None:
+                    post_notification(
+                        user["username"],
+                        f"It's still your turn in game {r['id']}",
+                        "Your turn reminder",
+                        r["id"],
+                        user["board"],
+                    )
 
 
 sched = BackgroundScheduler(daemon=True)

@@ -1,39 +1,78 @@
 {% extends "base.html" %}
 
 {%block content%}
+{% if waiting|length > 0 %}
+<h2>Approvals</h2>
+<div class="table-responsive-sm">
+  <table class="table table-hover table-sm">
+  <thead>
+    <tr>
+    <th scope="col">#</th>
+    <th scope="col">Username</th>
+    <th scope="col">Actions</th>
+    <th class="col">Created</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for user in waiting %}
+    <tr>
+    <th scope="row">{{user.id}}</th>
+    <td><span>{{user.username}}</span></td>
+    <form action=""{{ url_for('admin_users') }}"" method="post" class="form" role="form">
+    <td>
+      <button type="submit" class="btn btn-success btn-sm" name="approve" value="{{user.id}}">Approve</button>
+      <button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{user.id}}">Delete</button>
+    </td>
+    </form>
+    <td>{{user.created_at|strftime}}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  </table>
+</div>
+{% endif %}
 <h2>Users</h2>
 <div class="table-responsive-sm">
     <table class="table table-hover table-sm">
     <thead>
-        <tr>
-        <th scope="col">#</th>
-        <th scope="col">Username</th>
-        <th scope="col">Score</th>
-        <th scope="col">Theme</th>
-        <th scope="col">Board</th>
-        <th scope="col">Pieces</th>
-        <th scope="col">Last login</th>
-        <th class="d-none d-sm-table-cell" scope="col">Created</th>
-        </tr>
+      <tr>
+      <th scope="col">#</th>
+      <th scope="col">Username</th>
+      <th scope="col">Score</th>
+      <th scope="col">Theme</th>
+      <th scope="col">Board</th>
+      <th scope="col">Pieces</th>
+      <th scope="col">Last login</th>
+      <th class="d-none d-sm-table-cell" scope="col">Created</th>
+      </tr>
     </thead>
     {% if users|length > 0 %}
     <tbody>
-        {% for user in users %}
-        <tr>
-        <th scope="row">{{user.id}}</th>
-        <td><span>{{user.username}}</span></td>
-        <td><span>{{user.score()}}</span></td>
-        <td><span>{{user.theme}}</span></td>
-        <td><span>{{user.board}}</span></td>
-        <td><span>{{user.pieces}}</span></td>
-        {% if user.last_login is none %}
-        <td>--</td>
-        {% else %}
-        <td>{{user.last_login|strftime}}</td>
-        {% endif %}
-        <td class="d-none d-sm-table-cell">{{user.created_at|strftime}}</td>
-        </tr>
-        {% endfor %}
+      {% for user in users %}
+      <tr>
+      <th scope="row">{{user.id}}</th>
+      <td><span>{{user.username}}</span></td>
+      {% if not user.active %}
+      <form action=""{{ url_for('admin_users') }}"" method="post" class="form" role="form">
+      <td>
+        <button type="submit" class="btn btn-success btn-sm" name="approve" value="{{user.id}}">Approve</button>
+        <button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{user.id}}">Delete</button>
+      </td>
+      </form>
+      {% else %}
+      <td><span>{{user.score()}}</span></td>
+      {% endif %}
+      <td><span>{{user.theme}}</span></td>
+      <td><span>{{user.board}}</span></td>
+      <td><span>{{user.pieces}}</span></td>
+      {% if user.last_login is none %}
+      <td>--</td>
+      {% else %}
+      <td>{{user.last_login|strftime}}</td>
+      {% endif %}
+      <td class="d-none d-sm-table-cell">{{user.created_at|strftime}}</td>
+      </tr>
+      {% endfor %}
     </tbody>
     {% endif %}
    </table>

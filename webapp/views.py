@@ -23,6 +23,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from flask_login import current_user, login_required, login_user, logout_user
+from gunicorn.sock import ssl_wrap_socket
 from sqlalchemy.sql.expression import func
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -34,7 +35,7 @@ from webapp.forms import (
     ProfileForm,
     RegistrationForm,
 )
-from webapp.main import app, db, jwt, lm
+from webapp.main import app, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
 
 
@@ -94,6 +95,8 @@ def index():
             return redirect(url_for("login"))
         elif request.form.get("action") == "logout":
             return redirect(url_for("logout"))
+        elif request.form.get("action") == "register":
+            return redirect(url_for("register"))
         else:
             return redirect(url_for("index"))
     return render_template("index.html")
@@ -208,23 +211,13 @@ def available():
                 board.status = 1
                 board.started_at = datetime.now()
                 # send notification to first player
-                if board.player_0.board == "ondro":
-                    click = f"https://trichess.mykuna.eu/playlx/{board.id}"
-                else:
-                    click = f"https://trichess.mykuna.eu/play/{board.id}"
-                try:
-                    requests.post(
-                        f"https://ntfy.mykuna.eu/trichess_{board.player_0.username}",
-                        data=f"The game {board.id} just started, it's your turn".encode(
-                            "utf-8"
-                        ),
-                        headers={
-                            "Title": "Game started",
-                            "Click": click,
-                        },
-                    )
-                except requests.exceptions.ConnectionError:
-                    pass
+                post_notification(
+                    board.player_0.username,
+                    f"The game {board.id} just started, it's your turn",
+                    "Game started",
+                    board.id,
+                    board.player_0.board,
+                )
             db.session.commit()
             return redirect(url_for("active"))
         else:
@@ -399,31 +392,6 @@ def help():
 # === Admin section ===
 
 
-@app.route("/register", methods=["GET", "POST"])
-@login_required
-def register():
-    if g.user.id == 1:
-        form = RegistrationForm()
-        if form.validate_on_submit():
-            hashed_password = generate_password_hash(form.password.data)
-            new_user = User(
-                username=form.username.data,
-                password=hashed_password,
-                email=form.email.data,
-                theme="default",
-                board="ondro",
-                pieces="default",
-            )
-            db.session.add(new_user)
-            db.session.commit()
-            flash("User added successfuly!", "success")
-            return redirect(url_for("index"))
-        return render_template("register.html", form=form)
-    else:
-        flash("You are not admin.", "error")
-        return redirect(url_for("active"))
-
-
 @app.route("/admin-games", methods=["GET", "POST"])
 @login_required
 def admin_games():
@@ -465,8 +433,27 @@ def admin_games():
 @login_required
 def admin_users():
     if g.user.id == 1:
-        users = User.query.filter(User.id > 1).order_by(User.last_login.desc()).all()
-        return render_template("admin-users.html", users=users)
+        if request.method == "POST":
+            approve = request.form.get("approve", None)
+            delete = request.form.get("delete", None)
+            if approve is not None:
+                user = User.query.filter_by(id=approve).first()
+                user.active = True
+                db.session.commit()
+            elif delete is not None:
+                user = User.query.filter_by(id=delete).first()
+                db.session.delete(user)
+                db.session.commit()
+            return redirect(url_for("admin_users"))
+        else:
+            waiting = User.query.filter(User.id > 1).filter(User.active == 0).all()
+            users = (
+                User.query.filter(User.id > 1)
+                .filter(User.active == 1)
+                .order_by(User.last_login.desc())
+                .all()
+            )
+            return render_template("admin-users.html", users=users, waiting=waiting)
     else:
         flash("You are not admin.", "error")
         return redirect(url_for("active"))
@@ -495,19 +482,21 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         g.user = User.query.filter_by(username=form.username.data).first()
-        if g.user is not None and check_password_hash(
-            g.user.password, form.password.data
-        ):
-            login_user(g.user)
-            g.user.last_login = datetime.now()
-            db.session.commit()
-            flash("Login successful!", "success")
-            if g.user.id == 1:
-                return redirect(url_for("index"))
+        if g.user is not None:
+            print(g.user.active)
+            if g.user.active and check_password_hash(
+                g.user.password, form.password.data
+            ):
+                login_user(g.user)
+                g.user.last_login = datetime.now()
+                db.session.commit()
+                flash("Login successful!", "success")
+                if g.user.id == 1:
+                    return redirect(url_for("index"))
+                else:
+                    return redirect(url_for("active"))
             else:
-                return redirect(url_for("active"))
-        else:
-            flash("Invalid username or password", "danger")
+                flash("Invalid username or password", "danger")
     return render_template("login.html", form=form)
 
 
@@ -541,6 +530,49 @@ def refresh():
 def logout():
     logout_user()
     return redirect(url_for("index"))
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        exists = User.query.filter_by(username=form.username.data).first()
+        if exists is None:
+            hashed_password = generate_password_hash(form.password.data)
+            new_user = User(
+                username=form.username.data,
+                password=hashed_password,
+                email=form.email.data,
+                theme="default",
+                board="ondro",
+                pieces="default",
+                active=False,
+            )
+            db.session.add(new_user)
+            db.session.commit()
+            flash(
+                "User added successfuly! Please wait for account approval before login.",
+                "success",
+            )
+            # notify admin
+            try:
+                requests.post(
+                    "https://ntfy.mykuna.eu/trichess_ondro",
+                    data=f"User {form.username.data} applied for account".encode(
+                        "utf-8"
+                    ),
+                    headers={
+                        "Title": "New account",
+                        "Click": "https://trichess.mykuna.eu/admin-users",
+                    },
+                )
+            except requests.exceptions.ConnectionError:
+                pass
+            return redirect(url_for("index"))
+        else:
+            flash("Username already exists. Try another one.", "error")
+            return redirect(url_for("register"))
+    return render_template("register.html", form=form)
 
 
 # register API blueprint

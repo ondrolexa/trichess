@@ -12,6 +12,7 @@ class User(db.Model):
     theme = db.Column(db.String(16), default="default")
     board = db.Column(db.String(16), default="ondro")
     pieces = db.Column(db.String(16), default="default")
+    active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     last_login = db.Column(db.DateTime)
     rating = db.Column(db.Float, default=500.0)
