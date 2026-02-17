@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from webapp.main import db
 
 
-class User(db.Model):
+class User(db.Model):  # type: ignore[assignment]
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True)
@@ -60,7 +60,7 @@ class User(db.Model):
         return "<User %r>" % (self.username)
 
 
-class TriBoard(db.Model):
+class TriBoard(db.Model):  # type: ignore[assignment]
     __tablename__ = "triboard"
     id = db.Column(db.Integer, primary_key=True)
     owner_id = db.Column(db.Integer, db.ForeignKey("user.id"))
@@ -84,7 +84,7 @@ class TriBoard(db.Model):
     scores = db.relationship("Score", backref="board")
 
 
-class Score(db.Model):
+class Score(db.Model):  # type: ignore[assignment]
     __tablename__ = "score"
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey("user.id"))

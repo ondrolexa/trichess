@@ -631,8 +631,8 @@ class GameBoard(Resource):
                             if ga2.draw():
                                 for uid in players:
                                     new_score = Score(
-                                        board_id=tb.id,
                                         player_id=players[uid].id,
+                                        board_id=tb.id,
                                         score=2.0 / 3,
                                         tag="D",
                                         onmove=uid == ga2.on_move,
@@ -653,8 +653,8 @@ class GameBoard(Resource):
                                 score[ruid] = 2.0
                                 for uid, value in score.items():
                                     new_score = Score(
-                                        board_id=tb.id,
                                         player_id=players[uid].id,
+                                        board_id=tb.id,
                                         score=value,
                                         tag="R",
                                         onmove=uid == ga2.on_move,
@@ -685,8 +685,8 @@ class GameBoard(Resource):
                                         score[uid] = game_score
                                 for uid, value in score.items():
                                     new_score = Score(
-                                        board_id=tb.id,
                                         player_id=players[uid].id,
+                                        board_id=tb.id,
                                         score=value,
                                         tag="N",
                                         onmove=uid == ga2.on_move,
@@ -712,8 +712,8 @@ class GameBoard(Resource):
                                 score = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
                                 for uid, value in score.items():
                                     new_score = Score(
-                                        board_id=tb.id,
                                         player_id=players[uid].id,
+                                        board_id=tb.id,
                                         score=value,
                                         tag="S",
                                         onmove=uid == ga2.on_move,

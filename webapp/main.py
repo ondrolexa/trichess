@@ -28,6 +28,8 @@ lm = LoginManager()
 lm.setup_app(app)
 lm.login_view = "login"
 
+__version__ = "0.1.1"
+
 
 # notifications
 def post_notification(username, text, title, gameid, board):

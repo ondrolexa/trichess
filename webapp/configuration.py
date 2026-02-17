@@ -11,6 +11,7 @@ class Config(object):
     JWT_SECRET_KEY = "i2uhs18w9dHGSjw83dHSUiekqS3ush2GSSDDF"
     CSRF_ENABLED = True
     SQLALCHEMY_TRACK_MODIFICATIONS = True
+    PROPAGATE_EXCEPTIONS = True
 
 
 class Scheduler:

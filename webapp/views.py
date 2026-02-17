@@ -23,8 +23,6 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from flask_login import current_user, login_required, login_user, logout_user
-from gunicorn.sock import ssl_wrap_socket
-from sqlalchemy.sql.expression import func
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from webapp.api import blueprint as api
@@ -35,6 +33,7 @@ from webapp.forms import (
     ProfileForm,
     RegistrationForm,
 )
+from webapp.main import __version__ as webapp_version
 from webapp.main import app, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
 
@@ -80,7 +79,9 @@ def render_template(*args, **kwargs):
     if "board" not in kwargs:
         kwargs["board"] = False
 
-    return real_render_template(*args, **kwargs, navailable=navailable, theme=theme)
+    return real_render_template(
+        *args, **kwargs, navailable=navailable, theme=theme, version=webapp_version
+    )
 
 
 @jwt.expired_token_loader

@@ -1341,8 +1341,7 @@ function boardSubmit() {
       return Promise.reject(response);
     })
     .then((data) => {
-      boardInfo();
-      server_slog = slog;
+      boardReset();
       on_move = false;
       ready = true;
       submitText.innerHTML = "Submit";
