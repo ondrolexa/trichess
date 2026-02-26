@@ -3,9 +3,9 @@
 {%block content%}
 {% if current_user.is_authenticated %}
   <h2>Welcome {{ current_user.username }}!</h2>
-  <p>Thanks for join our test server. Check menu for game management.</p>
+  <p>Thanks for joining our test server. Check the menu above (a hamburger menu on mobile) for rules and game management.</p>
 {% else %}
   <h2>Welcome on Trichess server!</h2>
-  <p>Please login to access the game.</p>
+  <p>Please log in to start playing! If you just signed up, we might still be verifying your account. If you can't get in yet, please try again in a little while.</p>
 {% endif %}
 {%endblock%}
