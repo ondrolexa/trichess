@@ -1143,9 +1143,9 @@ function gameInfo(init = false, redraw = false) {
           gameover_text.text("GAME OVER\nDraw agreed");
         } else if (data.resignation) {
           let wid;
-          if (!data.vote_results[0] == "D") {
+          if (data.vote_results[0] == "D") {
             wid = 0;
-          } else if (!data.vote_results[1] == "D") {
+          } else if (data.vote_results[1] == "D") {
             wid = 1;
           } else {
             wid = 2;
