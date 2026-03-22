@@ -20,7 +20,6 @@ const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"))
 // todo vsetky konstanty vytiahnut sem
 let SemaforGreen = true
 let SemaforWait = false
-
 // tools /////////////////////////////////////////////
 function isMobile() {
   const regex = /Mobi|Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
@@ -370,7 +369,7 @@ class iinfos {
         for (let i = 0; i < 3; i++) {
             // highlight players
             if (this.index[i] == idata.onmove) {
-                this.panel[i].lines[0].strokeLine = 5
+                this.panel[i].lines[0].strokeLine = 0
                 this.panel[i].lines[0].strokeColor = theme["canvas"]["name"]
                 this.panel[i].lines[0].color = theme["canvas"]["name_onmove"]
                 }
@@ -1044,7 +1043,7 @@ function Click_Board(event) {
         B.draw_pieces()
         //if new piece promotion
         if (B.hexs[B.gid_new].promo_flag) {
-            SS.line[1].color = theme["pieces"]["color"][(B.onmove+2)%3]
+            SS.line[1].color = theme["pieces"]["color"][(B.onmove)%3]
             SS.write()
             SemaforGreen = true
             return

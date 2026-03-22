@@ -5,16 +5,16 @@ canvas:
   info: "#b4b2b3"
   name: "#b4b2b3"
   name_inchess: "#fa6eee"
-  name_onmove: "#45c5f8"
+  name_onmove: "#0d6efd"
   background: "#212529"
   font-family: "Roboto"
   game_over: "black"
 
 board:
-  last_move: "#45c5f8"
+  last_move: "#0d6efd"
   valid_move: "#ffffff"
   selection: "#ffffff"
-  attack_move: "#45c5f8"
+  attack_move: "#0d6efd"
   hex_color:
     - "#603c0d"
     - "#787878"
