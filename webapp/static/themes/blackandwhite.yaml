@@ -16,7 +16,7 @@ board:
   selection: "#ffffff"
   attack_move: "#0d6efd"
   hex_color:
-    - "#603c0d"
+    - "#4b3f17"
     - "#787878"
     - "#000000"
   hex_inchess: "#fa6eee"
