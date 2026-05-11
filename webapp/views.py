@@ -25,6 +25,7 @@ from flask_jwt_extended import (
 from flask_login import current_user, login_required, login_user, logout_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from engine import GameAPI
 from webapp.api import blueprint as api
 from webapp.forms import (
     LoginForm,
@@ -153,6 +154,9 @@ def archive():
             .first()
             .score
         )
+        ga = GameAPI(0)
+        ga.replay_from_slog(game.slog)
+        game.moves = ga.move_number
     return render_template("archive.html", games=archive, board=g.user.board)
 
 
