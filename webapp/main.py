@@ -28,7 +28,7 @@ lm = LoginManager()
 lm.setup_app(app)
 lm.login_view = "login"
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 
 # notifications
