@@ -25,7 +25,7 @@ class RegistrationForm(FlaskForm):
         "Username", validators=[DataRequired(), Length(min=4, max=20)]
     )
     password = PasswordField(
-        "Password", validators=[DataRequired(), Length(min=6, max=20)]
+        "Password", validators=[DataRequired(), Length(min=6, max=128)]
     )
     email = EmailField(validators=[DataRequired(), Email()])
     submit = SubmitField("Register")
@@ -81,10 +81,10 @@ class PasswordForm(FlaskForm):
     username = StringField("Username", render_kw={"disabled": True})
     password = PasswordField(
         "Old",
-        validators=[DataRequired(), Length(min=6, max=20)],
+        validators=[DataRequired(), Length(min=6, max=128)],
     )
     password_new = PasswordField(
         "New",
-        validators=[DataRequired(), Length(min=6, max=20)],
+        validators=[DataRequired(), Length(min=6, max=128)],
     )
     submit = SubmitField("Change password")

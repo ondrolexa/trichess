@@ -1,5 +1,7 @@
 from engine.pieces import Bishop, King, Knight, Move, Pawn, Piece, Pos, Queen, Rook
 
+# Direction vectors indexed by player pid (0=bottom, 1=left, 2=right).
+# The "r" suffix on a direction code flips the vector sign.
 STEP = {
     0: {
         "FL": 0 - 1j,
@@ -55,14 +57,17 @@ class Player:
         return f"[{self.name}]"
 
     def step(self, step) -> complex:
-        """Return step code converted to complex number."""
+        """Convert a step code (eg "FL") to a complex direction vector.
+
+        A trailing "r" negates the vector (reverse direction).
+        """
         if step.endswith("r"):
             return -STEP[self.pid][step[:-1]]
         else:
             return STEP[self.pid][step]
 
     def pos_from_move(self, pos: Pos, move: Move) -> Pos:
-        """Return new position calculated from current one and move."""
+        """Accumulate all step codes in a Move into a single position delta."""
         return pos.from_deltas([self.step(step) for step in move.steps], kind=move.kind)
 
     def pawn(self, **kwargs) -> Pawn:
@@ -88,15 +93,15 @@ class Player:
     def king(self, **kwargs) -> King:
         """Create Player's instance of king piece."""
         # keep reference for king
-        if not hasattr(self, "__king_piece"):
-            self.__king_piece = King(self, **kwargs)
-        return self.__king_piece
+        if not hasattr(self, "_king_piece"):
+            self._king_piece = King(self, **kwargs)
+        return self._king_piece
 
     @property
     def king_piece(self) -> King:
-        return self.__king_piece
+        return self._king_piece
 
-    def promotion(self, label, **kwargs) -> Piece | None:
+    def promotion(self, label, **kwargs) -> Piece:
         match label:
             case "Q":
                 return Queen(self, **kwargs)

@@ -28,7 +28,7 @@ var current = -1;
 var ready = false;
 var targets = new Set();
 var promotions = new Set();
-var lastmove = { from: -1, to: -1 };
+var lastmove = { gid: -1, tgid: -1 };
 
 const slogtext = document.getElementById("log");
 const submit = document.getElementById("submitGame");
@@ -54,6 +54,36 @@ var lastDist = 0;
 var dragStopped = false;
 
 const api_url = `${window.location.protocol}//${window.location.host}`;
+
+const HEX_RADIUS = 7;
+const TOTAL_HEXES = 169;
+const MAX_ELIMINATED = 23;
+const HEX_SIZE = Math.sqrt(1 / 3);
+
+function apiFetch(path, body) {
+  const headers = new Headers();
+  headers.append("Accept", "application/json");
+  headers.append("Content-Type", "application/json");
+  headers.append("Authorization", access_token);
+  ready = false;
+  return fetch(`${api_url}${path}`, {
+    method: "POST",
+    headers: headers,
+    body: JSON.stringify(body),
+  });
+}
+
+function apiFetchGet(path) {
+  const headers = new Headers();
+  headers.append("Accept", "application/json");
+  headers.append("Content-Type", "application/json");
+  headers.append("Authorization", access_token);
+  ready = false;
+  return fetch(`${api_url}${path}`, {
+    method: "GET",
+    headers: headers,
+  });
+}
 
 // Konva objects and events
 
@@ -166,12 +196,9 @@ stage.on("touchmove", function (e) {
     stage.scaleY(scale);
 
     // calculate new position of the stage
-    const dx = newCenter.x - lastCenter.x;
-    const dy = newCenter.y - lastCenter.y;
-
     const newPos = {
-      x: newCenter.x - pointTo.x * scale + dx,
-      y: newCenter.y - pointTo.y * scale + dy,
+      x: newCenter.x - pointTo.x * scale,
+      y: newCenter.y - pointTo.y * scale,
     };
 
     stage.position(newPos);
@@ -642,12 +669,6 @@ function cleanMove() {
     gid2valid[tgid].visible(false);
     gid2attack[tgid].visible(false);
   }
-  if (target != -1) {
-    gid2piece[target].data(gid2piece[movestage].data());
-    gid2piece[target].fill(gid2piece[movestage].fill());
-    gid2piece[movestage].data("");
-    gid2piece[movestage].fill("#ffffff");
-  }
   targets.clear();
   promotions.clear();
   target = -1;
@@ -673,7 +694,7 @@ function drawPieces(pieces) {
 function updateStats(
   eliminated,
   eliminated_value,
-  eliminitations,
+  eliminations,
   pieces_value,
   move_number,
 ) {
@@ -689,26 +710,26 @@ function updateStats(
     }
   }
 
-  p0el1.width(eliminitations[seat2pid[0]][seat2pid[1]]);
-  p0el1.offsetX(eliminitations[seat2pid[0]][seat2pid[1]]);
+  p0el1.width(eliminations[seat2pid[0]][seat2pid[1]]);
+  p0el1.offsetX(eliminations[seat2pid[0]][seat2pid[1]]);
   p0el1.fill(theme["pieces"]["color"][seat2pid[1]]);
-  p0el2.width(eliminitations[seat2pid[0]][seat2pid[2]]);
+  p0el2.width(eliminations[seat2pid[0]][seat2pid[2]]);
   p0el2.fill(theme["pieces"]["color"][seat2pid[2]]);
 
-  p1el2.width(eliminitations[seat2pid[1]][seat2pid[2]]);
+  p1el2.width(eliminations[seat2pid[1]][seat2pid[2]]);
   p1el2.fill(theme["pieces"]["color"][seat2pid[2]]);
-  p1el0.width(eliminitations[seat2pid[1]][seat2pid[0]]);
-  p1el0.offsetX(-eliminitations[seat2pid[1]][seat2pid[2]]);
+  p1el0.width(eliminations[seat2pid[1]][seat2pid[0]]);
+  p1el0.offsetX(-eliminations[seat2pid[1]][seat2pid[2]]);
   p1el0.fill(theme["pieces"]["color"][seat2pid[0]]);
 
-  p2el0.width(eliminitations[seat2pid[2]][seat2pid[0]]);
+  p2el0.width(eliminations[seat2pid[2]][seat2pid[0]]);
   p2el0.offsetX(
-    eliminitations[seat2pid[2]][seat2pid[0]] +
-      eliminitations[seat2pid[2]][seat2pid[1]],
+    eliminations[seat2pid[2]][seat2pid[0]] +
+      eliminations[seat2pid[2]][seat2pid[1]],
   );
   p2el0.fill(theme["pieces"]["color"][seat2pid[0]]);
-  p2el1.width(eliminitations[seat2pid[2]][seat2pid[1]]);
-  p2el1.offsetX(eliminitations[seat2pid[2]][seat2pid[1]]);
+  p2el1.width(eliminations[seat2pid[2]][seat2pid[1]]);
+  p2el1.offsetX(eliminations[seat2pid[2]][seat2pid[1]]);
   p2el1.fill(theme["pieces"]["color"][seat2pid[1]]);
 
   slogtext.innerHTML = slog;
@@ -718,12 +739,12 @@ function updateStats(
 function setCoordHints(gid) {
   let q = gid2hex[gid].getAttr("q");
   let r = gid2hex[gid].getAttr("r");
-  gid_l11 = pos2gid[[Math.max(-7 - r, -7), r]];
-  gid_l12 = pos2gid[[Math.min(7 - r, 7), r]];
-  gid_l21 = pos2gid[[q, Math.max(-7 - q, -7)]];
-  gid_l22 = pos2gid[[q, Math.min(7 - q, 7)]];
-  gid_l31 = pos2gid[[q + Math.min(7 - q, r + 7), r - Math.min(7 - q, r + 7)]];
-  gid_l32 = pos2gid[[q - Math.min(q + 7, 7 - r), r + Math.min(q + 7, 7 - r)]];
+  const gid_l11 = pos2gid[[Math.max(-7 - r, -7), r]];
+  const gid_l12 = pos2gid[[Math.min(7 - r, 7), r]];
+  const gid_l21 = pos2gid[[q, Math.max(-7 - q, -7)]];
+  const gid_l22 = pos2gid[[q, Math.min(7 - q, 7)]];
+  const gid_l31 = pos2gid[[q + Math.min(7 - q, r + 7), r - Math.min(7 - q, r + 7)]];
+  const gid_l32 = pos2gid[[q - Math.min(q + 7, 7 - r), r + Math.min(q + 7, 7 - r)]];
   qline.points([
     gid2hex[gid_l11].x(),
     gid2hex[gid_l11].y(),
@@ -750,18 +771,7 @@ function setCoordHints(gid) {
 // API calls
 
 function validMoves(gid) {
-  const url = `${api_url}/api/v1/move/valid`;
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
-  ready = false;
-
-  fetch(url, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({ slog: slog, view_pid: view_pid, gid: gid }),
-  })
+  apiFetch("/api/v1/move/valid", { slog: slog, view_pid: view_pid, gid: gid })
     .then((response) => {
       if (response.ok) {
         return response.json();
@@ -797,23 +807,12 @@ function validMoves(gid) {
 }
 
 function makeMove(gid, tgid, new_piece = "") {
-  const url = `${api_url}/api/v1/move/make`;
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
-  ready = false;
-
-  fetch(url, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({
-      slog: slog,
-      view_pid: view_pid,
-      gid: gid,
-      tgid: tgid,
-      new_piece: new_piece,
-    }),
+  apiFetch("/api/v1/move/make", {
+    slog: slog,
+    view_pid: view_pid,
+    gid: gid,
+    tgid: tgid,
+    new_piece: new_piece,
   })
     .then((response) => {
       if (response.ok) {
@@ -826,7 +825,7 @@ function makeMove(gid, tgid, new_piece = "") {
         gid2piece[gid].data(pieces_paths["pieces"][new_piece]);
       }
       slog = data.slog;
-      if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
+      if (slog.length >= game_slog.length) {
         game_slog = slog;
       }
       target = tgid;
@@ -840,21 +839,10 @@ function makeMove(gid, tgid, new_piece = "") {
 }
 
 function voteDraw(vote) {
-  const url = `${api_url}/api/v1/vote/draw`;
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
-  ready = false;
-
-  fetch(url, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({
-      slog: slog,
-      view_pid: view_pid,
-      vote: vote,
-    }),
+  apiFetch("/api/v1/vote/draw", {
+    slog: slog,
+    view_pid: view_pid,
+    vote: vote,
   })
     .then((response) => {
       if (response.ok) {
@@ -864,7 +852,7 @@ function voteDraw(vote) {
     })
     .then((data) => {
       slog = data.slog;
-      if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
+      if (slog.length >= game_slog.length) {
         game_slog = slog;
       }
       movestage = -1;
@@ -879,21 +867,10 @@ function voteDraw(vote) {
 }
 
 function voteResign(vote) {
-  const url = `${api_url}/api/v1/vote/resign`;
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
-  ready = false;
-
-  fetch(url, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({
-      slog: slog,
-      view_pid: view_pid,
-      vote: vote,
-    }),
+  apiFetch("/api/v1/vote/resign", {
+    slog: slog,
+    view_pid: view_pid,
+    vote: vote,
   })
     .then((response) => {
       if (response.ok) {
@@ -903,7 +880,7 @@ function voteResign(vote) {
     })
     .then((data) => {
       slog = data.slog;
-      if (slog.slice(0, -4) == game_slog.slice(0, slog.length - 4)) {
+      if (slog.length >= game_slog.length) {
         game_slog = slog;
       }
       movestage = -1;
@@ -919,19 +896,27 @@ function voteResign(vote) {
     });
 }
 
-function gameInfo(init = false, redraw = false) {
-  const url = `${api_url}/api/v1/game/info`;
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
-  ready = false;
+function showVoteModal(kind, vote_results) {
+  const modalId = kind === "draw" ? "voteDrawDialog" : "voteResignDialog";
+  const prefix = kind === "draw" ? "voteDraw" : "voteResign";
+  const modal = new bootstrap.Modal(document.getElementById(modalId));
+  const initiated = document.getElementById(prefix + "Initiated");
+  const acceptPlayers = document.getElementById(prefix + "AcceptPlayers");
+  const declinePlayers = document.getElementById(prefix + "DeclinePlayers");
+  const accepting = [];
+  const declining = [];
+  for (let p = 0; p < 3; p++) {
+    if (vote_results[seat2pid[p]] === "A") accepting.push(seat2name[p]);
+    else if (vote_results[seat2pid[p]] === "D") declining.push(seat2name[p]);
+  }
+  initiated.innerHTML = seat2name[3 - vote_results["n_voted"]];
+  acceptPlayers.innerHTML = accepting.join(" ");
+  declinePlayers.innerHTML = declining.join(" ");
+  modal.show();
+}
 
-  fetch(url, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({ slog: slog, view_pid: view_pid }),
-  })
+function gameInfo(init = false, redraw = false) {
+  apiFetch("/api/v1/game/info", { slog: slog, view_pid: view_pid })
     .then((response) => {
       if (response.ok) {
         return response.json();
@@ -1026,25 +1011,25 @@ function gameInfo(init = false, redraw = false) {
       }
       // Show last move
       if (data.last_move != null) {
-        if (lastmove["from"] != -1) {
-          gid2high[lastmove["from"]].visible(false);
+        if (lastmove["gid"] != -1) {
+          gid2high[lastmove["gid"]].visible(false);
         }
-        lastmove["from"] = data.last_move["from"];
-        gid2high[lastmove["from"]].visible(true);
-        if (current == lastmove["from"]) {
-          gid2high[lastmove["from"]].stroke(theme["board"]["selection"]);
+        lastmove["gid"] = data.last_move["gid"];
+        gid2high[lastmove["gid"]].visible(true);
+        if (current == lastmove["gid"]) {
+          gid2high[lastmove["gid"]].stroke(theme["board"]["selection"]);
         } else {
-          gid2high[lastmove["from"]].stroke(theme["board"]["last_move"]);
+          gid2high[lastmove["gid"]].stroke(theme["board"]["last_move"]);
         }
-        if (lastmove["to"] != -1) {
-          gid2high[lastmove["to"]].visible(false);
+        if (lastmove["tgid"] != -1) {
+          gid2high[lastmove["tgid"]].visible(false);
         }
-        lastmove["to"] = data.last_move["to"];
-        gid2high[lastmove["to"]].visible(true);
-        if (current == lastmove["to"]) {
-          gid2high[lastmove["to"]].stroke(theme["board"]["selection"]);
+        lastmove["tgid"] = data.last_move["tgid"];
+        gid2high[lastmove["tgid"]].visible(true);
+        if (current == lastmove["tgid"]) {
+          gid2high[lastmove["tgid"]].stroke(theme["board"]["selection"]);
         } else {
-          gid2high[lastmove["to"]].stroke(theme["board"]["last_move"]);
+          gid2high[lastmove["tgid"]].stroke(theme["board"]["last_move"]);
         }
       }
       // show piece in chess
@@ -1079,66 +1064,14 @@ function gameInfo(init = false, redraw = false) {
         }
       }
       // Open voting if needed
+      board_layer.off("click tap");
       if (data.vote_needed && !data.finished) {
-        if (data.vote_results["kind"] == "draw") {
-          if (data.onmove == view_pid) {
-            const modalDraw = new bootstrap.Modal(
-              document.getElementById("voteDrawDialog"),
-            );
-            const ispan = document.getElementById("voteDrawInitiated");
-            const aspan = document.getElementById("voteDrawAcceptPlayers");
-            const dspan = document.getElementById("voteDrawDeclinePlayers");
-            const accepting = [];
-            const declining = [];
-            for (var p = 0; p < 3; p++) {
-              if (data.vote_results[seat2pid[p]] == "A") {
-                accepting.push(seat2name[p]);
-              } else if (data.vote_results[seat2pid[p]] == "D") {
-                declining.push(seat2name[p]);
-              }
-              ispan.innerHTML = seat2name[3 - data.vote_results["n_voted"]];
-              aspan.innerHTML = accepting.join(" ");
-              dspan.innerHTML = declining.join(" ");
-            }
-            modalDraw.show();
-          } else {
-            board_layer.off("click tap");
-            movelabel_text = `Draw voting\nin progress`;
-          }
+        if (data.onmove == view_pid) {
+          showVoteModal(data.vote_results["kind"], data.vote_results);
         } else {
-          if (data.onmove == view_pid) {
-            const modalDraw = new bootstrap.Modal(
-              document.getElementById("voteResignDialog"),
-            );
-            const ispan = document.getElementById("voteResignInitiated");
-            const aspan = document.getElementById("voteResignAcceptPlayers");
-            const dspan = document.getElementById("voteResignDeclinePlayers");
-            const accepting = [];
-            const declining = [];
-            for (var p = 0; p < 3; p++) {
-              if (data.vote_results[seat2pid[p]] == "A") {
-                accepting.push(seat2name[p]);
-              } else if (data.vote_results[seat2pid[p]] == "D") {
-                declining.push(seat2name[p]);
-              }
-              ispan.innerHTML = seat2name[3 - data.vote_results["n_voted"]];
-              aspan.innerHTML = accepting.join(" ");
-              dspan.innerHTML = declining.join(" ");
-            }
-            modalDraw.show();
-          } else {
-            board_layer.off("click tap");
-            movelabel_text = `Resign voting\nin progress`;
-          }
+          movelabel_text = `${data.vote_results["kind"]} voting\nin progress`;
         }
-      } else {
-        board_layer.on("click tap", function (evt) {
-          const shape = evt.target;
-          manageMove(shape.id());
-        });
-      }
-      // Game over or continue
-      if (data.finished) {
+      } else if (data.finished) {
         if (data.draw) {
           gameover_text.text("GAME OVER\nDraw agreed");
         } else if (data.resignation) {
@@ -1158,7 +1091,6 @@ function gameInfo(init = false, redraw = false) {
           player_names[p] = `${seat2name[p]} (${data.score[seat2pid[p]]})`;
         }
         gameover.visible(true);
-        board_layer.off("click tap");
       } else {
         gameover.visible(false);
         board_layer.on("click tap", function (evt) {
@@ -1174,17 +1106,7 @@ function gameInfo(init = false, redraw = false) {
 }
 
 function boardInfo() {
-  const url = `${api_url}/api/v1/manager/board?id=` + id.toString();
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
-  ready = false;
-
-  fetch(url, {
-    method: "GET",
-    headers: headers,
-  })
+  apiFetchGet("/api/v1/manager/board?id=" + id.toString())
     .then((response) => {
       if (response.ok) {
         return response.json();
@@ -1318,22 +1240,12 @@ function boardInfo() {
 }
 
 function boardSubmit() {
-  const url = `${api_url}/api/v1/manager/board`;
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
-  ready = false;
   submit.disabled = true;
   submit.className = "btn btn-secondary p-0 mb-0 col-12";
   submitText.innerHTML = "";
   loader.style.display = "inline-block";
 
-  fetch(url, {
-    method: "POST",
-    headers: headers,
-    body: JSON.stringify({ id: id, slog: slog }),
-  })
+  apiFetch("/api/v1/manager/board", { id: id, slog: slog })
     .then((response) => {
       if (response.ok) {
         return response.json();

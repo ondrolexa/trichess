@@ -1,4 +1,4 @@
-from engine import GameAPI, Move, Pos
+from engine import Move, Pos
 
 
 class Test_Player_Steps:
@@ -30,43 +30,40 @@ class Test_Board:
 
 
 class Test_GameAPI:
-    def test_game_init(self, api):
-        api.make_move(154, 144)
-        api.make_move(18, 29)
-        assert api.move_number == 2
+    def test_game_init(self, game):
+        game.make_move(154, 144)
+        game.make_move(18, 29)
+        assert game.move_number == 2
 
-    def test_slog(self, slog1):
-        api = GameAPI(0)
-        api.replay_from_slog(slog1)
-        assert api.move_number == 74
-        assert api.on_move == 2
-        assert not api.draw()
-        assert not api.resignation()
-        assert api.move_possible()
+    def test_slog(self, slog1, game):
+        game.replay_from_slog(slog1)
+        assert game.move_number == 74
+        assert game.on_move == 2
+        assert not game.draw()
+        assert not game.resignation()
+        assert game.move_possible()
 
-    def test_declined_voting_parse(self, slog2):
-        api = GameAPI(0)
-        api.replay_from_slog(slog2)
-        assert api.move_number == 28
-        assert api.voting.votes() == {
+    def test_declined_voting_parse(self, slog2, game):
+        game.replay_from_slog(slog2)
+        assert game.move_number == 28
+        assert game.voting.votes() == {
             "kind": "draw",
             "n_voted": 3,
             0: "D",
             1: "A",
             2: "A",
         }
-        assert api.on_move == 1
-        assert api.slog[-4:] == "SDAA"
+        assert game.on_move == 1
+        assert game.slog[-4:] == "SDAA"
 
-    def test_voting_vote(self, slog3):
-        api = GameAPI(0)
-        api.replay_from_slog(slog3)
-        onmove = api.on_move
-        api.replay_from_slog(api.draw_vote(True))
-        api.replay_from_slog(api.draw_vote(True))
-        api.replay_from_slog(api.draw_vote(False))
-        assert api.on_move == onmove
-        assert api.voting.votes() == {
+    def test_voting_vote(self, slog3, game):
+        game.replay_from_slog(slog3)
+        onmove = game.on_move
+        game.replay_from_slog(game.draw_vote(True))
+        game.replay_from_slog(game.draw_vote(True))
+        game.replay_from_slog(game.draw_vote(False))
+        assert game.on_move == onmove
+        assert game.voting.votes() == {
             "kind": "draw",
             "n_voted": 3,
             0: "A",
@@ -74,9 +71,9 @@ class Test_GameAPI:
             2: "A",
         }
 
-    def test_chess(self, slog4):
-        api = GameAPI(0)
-        api.replay_from_slog(slog4)
-        inchess, kingpos, pieces = api.in_chess()
+    def test_chess(self, slog4, game):
+        game.replay_from_slog(slog4)
+        inchess, kingpos, pieces = game.in_chess()
         assert inchess
+        assert kingpos == 0
         assert pieces[2][0]["piece"] == "Q"

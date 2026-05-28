@@ -1,17 +1,22 @@
 """
 When changed update migrations
+# DEVELOPEMENT
+flask --app=webapp db migrate -m "Added user verification status"
+# comment out line cursor.execute("PRAGMA foreign_keys=ON") in main.py
+flask --app=webapp db upgrade
+# uncomment out line cursor.execute("PRAGMA foreign_keys=ON") in main.py
 
-flask --app=webapp/main.py db migrate -m "Added rating to User"
-flask --app=webapp/main.py db upgrade
-
-Rerun flask --app=webapp/main.py db upgrade with production database
+# PRODUCTION
+# comment out line cursor.execute("PRAGMA foreign_keys=ON") in main.py
+Rerun flask --app=webapp db upgrade with production database
+# uncomment out line cursor.execute("PRAGMA foreign_keys=ON") in main.py
 """
 
+import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-import requests
 import yaml
 from flask import abort, flash, g, jsonify, redirect
 from flask import render_template as real_render_template
@@ -27,6 +32,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from engine import GameAPI
 from webapp.api import blueprint as api
+from webapp.email import send_verification_email
 from webapp.forms import (
     LoginForm,
     NewGameForm,
@@ -37,6 +43,9 @@ from webapp.forms import (
 from webapp.main import __version__ as webapp_version
 from webapp.main import app, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
+from webapp.token import verify_verification_token
+
+logger = logging.getLogger(__name__)
 
 
 @app.template_filter("strftime")
@@ -50,7 +59,7 @@ def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
 def _jinja2_filter_timedelta(date):
     utc = date.replace(tzinfo=ZoneInfo("UTC"))
     native = utc.astimezone(ZoneInfo("Europe/Prague"))
-    now = datetime.now().replace(microsecond=0).astimezone(ZoneInfo("Europe/Prague"))
+    now = datetime.now(tz=ZoneInfo("Europe/Prague")).replace(microsecond=0)
     return str(now - native) + " ago"
 
 
@@ -58,23 +67,36 @@ def add_onmove(games):
     for game in games:
         slog = game.slog
         moves = [
-            slog[i : i + 4] for i in range(0, len(slog), 4) if slog[i] not in ["S", "R"]
+            slog[i : i + 4]
+            for i in range(0, len(slog), 4)
+            if slog[i] not in ["S", "R", "r", "s"]
         ]
         game.onmove = len(moves) % 3
 
 
 def render_template(*args, **kwargs):
     navailable = TriBoard.query.filter_by(status=0).count()
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    themes_dir = os.path.join(base_dir, "static/themes")
+    default_theme_file = os.path.join(themes_dir, "default.yaml")
+
     if g.user is not None and g.user.is_authenticated:
-        theme_file = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            f"static/themes/{g.user.theme}.yaml",
-        )
+        theme_name = g.user.theme
+        # Validate theme name to prevent path traversal
+        if (
+            theme_name is None
+            or "/" in theme_name
+            or "\\" in theme_name
+            or ".." in theme_name
+        ):
+            theme_file = default_theme_file
+        else:
+            theme_file = os.path.join(themes_dir, f"{theme_name}.yaml")
+            # Ensure the path is still inside themes_dir
+            if not os.path.abspath(theme_file).startswith(themes_dir + os.sep):
+                theme_file = default_theme_file
     else:
-        theme_file = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            "static/themes/default.yaml",
-        )
+        theme_file = default_theme_file
     with open(theme_file) as f:
         theme = yaml.safe_load(f)
     if "board" not in kwargs:
@@ -139,21 +161,20 @@ def archive():
         .all()
     )
     for game in archive:
-        game.player_0_score = (
-            Score.query.filter_by(board_id=game.id, player_id=game.player_0_id)
-            .first()
-            .score
-        )
-        game.player_1_score = (
-            Score.query.filter_by(board_id=game.id, player_id=game.player_1_id)
-            .first()
-            .score
-        )
-        game.player_2_score = (
-            Score.query.filter_by(board_id=game.id, player_id=game.player_2_id)
-            .first()
-            .score
-        )
+        score_0 = Score.query.filter_by(
+            board_id=game.id, player_id=game.player_0_id
+        ).first()
+        game.player_0_score = score_0.score if score_0 is not None else 0.0
+
+        score_1 = Score.query.filter_by(
+            board_id=game.id, player_id=game.player_1_id
+        ).first()
+        game.player_1_score = score_1.score if score_1 is not None else 0.0
+
+        score_2 = Score.query.filter_by(
+            board_id=game.id, player_id=game.player_2_id
+        ).first()
+        game.player_2_score = score_2.score if score_2 is not None else 0.0
         ga = GameAPI(0)
         ga.replay_from_slog(game.slog)
         game.moves = ga.move_number
@@ -197,33 +218,48 @@ def available():
     if request.method == "POST":
         delete = request.form.get("delete", None)
         if delete is None:
-            board = TriBoard.query.filter_by(id=int(request.form.get("board"))).first()
-            match request.form.get("seat"):
-                case "0":
-                    board.player_0_id = g.user.id
-                    board.player_0_accepted = True
-                case "1":
-                    board.player_1_id = g.user.id
-                    board.player_1_accepted = True
-                case "2":
-                    board.player_2_id = g.user.id
-                    board.player_2_accepted = True
-            if (
-                (board.player_0_id is not None)
-                and (board.player_1_id is not None)
-                and (board.player_2_id is not None)
-            ):
-                board.status = 1
-                board.started_at = datetime.now()
-                # send notification to first player
-                post_notification(
-                    board.player_0.username,
-                    f"The game {board.id} just started, it's your turn",
-                    "Game started",
-                    board.id,
-                    board.player_0.board,
-                )
-            db.session.commit()
+            board = request.form.get("board", None)
+            if board is not None:
+                board = TriBoard.query.filter_by(id=int(board)).first()
+                seat = request.form.get("seat")
+                if board is None:
+                    flash("Game not found", "error")
+                    return redirect(url_for("available"))
+                match seat:
+                    case "0":
+                        if board.player_0_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available"))
+                        board.player_0_id = g.user.id
+                        board.player_0_accepted = True
+                    case "1":
+                        if board.player_1_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available"))
+                        board.player_1_id = g.user.id
+                        board.player_1_accepted = True
+                    case "2":
+                        if board.player_2_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available"))
+                        board.player_2_id = g.user.id
+                        board.player_2_accepted = True
+                if (
+                    (board.player_0_id is not None)
+                    and (board.player_1_id is not None)
+                    and (board.player_2_id is not None)
+                ):
+                    board.status = 1
+                    board.started_at = datetime.now(timezone.utc)
+                    # send notification to first player
+                    post_notification(
+                        board.player_0.username,
+                        f"The game {board.id} just started, it's your turn",
+                        "Game started",
+                        board.id,
+                        board.player_0.board,
+                    )
+                db.session.commit()
             return redirect(url_for("active"))
         else:
             board = TriBoard.query.filter_by(id=delete).first()
@@ -488,12 +524,11 @@ def login():
     if form.validate_on_submit():
         g.user = User.query.filter_by(username=form.username.data).first()
         if g.user is not None:
-            print(g.user.active)
             if g.user.active and check_password_hash(
                 g.user.password, form.password.data
             ):
                 login_user(g.user)
-                g.user.last_login = datetime.now()
+                g.user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
                 flash("Login successful!", "success")
                 if g.user.id == 1:
@@ -555,29 +590,42 @@ def register():
             )
             db.session.add(new_user)
             db.session.commit()
-            flash(
-                "User added successfuly! Please wait for account approval before login.",
-                "success",
-            )
-            # notify admin
-            try:
-                requests.post(
-                    "https://ntfy.mykuna.eu/trichess_ondro",
-                    data=f"User {form.username.data} applied for account".encode(
-                        "utf-8"
-                    ),
-                    headers={
-                        "Title": "New account",
-                        "Click": "https://trichess.mykuna.eu/admin-users",
-                    },
+            if send_verification_email(new_user):
+                flash(
+                    "Registration successful! Check your email for the verification link.",
+                    "success",
                 )
-            except requests.exceptions.ConnectionError:
-                pass
+            else:
+                flash(
+                    "Account created but verification email failed to send. "
+                    "You can contact admin for approval.",
+                    "warning",
+                )
             return redirect(url_for("index"))
         else:
             flash("Username already exists. Try another one.", "error")
             return redirect(url_for("register"))
     return render_template("register.html", form=form)
+
+
+@app.route("/verify/<token>")
+def verify(token):
+    user_id = verify_verification_token(token)
+    if user_id is None:
+        flash("Invalid or expired verification link.", "danger")
+        return redirect(url_for("index"))
+    user = db.session.get(User, user_id)
+    if user is None:
+        flash("User not found.", "danger")
+        return redirect(url_for("index"))
+    if user.active:
+        flash("Account already verified.", "info")
+    else:
+        user.active = True
+        user.email_verified = True
+        db.session.commit()
+        flash("Email verified! You can now log in.", "success")
+    return redirect(url_for("login"))
 
 
 # register API blueprint

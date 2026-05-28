@@ -1,6 +1,13 @@
+import os
 from datetime import datetime, timedelta
 
+from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash
+
 from webapp.main import db
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, "..", ".env"))
 
 
 class User(db.Model):  # type: ignore[assignment]
@@ -8,7 +15,8 @@ class User(db.Model):  # type: ignore[assignment]
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True)
     password = db.Column(db.String(500))
-    email = db.Column(db.String(120))
+    email = db.Column(db.String(120), unique=True)
+    email_verified = db.Column(db.Boolean, default=False)
     theme = db.Column(db.String(16), default="default")
     board = db.Column(db.String(16), default="ondro")
     pieces = db.Column(db.String(16), default="default")
@@ -48,7 +56,7 @@ class User(db.Model):  # type: ignore[assignment]
         return True
 
     def is_active(self):
-        return True
+        return self.active
 
     def is_anonymous(self):
         return False
@@ -98,6 +106,6 @@ db.event.listen(
     User.__table__,
     "after_create",
     db.DDL(
-        """ INSERT INTO user (id, username, password, theme, board, pieces) VALUES (1, 'admin', "scrypt:32768:8:1$5bsiJQZ4NcNXFiex$afc2dda97bb8cb9b609a9381ae044cabbcbc605d5e0e8618b259dde5fd2d568003fec3d3b19e86eb0cbd3f9c0fc5a62e7d94cbeb416cff89fea993ebcd41149e", "night", "ondro", "default") """
+        f"INSERT INTO user (id, username, password, theme, board, pieces) VALUES (1, 'admin', {generate_password_hash(os.environ.get("ADMIN_PASSWORD", ""))}, 'night', 'ondro', 'default')"
     ),
 )

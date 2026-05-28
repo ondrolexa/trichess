@@ -30,10 +30,12 @@ class Pos:
 
     @property
     def code(self) -> str:
+        """Encode axial (q, r) as two ASCII chars offset by 72 for slog encoding."""
         return chr(72 + self.q) + chr(72 + self.r)
 
     @property
     def promcode(self) -> str:
+        """Encode (q, r) shifted by +32 (offset 104) for promotion notation."""
         return chr(104 + self.q) + chr(104 + self.r)
 
     @property
@@ -45,7 +47,7 @@ class Pos:
         return int(self.value.imag)
 
     def from_deltas(self, deltas: list, kind="s"):
-        """Return new position calculated from current one and list of deltas."""
+        """Return new position from current one + list of complex deltas."""
         res = self.value + sum(deltas)
         return Pos(res.real, res.imag, kind=kind)
 
@@ -106,7 +108,7 @@ class Piece:
 
     @property
     def _moves(self) -> list[Move]:
-        return NotImplemented
+        raise NotImplementedError
 
     @property
     def pos(self) -> Pos | None:
@@ -114,7 +116,11 @@ class Piece:
             return self.hex.pos
 
     def pos_candidates(self, castling: bool) -> list[Pos] | None:
-        """Returns list of new position candidates"""
+        """Raw candidate positions after applying each move, before legality filtering.
+
+        Arg:
+            castling: when True, include castling moves (king two-step with rook).
+        """
         if self.hex is not None:
             res = []
             for move in self._moves:

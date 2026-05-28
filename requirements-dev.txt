@@ -1,4 +1,3 @@
-Flask
 flask-restx
 Flask-Login
 Flask-SQLAlchemy
@@ -9,8 +8,8 @@ Flask-WTF
 WTForms-SQLAlchemy
 email_validator
 flask-jwt-extended
-apscheduler
 gunicorn
+python-dotenv
 pyyaml
 requests
 pytest

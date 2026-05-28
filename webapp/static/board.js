@@ -651,8 +651,8 @@ class board {
             this.vote_results_kind= jdata.vote_results.kind
         }
         if (jdata.last_move != null) {
-            this.last_move_from =  jdata.last_move.from
-            this.last_move_to =  jdata.last_move.to
+            this.last_move_from =  jdata.last_move.gid
+            this.last_move_to =  jdata.last_move.tgid
         }
         if (this.move_number_org == -1) {
             this.move_number_org = jdata.move_number //this.slog.length/4//jdata.move_number;
@@ -1064,4 +1064,3 @@ var SS = new ssel()
 B.init();
 B.draw_tile();
 Step_1_settoken()
-

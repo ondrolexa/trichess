@@ -1,23 +1,28 @@
-# TriChess
+# Trichess
 
-Chess game for three players on hexagonal board. Proof of concept
+A web application for 3-player chess on hexagonal board. Proof of concept
 
 ##  Requirements
 
-In the moment, the trichess requires [Matplotlib](https://matplotlib.org/).
+- **Python**: 3.14+ (see `.python-version`)
+- **Framework**: Flask with Flask-SQLAlchemy, Flask-Login, Flask-JWT-Extended, Flask-RESTX, Flask-Migrate
+- **Frontend**: Konva.js (canvas), Bootstrap 5, vanilla JavaScript
+- **Database**: SQLite
 
 ## :hammer_and_wrench: How to install
 
 Create a virtual environment and install app. Go ahead and open a terminal window. Then navigate to your
 trichess project’s root folder. Once you’re in there, run the following commands to create a fresh environment:
-
-    python -m venv .venv
-    source .venv/bin/activate
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 
 for Windows use Command Prompt or PowerShell:
-
-    python -m venv .venv
-    .venv\Scripts\activate
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
 
 > [!NOTE]
 > On Microsoft Windows, it may be required to set the execution policy in PowerShell for the user.
@@ -29,16 +34,19 @@ for Windows use Command Prompt or PowerShell:
 Great! You have a fresh virtual environment within your project’s folder. Now you need to install all requirements.
 
 Here’s the command that you need to run to install trichess:
-
-    pip install -r requirements.txt
+```bash
+pip install -r requirements.txt
+```
 
 For developemenmt setup, use:
+```bash
+pip install -r requirements-dev.txt
+```
 
-    pip install -r requirements_dev.txt
+## :rocket: Running the Application
 
-
-## :rocket: How to run
-
-In the moment you can use command line to test engine. To show board coords:
-
-    python run.py
+### Development Server
+```bash
+flask --app=webapp run
+```
+The application will be available at `http://localhost:5000`.

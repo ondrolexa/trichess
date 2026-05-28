@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
@@ -7,6 +9,10 @@ from sqlalchemy.orm import aliased
 from engine import GameAPI
 from webapp.main import db, post_notification
 from webapp.models import Score, TriBoard, User
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 blueprint = Blueprint("api", __name__)
 
@@ -138,7 +144,8 @@ class ValidMoves(Resource):
             except KeyError:
                 moveapi.abort(404, message="gid not found")
             except Exception as err:
-                moveapi.abort(417, message=f"Unexpected error {err}")
+                logger.error(f"[POST /valid] Unexpected error: {err}")
+                moveapi.abort(417, message="An unexpected error occurred")
 
 
 MakeMoveParser = reqparse.RequestParser()
@@ -199,7 +206,8 @@ class MakeMove(Resource):
             except KeyError:
                 moveapi.abort(404, message="gid not found")
             except Exception as err:
-                moveapi.abort(417, message=f"Unexpected error {err}")
+                logger.error(f"[POST /make] Unexpected error: {err}")
+                moveapi.abort(417, message="An unexpected error occurred")
 
 
 # game API
@@ -389,7 +397,8 @@ class GameInfo(Resource):
                         res["score"] = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
                 return res
             except Exception as err:
-                gameapi.abort(417, message=f"Unexpected error {err}")
+                logger.error(f"[POST /info] Unexpected error: {err}")
+                gameapi.abort(417, message="An unexpected error occurred")
 
 
 # vote API
@@ -443,7 +452,8 @@ class DrawVote(Resource):
             try:
                 return {"slog": ga.draw_vote(vote)}
             except Exception as err:
-                voteapi.abort(417, message=f"Unexpected error {err}")
+                logger.error(f"[POST /draw] Unexpected error: {err}")
+                voteapi.abort(417, message="An unexpected error occurred")
 
 
 @voteapi.route("/resign")
@@ -470,7 +480,8 @@ class ResignVote(Resource):
             try:
                 return {"slog": ga.resignation_vote(vote)}
             except Exception as err:
-                voteapi.abort(417, message=f"Unexpected error {err}")
+                logger.error(f"[POST /resign] Unexpected error: {err}")
+                voteapi.abort(417, message="An unexpected error occurred")
 
 
 # manager API
@@ -545,7 +556,8 @@ class GameBoard(Resource):
                 .first()
             )
         except Exception as err:
-            managerapi.abort(417, message=f"Unexpected error {err}")
+            logger.error(f"[GET /board] Unexpected error: {err}")
+            managerapi.abort(417, message="An unexpected error occurred")
         else:
             try:
                 pid = {
@@ -594,9 +606,18 @@ class GameBoard(Resource):
                 TriBoard.player_1_id == user.id,
                 TriBoard.player_2_id == user.id,
             )
-            tb = TriBoard.query.filter_by(status=1, id=state.id).filter(user_in).first()
+            tb = (
+                db.session.query(TriBoard)
+                .with_for_update()
+                .filter_by(status=1, id=state.id)
+                .filter(user_in)
+                .first()
+            )
         except Exception as err:
-            managerapi.abort(417, message=f"Unexpected error {err}")
+            logger.error(
+                f"[POST /board] Unexpected error during accessing triboard: {err}"
+            )
+            managerapi.abort(417, message="An unexpected error occurred")
         else:
             if tb:
                 try:
@@ -615,10 +636,10 @@ class GameBoard(Resource):
                         2: tb.player_2,
                     }
                     poster = ga1.on_move == pid[username]
-                    voting = ga1.voting.active() | ga2.voting.active()
+                    voting = ga1.voting.active() or ga2.voting.active()
                     oneadded = ga2.move_number - ga1.move_number == 1
                     same = ga2.slog.startswith(ga1.slog)
-                    if poster & ((oneadded & same) | voting):
+                    if poster and ((oneadded and same) or voting):
                         tb.slog = ga2.slog
                         user = User.query.filter_by(
                             username=players[ga2.on_move].username
@@ -741,11 +762,10 @@ class GameBoard(Resource):
                             409, message="Posted slog is in conflict with server one"
                         )
                 except Exception as err:
-                    if hasattr(err, "message"):
-                        print(err.message)
-                    else:
-                        print(err)
-                    managerapi.abort(417, message=f"Unexpected error {err}")
+                    logger.error(
+                        f"[POST /board] Unexpected error during processing triboard: {err}"
+                    )
+                    managerapi.abort(417, message="An unexpected error occurred")
             else:
                 managerapi.abort(404, message="Board not found")
 
@@ -797,7 +817,10 @@ class ActiveGames(Resource):
                 .all()
             )
         except Exception as err:
-            managerapi.abort(404, message=f"Unexpected error {err}")
+            logger.error(
+                f"[GET /games] Unexpected error during accessing triboard: {err}"
+            )
+            managerapi.abort(417, message="An unexpected error occurred")
         else:
             try:
                 dt = []
@@ -840,4 +863,7 @@ class ActiveGames(Resource):
                 res["joined"] = dt
                 return res
             except Exception as err:
-                managerapi.abort(404, message=f"Unexpected error {err}")
+                logger.error(
+                    f"[GET /games] Unexpected error during processing triboard: {err}"
+                )
+                managerapi.abort(417, message="An unexpected error occurred")

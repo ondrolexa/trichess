@@ -4,12 +4,19 @@ from engine.player import Player
 
 
 class Voting:
-    """Game voting tracking"""
+    """Tracks resignation / draw voting among the three players.
+
+    Slog vote encoding (4 chars per record):
+      Individual vote: ``r<v0><v1><v2>`` or ``s<v0><v1><v2>``
+        where v{i} = A (accept) / D (decline) / X (not yet voted)
+      Set-vote (all 3 in one chunk): ``R<v0><v1><v2>`` or ``S<v0><v1><v2>``
+    """
 
     def __init__(self):
         self.clean()
 
     def clean(self):
+        """Reset vote state to no-vote-in-progress."""
         self.kind = None
         self.accepts = []
         self.n_voted = 0
@@ -17,6 +24,10 @@ class Voting:
 
     @property
     def slog(self):
+        """Condensed 4-char set-vote record for the current vote state.
+
+        Returns empty string when no vote is active.
+        """
         if self.kind == "resign":
             return "R" + "".join(self.log)
         if self.kind == "draw":
@@ -24,6 +35,7 @@ class Voting:
         return ""
 
     def set_resign_voting(self, v0, v1, v2):
+        """Set all 3 resign votes at once (used when replaying a compact slog)."""
         self.n_voted = 3
         self.kind = "resign"
         for player, vote in enumerate([v0, v1, v2]):
@@ -32,6 +44,7 @@ class Voting:
                 self.accepts.append(player)
 
     def set_draw_voting(self, v0, v1, v2):
+        """Set all 3 draw votes at once (used when replaying a compact slog)."""
         self.n_voted = 3
         self.kind = "draw"
         for player, vote in enumerate([v0, v1, v2]):
@@ -40,6 +53,7 @@ class Voting:
                 self.accepts.append(player)
 
     def resign_vote(self, player, code):
+        """Cast a single resign vote.  Starts a new vote if none is active."""
         if self.kind is None:
             self.kind = "resign"
         if self.kind == "resign":
@@ -52,6 +66,7 @@ class Voting:
             raise ValueError(f"{self.kind} voting is in progress")
 
     def draw_vote(self, player, code):
+        """Cast a single draw vote.  Starts a new vote if none is active."""
         if self.kind is None:
             self.kind = "draw"
         if self.kind == "draw":
@@ -64,6 +79,7 @@ class Voting:
             raise ValueError(f"{self.kind} voting is in progress")
 
     def resign_slog(self, player, vote):
+        """Generate a 4-char individual resign vote chunk for slog."""
         votelog = ["X", "X", "X"]
         if vote:
             votelog[player] = "A"
@@ -72,6 +88,7 @@ class Voting:
         return "r" + "".join(votelog)
 
     def draw_slog(self, player, vote):
+        """Generate a 4-char individual draw vote chunk for slog."""
         votelog = ["X", "X", "X"]
         if vote:
             votelog[player] = "A"
@@ -80,15 +97,21 @@ class Voting:
         return "s" + "".join(votelog)
 
     def needed(self):
+        """True when at least 1 vote cast but fewer than 3 (vote still in progress)."""
         return 0 < self.n_voted < 3
 
     def results(self, kind="any"):
+        """List of player IDs who accepted; optionally filtered by vote kind."""
         if kind in (self.kind, "any"):
             return self.accepts
         else:
             return []
 
     def votes(self):
+        """Return vote state dict when a vote is active (matches ``/info`` shape).
+
+        Returns None when no vote is in progress.
+        """
         if self.active():
             res = {"kind": self.kind, "n_voted": self.n_voted}
             res[0] = self.log[0]
@@ -97,34 +120,34 @@ class Voting:
             return res
 
     def finished(self):
+        """True when all 3 players have voted."""
         return self.n_voted == 3
 
     def active(self):
+        """True when any vote is in progress (1–3 votes cast)."""
         return self.n_voted > 0
 
 
 class GameAPI:
-    """A trichess game API.
+    """Game logic layer exposed to the HTTP API.
 
-    All interaction between front-end and engine must use GameAPI.
+    All interaction between front-end and the engine goes through this class.
+    The API is stateless — every request reconstructs state by calling
+    ``replay_from_slog(slog)`` on a fresh instance.
 
     Keyword Args:
         name0 (str, optional): Name of player on position 0-bottom
         name1 (str, optional): Name of player on position 1-left
         name2 (str, optional): Name of player on position 2-right
-        view_pid (int, optional): ID of player on bottom of the board
+        view_pid (int): Player perspective for gid numbering (0=bottom, 1=left, 2=right)
 
     Attributes:
-        ready (bool): True when game is ready, otherwise False.
-        move_number (int): Number of moves played in game.
-        players (dict): A dictionary with three players. Keys are 0, 1 and 2
-        view_pid (int): ID of player on bottom of the board
-        board (Board): Instance of trichess board.
-        log (list): List of played moves. Each move is represented by tuple
-            of two positions `(pos_from, pos_to)`.
-        on_move (int): ID of player on move
-        on_move_previous(int): ID of player from last move
-
+        move_number (int): Number of moves played.
+        players (dict): Three Player instances, keys 0, 1, 2.
+        view_pid (int): Perspective for gid→hex mapping.
+        board (Board): Current board state.
+        voting (Voting): Resign / draw vote tracker.
+        slogan (str): Serialized game log.
     """
 
     def __init__(self, view_pid, **kwargs):
@@ -141,7 +164,14 @@ class GameAPI:
         self.update_ui_mappings()
 
     def update_ui_mappings(self):
-        # UI gid mappings to engine hex and pos
+        """Build gid↔hex lookups for the current *view_pid*.
+
+        Traversal order differs per view_pid:
+          view 0 — row-major by r then q
+          view 1 — by s then r
+          view 2 — by q then r (reversed)
+        Each maps the same 169 hex cells to a different gid ordering.
+        """
         self.gid2hex = {}
         self.pos2gid = {}
 
@@ -183,9 +213,9 @@ class GameAPI:
     def copy(self):
         ga = GameAPI(
             self.view_pid,
-            player0=self.players[0],
-            player1=self.players[1],
-            player2=self.players[2],
+            name0=self.players[0].name,
+            name1=self.players[1].name,
+            name2=self.players[2].name,
         )
 
         ga.replay_from_slog(self.slog)
@@ -193,21 +223,29 @@ class GameAPI:
 
     @property
     def on_move(self):
+        """Player ID whose turn it is.
+
+        Skewed by ``voting.n_voted`` because the player casting a vote is
+        also considered "on move".
+        """
         return (self.move_number + self.voting.n_voted) % 3
 
     @property
     def on_move_previous(self):
+        """Player ID who had the previous turn."""
         return (self.move_number + self.voting.n_voted - 1) % 3
 
     @property
     def last_move(self):
+        """Last move as ``{gid, tgid}``, or None if no moves or last entry is a vote."""
         if self.slog:
             if self.slog[-4] not in ["R", "S", "r", "s"]:
                 from_pos, to_pos, new_piece = self.slog2pos(*self.slog[-4:])
                 return {
-                    "from": self.pos2gid[from_pos],
-                    "to": self.pos2gid[to_pos],
+                    "gid": self.pos2gid[from_pos],
+                    "tgid": self.pos2gid[to_pos],
                 }
+        return None
 
     def in_chess(self):
         """Check if player on move has chess"""
@@ -218,21 +256,21 @@ class GameAPI:
         return inchess, self.pos2gid[kingpos], res
 
     def eliminated(self):
-        """Return eliminated pieces for player pid"""
+        """Return eliminated pieces for players"""
         res = {0: [], 1: [], 2: []}
         for _, p in self.board.eliminated:
             res[p.player.pid].append(p.label)
         return res
 
     def eliminated_value(self):
-        """Return total values of eliminated pieces for player pid"""
+        """Return total values of eliminated pieces for players"""
         res = {0: 0, 1: 0, 2: 0}
         for _, p in self.board.eliminated:
             res[p.player.pid] += p.value
         return res
 
     def player_eliminations(self):
-        """Return values of opponent eliminated pieces by player"""
+        """Return values of opponent eliminated pieces for players"""
         res = {0: {1: 0, 2: 0}, 1: {0: 0, 2: 0}, 2: {0: 0, 1: 0}}
         for pid, p in self.board.eliminated:
             res[pid][p.player.pid] += p.value
@@ -267,6 +305,12 @@ class GameAPI:
             self.replay_from_slog(self.slog[:-4])
 
     def slog2pos(self, q1, r1, q2, r2):
+        """Decode a 4-char slog segment into (Pos, Pos, promotion_label).
+
+        Promotion is signalled by an uppercase (offset +32) character
+        in a specific position:
+          q1 → Queen, r1 → Rook, q2 → Bishop, r2 → Knight.
+        """
         # check promotion
         if q1 > "O":
             q1 = chr(ord(q1) - 32)
@@ -289,7 +333,11 @@ class GameAPI:
         )
 
     def move2slog(self, p1, p2, label):
-        """Returns game move as slog string."""
+        """Encode a move into a 4-char slog segment.
+
+        Promotion is encoded by adding 32 to the ASCII offset of a
+        specific character (Q→q1, R→r1, B→q2, N→r2).
+        """
         q1, r1 = p1.q, p1.r
         q2, r2 = p2.q, p2.r
         match label:
@@ -304,7 +352,14 @@ class GameAPI:
         return chr(72 + q1) + chr(72 + r1) + chr(72 + q2) + chr(72 + r2)
 
     def replay_from_slog(self, s: str):
-        """Initalize board and replay all moves from string log."""
+        """Reset and replay a full game from a slog string.
+
+        Handles three kinds of 4-char chunks:
+          - Regular moves (decoded via ``slog2pos``)
+          - Individual votes (``r``/``s`` prefix → accumulated)
+          - Set-votes (``R``/``S`` prefix → set all 3 at once)
+        Completed voting sequences are condensed into the slog automatically.
+        """
         self.slog = ""
         self.move_number = 0
         self.board = Board(players=self.players)
@@ -343,10 +398,12 @@ class GameAPI:
         return self.slog[-4 * n :]
 
     def valid_moves(self, gid):
-        """Return all valid moves from gid for player on move
+        """Return all legal moves from *gid* for the player on move.
 
-        Returns list of dictionaries.
+        Filters candidate moves to those that do not leave the moving
+        player in check.
 
+        Returns a list of ``{tgid, kind, promotion}`` dicts.
         """
         hex = self.gid2hex[gid]
         moves = []
@@ -379,7 +436,10 @@ class GameAPI:
         return targets
 
     def make_move(self, from_gid, to_gid, new_piece=""):
-        """Make move from from_gid to to_gid and record it to the log."""
+        """Execute a move and record it in the slog.
+
+        Does nothing when a vote is in progress (voting.needed()).
+        """
         if not self.voting.needed():
             # add move to log
             from_pos, to_pos = self.gid2hex[from_gid].pos, self.gid2hex[to_gid].pos
@@ -400,6 +460,7 @@ class GameAPI:
         return self.slog + self.voting.draw_slog(self.on_move, vote)
 
     def resignation(self):
+        """True when 2 of 3 players accepted a resign vote."""
         if (
             self.voting.kind == "resign"
             and self.voting.finished()
@@ -410,6 +471,7 @@ class GameAPI:
             return False
 
     def draw(self):
+        """True when all 3 players accepted a draw vote."""
         if (
             self.voting.kind == "draw"
             and self.voting.finished()
@@ -420,7 +482,10 @@ class GameAPI:
             return False
 
     def move_possible(self):
-        """Return True if there is any move possible"""
+        """True when the player on move has at least one legal move.
+
+        Returns False when the game has ended by resignation or draw.
+        """
         if self.resignation() or self.draw():
             return False
         for hex in self.board:

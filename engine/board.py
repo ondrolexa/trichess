@@ -1,6 +1,10 @@
 from engine.pieces import King, Pawn, Piece, Pos
 from engine.player import Player
 
+# Promotion zone edges per player.
+# Each player has three contiguous board edges that make up the opposite
+# territory — when a pawn reaches any of these positions it can promote.
+# Naming: base{A}{B} = edge shared by players A and B, belonging to neither.
 base0 = [Pos(i, 7) for i in range(-7, 1)]
 base01 = [Pos(-7, i) for i in range(1, 7)]
 base1 = [Pos(i, -7 - i) for i in range(-7, 1)]
@@ -37,6 +41,7 @@ class Hex:
 
     @property
     def color(self) -> int:
+        """Cell territory color (0, 1, 2) via the formula (2q + r) % 3."""
         return (2 * self.pos.q + self.pos.r) % 3
 
 
@@ -80,14 +85,16 @@ class Board:
         for hex in self._board.values():
             yield hex
 
-    def __getitem__(self, pos: Pos | int) -> Hex | None:
+    def __getitem__(self, pos: Pos) -> Hex | None:
+        """Look up hex by its axial coordinate Pos."""
         return self._board.get(pos, None)
 
     def __contains__(self, pos: Pos) -> bool:
+        """True when the axial coordinate is on the board."""
         return pos in self._board
 
     def init_pieces(self):
-        """Initialize trichess board pieces to starting positions"""
+        """Clear the board and place all 51 pieces (17 per player) at starting positions."""
 
         for hex in self:
             hex.piece = None
@@ -134,20 +141,19 @@ class Board:
         self.place_piece(Pos(7, -3), self.players[2].king)
 
     def place_piece(self, pos: Pos, create_piece_fn):
-        """Place piece on cell with given position.
+        """Place piece on cell at *pos*.
 
-        Note:
-            Piece is passed as creator function. See Player methods.
-
+        *create_piece_fn* is a Player factory method that receives
+        the target Hex as ``hex=`` keyword arg.
         """
         self._board[pos].piece = create_piece_fn(hex=self._board[pos])
 
     def move_piece(self, pos_from: Pos, pos_to: Pos, label: str):
-        """Move piece from one position to other.
+        """Move piece, handling capture, promotion, and castling side effects.
 
-        Note:
-            When label is not empty string, piece is promoted
-
+        When *label* is non-empty and the piece is a Pawn entering the
+        opponent's base, the piece is promoted.  King moves that cross
+        two steps trigger castling (the matching rook is also moved).
         """
         thex = self._board[pos_to]
         if thex.has_piece:
@@ -179,6 +185,12 @@ class Board:
                     self.move_piece(Pos(7, -7), Pos(7, -4), "")
 
     def test_move_piece(self, pos_from, pos_to):
+        """Temporarily apply move and test whether own king is still safe.
+
+        Restores original board state before returning.  Used for
+        legality filtering — a move is legal only when it does not
+        leave the moving player in check.
+        """
         piece = self._board[pos_from].piece
         piece.hex = self._board[pos_to]
         to_piece = self._board[pos_to].piece if self._board[pos_to].has_piece else None
@@ -191,15 +203,15 @@ class Board:
         return not res
 
     def promotion(self, piece: Piece, pos: Pos) -> bool:
-        """Return true when pos in opposite base"""
+        """True when a Pawn reaches an opponent-base cell."""
         return (pos in self.opposite[piece.player.pid]) and isinstance(piece, Pawn)
 
     def in_chess(self, player: Player) -> tuple[bool, list, list]:
-        """Check if players king is under attack and returns list of attacking pieces"""
+        """Check if player's king is under attack, return (bool, king_pos, attackers)."""
         return self.pos_in_chess(player, player.king_piece.hex.pos)
 
     def pos_in_chess(self, player: Player, pos) -> tuple[bool, list, list]:
-        """Check if players pos is under attack and returns list of attacking pieces"""
+        """Check if *pos* is attacked by any enemy piece."""
         pieces = []
         inchess = False
         for hex in self:
@@ -214,7 +226,7 @@ class Board:
         return inchess, pos, pieces
 
     def possible_moves(self, piece: Piece, castling: bool = True) -> list[Pos]:
-        """Return list of all posiible moves for given piece."""
+        """Filter candidate positions by board occupancy and piece ownership."""
         all = []
         candidates = piece.pos_candidates(castling)
         if candidates is not None:

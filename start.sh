@@ -1,1 +1,3 @@
-gunicorn --bind 0.0.0.0:8000 -w 2 --preload webapp:app
+#!/bin/sh
+supercronic /code/crontab &
+exec gunicorn --config gunicorn_config.py --preload webapp:app

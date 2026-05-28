@@ -1,11 +1,18 @@
 import pytest
 
 from engine import Board, GameAPI, Player
+from webapp import app
 
 
 @pytest.fixture
-def api():
-    ga = GameAPI(0)
+def game() -> GameAPI:
+    return GameAPI(view_pid=0)
+
+
+@pytest.fixture
+def game_with_one_move() -> GameAPI:
+    ga = GameAPI(view_pid=0)
+    ga.make_move(152, 142)
     return ga
 
 
