@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {%block styles%}
-<link rel="stylesheet" href="{{ url_for('static', filename='board.css') }}" xmlns="http://www.w3.org/1999/html">
+<link rel="stylesheet" href="{{ url_for('static', filename='filio.css') }}" xmlns="http://www.w3.org/1999/html">
 {%endblock%}
 
 {%block content%}
@@ -94,5 +94,5 @@ const theme = JSON.parse('{{ theme|tojson }}');
 const pieces_paths = JSON.parse('{{ pieces_paths|tojson }}');
 </script>
 
-<script type="text/javascript" src="{{ url_for('static', filename='board.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='filio.js') }}"></script>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {%block styles%}
-<link rel="stylesheet" href="{{ url_for('static', filename='game.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='ondro.css') }}">
 {%endblock%}
 
 {%block content%}
@@ -129,5 +129,5 @@ const theme = JSON.parse('{{ theme|tojson }}');
 const pieces_paths = JSON.parse('{{ pieces_paths|tojson }}');
 </script>
 <script src="https://unpkg.com/konva@10/konva.min.js"></script>
-<script type="text/javascript" src="{{ url_for('static', filename='game.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='ondro.js') }}"></script>
 {% endblock %}

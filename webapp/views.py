@@ -258,7 +258,6 @@ def available():
                         f"The game {board.id} just started, it's your turn",
                         "Game started",
                         board.id,
-                        board.player_0.board,
                     )
                 db.session.commit()
             return redirect(url_for("active"))
@@ -320,37 +319,9 @@ def play(id):
         )
         with open(pieces_file) as f:
             pieces_paths = yaml.safe_load(f)
+        template = "board_ondro.html" if g.user.board == "ondro" else "board_filio.html"
         return render_template(
-            "play.html",
-            id=id,
-            access_token=access_token,
-            pieces_paths=pieces_paths,
-            board=True,
-        )
-    else:
-        flash("You have no access to this game", "error")
-        return redirect(url_for("active"))
-
-
-@app.route("/playlx/<id>")
-@login_required
-def playlx(id):
-    access_token = create_access_token(identity=g.user.username)
-    user_in = db.or_(
-        TriBoard.player_0_id == g.user.id,
-        TriBoard.player_1_id == g.user.id,
-        TriBoard.player_2_id == g.user.id,
-    )
-    tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
-    if tb:
-        pieces_file = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            f"static/pieces/{g.user.pieces}.yaml",
-        )
-        with open(pieces_file) as f:
-            pieces_paths = yaml.safe_load(f)
-        return render_template(
-            "playlx.html",
+            template,
             id=id,
             access_token=access_token,
             pieces_paths=pieces_paths,

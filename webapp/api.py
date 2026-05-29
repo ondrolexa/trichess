@@ -664,7 +664,6 @@ class GameBoard(Resource):
                                         f"Draw agreed in game {state.id}",
                                         "Game over",
                                         state.id,
-                                        players[uid].board,
                                     )
                             elif ga2.resignation():
                                 resigned = ga2.voting.results(kind="resign")
@@ -686,7 +685,6 @@ class GameBoard(Resource):
                                     f"You win in game {state.id} by resignation",
                                     "Game over",
                                     state.id,
-                                    players[uid].board,
                                 )
                                 for uid in resigned:
                                     post_notification(
@@ -694,7 +692,6 @@ class GameBoard(Resource):
                                         f"You lost in game {state.id} by resignation",
                                         "Game over",
                                         state.id,
-                                        players[uid].board,
                                     )
                             elif in_chess:
                                 score = {0: 0.0, 1: 0.0, 2: 0.0}
@@ -718,7 +715,6 @@ class GameBoard(Resource):
                                             f"You lost in game {state.id}",
                                             "Game over",
                                             state.id,
-                                            players[uid].board,
                                         )
                                     else:
                                         post_notification(
@@ -726,7 +722,6 @@ class GameBoard(Resource):
                                             f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score[uid]:g}",
                                             "Game over",
                                             state.id,
-                                            players[uid].board,
                                         )
                             else:
                                 score = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
@@ -744,7 +739,6 @@ class GameBoard(Resource):
                                         f"The game {state.id} ended in a stalemate",
                                         "Game over",
                                         state.id,
-                                        players[uid].board,
                                     )
                         else:
                             # notify next player
@@ -753,7 +747,6 @@ class GameBoard(Resource):
                                 f"It's your turn in game {state.id}",
                                 "Your turn",
                                 state.id,
-                                players[ga2.on_move].board,
                             )
                         db.session.commit()
                         recalculate_rating()

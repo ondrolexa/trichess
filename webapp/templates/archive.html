@@ -40,11 +40,7 @@
           {% endif %}
         </td>
         <td>
-          {% if board == "ondro" %}
-          <a class="btn btn-success btn-sm" href="{{ url_for('playlx', id=game.id) }}" role="button">View</a>
-          {% else %}
           <a class="btn btn-success btn-sm" href="{{ url_for('play', id=game.id) }}" role="button">View</a>
-          {% endif %}
         </td>
         <td>{{game.moves}}</td>
       </tr>

@@ -62,14 +62,11 @@ __version__ = "0.2.0"
 
 
 # notifications
-def post_notification(username, text, title, gameid, board):
+def post_notification(username, text, title, gameid):
     if app.debug:
         logger.info("Notification skipped (debug): %s -> %s: %s", title, username, text)
         return
-    if board == "ondro":
-        click = f"https://trichess.mykuna.eu/playlx/{gameid}"
-    else:
-        click = f"https://trichess.mykuna.eu/play/{gameid}"
+    click = f"https://trichess.mykuna.eu/play/{gameid}"
     try:
         requests.post(
             f"https://ntfy.mykuna.eu/trichess_{username}",
@@ -126,7 +123,6 @@ def resend_notification():
                         f"It's still your turn in game {r['id']}",
                         "Your turn reminder",
                         r["id"],
-                        user["board"],
                     )
 
 
