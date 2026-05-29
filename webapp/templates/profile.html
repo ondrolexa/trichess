@@ -14,6 +14,22 @@
           </div>
         </div>
       </div>
+      <script>
+        (function() {
+          var emailInput = document.querySelector('input[name="email"]');
+          if (!emailInput) return;
+          var form = emailInput.closest('form');
+          if (!form) return;
+          var originalEmail = emailInput.value;
+          form.addEventListener('submit', function(e) {
+            if (emailInput.value !== originalEmail) {
+              if (!confirm('Changing your email requires verification. Continue?')) {
+                e.preventDefault();
+              }
+            }
+          });
+        })();
+      </script>
       <div class="col-lg p-2">
         <div class="card h-100">
           <h5 class="card-header">Statistics</h5>

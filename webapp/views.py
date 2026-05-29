@@ -369,7 +369,21 @@ def profile():
     )
     form_password = PasswordForm(username=g.user.username)
     if form_profile.validate_on_submit():
-        g.user.email = form_profile.email.data
+        new_email = form_profile.email.data
+        email_changed = new_email != g.user.email
+
+        if email_changed:
+            if User.query.filter(User.email == new_email, User.id != g.user.id).first():
+                flash("Email already in use by another user.", "warning")
+                return redirect(url_for("profile"))
+            g.user.email = new_email
+            g.user.email_verified = False
+            send_verification_email(g.user)
+            flash(
+                "Email updated. Check your inbox to verify the new address.",
+                "info",
+            )
+
         g.user.theme = form_profile.theme.data
         g.user.board = form_profile.board.data
         g.user.pieces = form_profile.pieces.data
@@ -663,7 +677,12 @@ def verify(token):
         flash("User not found.", "danger")
         return redirect(url_for("index"))
     if user.active:
-        flash("Account already verified.", "info")
+        if user.email_verified:
+            flash("Account already verified.", "info")
+        else:
+            user.email_verified = True
+            db.session.commit()
+            flash("New email verified!", "success")
     else:
         if (
             User.query.filter_by(username=user.username, active=True)
