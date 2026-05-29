@@ -4,7 +4,7 @@ from email.message import EmailMessage
 
 from flask import current_app, url_for
 
-from webapp.token import generate_verification_token
+from webapp.token import generate_password_reset_token, generate_verification_token
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +54,21 @@ def send_verification_email(user):
         f"{verify_url}\n\n"
         f"This link expires in 24 hours.\n\n"
         f"If you did not register, please ignore this email.\n\n"
+        f"Best,\nTrichess Team"
+    )
+    return send_email(user.email, subject, body)
+
+
+def send_password_reset_email(user):
+    token = generate_password_reset_token(user.id)
+    reset_url = url_for("reset", token=token, _external=True)
+    subject = "Trichess password reset"
+    body = (
+        f"Hi {user.username},\n\n"
+        f"Click the link below to reset your password:\n"
+        f"{reset_url}\n\n"
+        f"This link expires in 1 hour.\n\n"
+        f"If you did not request a password reset, please ignore this email.\n\n"
         f"Best,\nTrichess Team"
     )
     return send_email(user.email, subject, body)

@@ -26,22 +26,25 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from flask_login import current_user, login_required, login_user, logout_user
+from markupsafe import Markup
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from engine import GameAPI
 from webapp.api import blueprint as api
-from webapp.email import send_verification_email
+from webapp.email import send_password_reset_email, send_verification_email
 from webapp.forms import (
+    ForgotPasswordForm,
     LoginForm,
     NewGameForm,
     PasswordForm,
     ProfileForm,
     RegistrationForm,
+    ResetPasswordForm,
 )
 from webapp.main import __version__ as webapp_version
 from webapp.main import app, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
-from webapp.token import verify_verification_token
+from webapp.token import verify_password_reset_token, verify_verification_token
 
 logger = logging.getLogger(__name__)
 
@@ -520,22 +523,62 @@ def login():
             return redirect(url_for("active"))
     form = LoginForm()
     if form.validate_on_submit():
-        g.user = User.query.filter_by(username=form.username.data).first()
-        if g.user is not None:
-            if g.user.active and check_password_hash(
-                g.user.password, form.password.data
-            ):
-                login_user(g.user)
-                g.user.last_login = datetime.now(timezone.utc)
+        user = User.query.filter_by(username=form.username.data).first()
+        if user is not None and check_password_hash(user.password, form.password.data):
+            if user.active:
+                g.user = user
+                login_user(user)
+                user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
                 flash("Login successful!", "success")
-                if g.user.id == 1:
+                if user.id == 1:
                     return redirect(url_for("index"))
                 else:
                     return redirect(url_for("active"))
             else:
                 flash("Invalid username or password", "danger")
+        elif user is not None:
+            flash(
+                Markup('Wrong password. <a href="/forgot">Forgot password?</a>'),
+                "danger",
+            )
+        else:
+            flash("Invalid username or password", "danger")
     return render_template("login.html", form=form)
+
+
+@app.route("/forgot", methods=["GET", "POST"])
+def forgot():
+    form = ForgotPasswordForm()
+    if form.validate_on_submit():
+        user = User.query.filter_by(email=form.email.data).first()
+        if user is not None:
+            send_password_reset_email(user)
+        flash(
+            "If that email is registered, a password reset link has been sent.",
+            "info",
+        )
+        return redirect(url_for("login"))
+    return render_template("forgot_password.html", form=form)
+
+
+@app.route("/reset/<token>", methods=["GET", "POST"])
+def reset(token):
+    user_id = verify_password_reset_token(token)
+    if user_id is None:
+        flash("Invalid or expired reset link. Please request a new one.", "danger")
+        return redirect(url_for("forgot"))
+    user = db.session.get(User, user_id)
+    if user is None:
+        flash("User not found.", "danger")
+        return redirect(url_for("forgot"))
+    form = ResetPasswordForm()
+    if form.validate_on_submit():
+        user.password = generate_password_hash(form.password.data)
+        db.session.commit()
+        flash("Password reset successful! You can now log in.", "success")
+        return redirect(url_for("login"))
+    return render_template("reset_password.html", form=form)
 
 
 @app.route("/token", methods=["POST"])

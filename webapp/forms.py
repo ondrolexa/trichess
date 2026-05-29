@@ -8,7 +8,7 @@ from wtforms import (
     StringField,
     SubmitField,
 )
-from wtforms.validators import DataRequired, Email, Length, Optional
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
 
 
 class NewGameForm(FlaskForm):
@@ -88,3 +88,20 @@ class PasswordForm(FlaskForm):
         validators=[DataRequired(), Length(min=6, max=128)],
     )
     submit = SubmitField("Change password")
+
+
+class ForgotPasswordForm(FlaskForm):
+    email = EmailField(validators=[DataRequired(), Email()])
+    submit = SubmitField("Send reset link")
+
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField(
+        "New password",
+        validators=[DataRequired(), Length(min=6, max=128)],
+    )
+    confirm = PasswordField(
+        "Confirm password",
+        validators=[DataRequired(), EqualTo("password")],
+    )
+    submit = SubmitField("Reset password")
