@@ -13,7 +13,7 @@ load_dotenv(os.path.join(basedir, "..", ".env"))
 class User(db.Model):  # type: ignore[assignment]
     __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64), unique=True)
+    username = db.Column(db.String(64))
     password = db.Column(db.String(500))
     email = db.Column(db.String(120), unique=True)
     email_verified = db.Column(db.Boolean, default=False)

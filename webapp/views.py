@@ -2,14 +2,12 @@
 When changed update migrations
 # DEVELOPEMENT
 flask --app=webapp db migrate -m "Added user verification status"
-# comment out line cursor.execute("PRAGMA foreign_keys=ON") in main.py
+# add op.execute("PRAGMA foreign_keys=OFF") and op.execute("PRAGMA foreign_keys=ON")
+# before and after upgrade and downgrade functions in migration script
 flask --app=webapp db upgrade
-# uncomment out line cursor.execute("PRAGMA foreign_keys=ON") in main.py
 
 # PRODUCTION
-# comment out line cursor.execute("PRAGMA foreign_keys=ON") in main.py
 Rerun flask --app=webapp db upgrade with production database
-# uncomment out line cursor.execute("PRAGMA foreign_keys=ON") in main.py
 """
 
 import logging
@@ -576,35 +574,38 @@ def logout():
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
-        exists = User.query.filter_by(username=form.username.data).first()
-        if exists is None:
-            hashed_password = generate_password_hash(form.password.data)
-            new_user = User(
-                username=form.username.data,
-                password=hashed_password,
-                email=form.email.data,
-                theme="default",
-                board="ondro",
-                pieces="default",
-                active=False,
-            )
-            db.session.add(new_user)
-            db.session.commit()
-            if send_verification_email(new_user):
-                flash(
-                    "Registration successful! Check your email for the verification link.",
-                    "success",
-                )
-            else:
-                flash(
-                    "Account created but verification email failed to send. "
-                    "You can contact admin for approval.",
-                    "warning",
-                )
-            return redirect(url_for("index"))
-        else:
-            flash("Username already exists. Try another one.", "error")
+        if User.query.filter_by(username=form.username.data, active=True).first():
+            flash("Username already in use. Try another one.", "warning")
             return redirect(url_for("register"))
+
+        if User.query.filter_by(email=form.email.data).first():
+            flash("Email already registered. Please use a different email.", "warning")
+            return redirect(url_for("register"))
+
+        hashed_password = generate_password_hash(form.password.data)
+        new_user = User(
+            username=form.username.data,
+            password=hashed_password,
+            email=form.email.data,
+            theme="default",
+            board="ondro",
+            pieces="default",
+            active=False,
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        if send_verification_email(new_user):
+            flash(
+                "Registration successful! Check your email for the verification link.",
+                "success",
+            )
+        else:
+            flash(
+                "Account created but verification email failed to send. "
+                "You can contact admin for approval.",
+                "warning",
+            )
+        return redirect(url_for("index"))
     return render_template("register.html", form=form)
 
 
@@ -621,6 +622,19 @@ def verify(token):
     if user.active:
         flash("Account already verified.", "info")
     else:
+        if (
+            User.query.filter_by(username=user.username, active=True)
+            .filter(User.id != user.id)
+            .first()
+        ):
+            flash(
+                "This username has already been activated by another user. "
+                "Please register again with a different username.",
+                "warning",
+            )
+            db.session.delete(user)
+            db.session.commit()
+            return redirect(url_for("login"))
         user.active = True
         user.email_verified = True
         db.session.commit()
