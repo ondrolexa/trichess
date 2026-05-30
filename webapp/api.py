@@ -1,9 +1,11 @@
 import logging
+from collections import defaultdict
+from datetime import datetime
 
 from flask import Blueprint
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
-from sqlalchemy import and_, func
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import aliased
 
 from engine import GameAPI
@@ -22,25 +24,50 @@ authorizations = {
     "jsonWebToken": {"type": "apiKey", "in": "header", "name": "Authorization"}
 }
 
+K = 9.0
+L = 400.0
+starting_rating = 500.0
 
-# rating update
-def recalculate_rating():
-    # parameters
-    K = 9
-    L = 400
 
-    S0 = aliased(Score)
-    S1 = aliased(Score)
-    S2 = aliased(Score)
+def _parse_ts(raw):
+    """Parse SQLite DATETIME string to a Python datetime object."""
+    if raw is None:
+        return datetime.min
+    if isinstance(raw, datetime):
+        return raw
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+    # Fallback: return epoch so ordering is still safe
+    return datetime.min
+
+
+def get_rating_history():
+    """Replay every finished triboard game in chronological order and return
+    the full rating trajectory for every player who has appeared in at least
+    one finished game.
+    """
+
+    S0 = aliased(Score, name="s0")
+    S1 = aliased(Score, name="s1")
+    S2 = aliased(Score, name="s2")
     users = User.query.all()
-    res = (
-        db.session.query(
+    ratings = {u.id: starting_rating for u in users}
+
+    # history stores (timestamp, rating) snapshots after each game
+    history = defaultdict(list)
+
+    stmt = (
+        select(
+            TriBoard.modified_at,
             TriBoard.player_0_id,
-            func.ifnull(S0.score, 0),
+            func.coalesce(S0.score, 0).label("player_0_score"),
             TriBoard.player_1_id,
-            func.ifnull(S1.score, 0),
+            func.coalesce(S1.score, 0).label("player_1_score"),
             TriBoard.player_2_id,
-            func.ifnull(S2.score, 0),
+            func.coalesce(S2.score, 0).label("player_2_score"),
         )
         .outerjoin(
             S0, and_(TriBoard.id == S0.board_id, TriBoard.player_0_id == S0.player_id)
@@ -51,30 +78,69 @@ def recalculate_rating():
         .outerjoin(
             S2, and_(TriBoard.id == S2.board_id, TriBoard.player_2_id == S2.player_id)
         )
-        .filter(TriBoard.status == 2)
+        .where(TriBoard.status == 2)
         .order_by(TriBoard.modified_at)
-        .all()
     )
+    games = db.session.execute(stmt).all()
 
-    # new ratings
-    ratings = {}
+    for row in games:
+        raw_ts, p0id, p0s, p1id, p1s, p2id, p2s = row
+
+        # Parse timestamp – SQLite stores datetimes as strings
+        ts = _parse_ts(raw_ts)
+
+        # Ensure every player appearing in a game has an initial rating
+        # (handles edge cases where active=0 users still have games)
+        for pid in (p0id, p1id, p2id):
+            if pid not in ratings:
+                ratings[pid] = starting_rating
+
+        # --- 3-player Elo update ---
+        q0 = 10 ** (ratings[p0id] / L)
+        q1 = 10 ** (ratings[p1id] / L)
+        q2 = 10 ** (ratings[p2id] / L)
+        Q = q0 + q1 + q2
+
+        e0 = q0 / Q  # expected score for player 0
+        e1 = q1 / Q  # expected score for player 1
+        e2 = q2 / Q  # expected score for player 2
+
+        ratings[p0id] += K * (p0s - e0)
+        ratings[p1id] += K * (p1s - e1)
+        ratings[p2id] += K * (p2s - e2)
+
+        # Record snapshot for each player at this moment in time
+        history[p0id].append((ts, ratings[p0id]))
+        history[p1id].append((ts, ratings[p1id]))
+        history[p2id].append((ts, ratings[p2id]))
+
+    return dict(history)
+
+
+def get_user_rating_history(user_id):
+    """Return the rating trajectory for a single user.
+    Returns an empty list if the user has never played a finished game.
+    """
+    history = get_rating_history()
+    return history.get(user_id, [])
+
+
+def get_current_ratings():
+    """Return the final (current) rating for every user as a flat dict.
+    Users who have never played a finished game are not included.
+    """
+    history = get_rating_history()
+    return {uid: points[-1][1] for uid, points in history.items() if points}
+
+
+# rating update
+def update_rating_db():
+    """Update user rating in database."""
+    users = User.query.all()
+    current_ratings = get_current_ratings()
     for u in users:
-        ratings[u.id] = 500
+        u.rating = current_ratings[u.id]
 
-    for p0id, p0s, p1id, p1s, p2id, p2s in res:
-        p0q = 10 ** (ratings[p0id] / L)
-        p1q = 10 ** (ratings[p1id] / L)
-        p2q = 10 ** (ratings[p2id] / L)
-        Q = p0q + p1q + p2q
-        p0ex = p0q / Q
-        p1ex = p1q / Q
-        p2ex = p2q / Q
-        ratings[p0id] += K * (p0s - p0ex)
-        ratings[p1id] += K * (p1s - p1ex)
-        ratings[p2id] += K * (p2s - p2ex)
-
-    for u in users:
-        u.rating = ratings[u.id]
     db.session.commit()
 
 
@@ -749,7 +815,7 @@ class GameBoard(Resource):
                                 state.id,
                             )
                         db.session.commit()
-                        recalculate_rating()
+                        update_rating_db()
                     else:
                         managerapi.abort(
                             409, message="Posted slog is in conflict with server one"

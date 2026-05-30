@@ -31,6 +31,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from engine import GameAPI
 from webapp.api import blueprint as api
+from webapp.api import get_user_rating_history
 from webapp.email import send_password_reset_email, send_verification_email
 from webapp.forms import (
     ForgotPasswordForm,
@@ -375,6 +376,13 @@ def profile():
     else:
         avg_length = "Unknown"
 
+    rh_raw = get_user_rating_history(g.user.id)
+    rh_labels = []
+    rh_values = []
+    for dt, r in rh_raw:
+        rh_labels.append(dt.strftime("%Y-%m-%d"))
+        rh_values.append(round(r, 2))
+
     return render_template(
         "profile.html",
         form_profile=form_profile,
@@ -387,6 +395,8 @@ def profile():
         archive=len(archive),
         avg_length=avg_length,
         stats=g.user.stats(),
+        rating_history_labels=rh_labels,
+        rating_history_values=rh_values,
     )
 
 

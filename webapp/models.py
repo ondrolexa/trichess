@@ -10,8 +10,9 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, "..", ".env"))
 
 
-class User(db.Model):  # type: ignore[assignment]
+class User(db.Model):  # ty: ignore
     __tablename__ = "user"
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64))
     password = db.Column(db.String(500))
@@ -24,18 +25,19 @@ class User(db.Model):  # type: ignore[assignment]
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     last_login = db.Column(db.DateTime)
     rating = db.Column(db.Float, default=500.0)
-    scores = db.relationship("Score", backref="player")
+
+    # Relationships
+    scores = db.relationship("Score", backref="player", lazy="select")
 
     def score(self):
-        return sum([score.score for score in self.scores])
+        return sum(score.score for score in self.scores) if self.scores else 0
 
     def recent_score(self):
+        thirty_days_ago = datetime.today() - timedelta(days=30)
         return sum(
-            [
-                score.score
-                for score in self.scores
-                if score.board.modified_at > (datetime.today() - timedelta(days=30))
-            ]
+            score.score
+            for score in self.scores
+            if score.board and score.board.modified_at > thirty_days_ago
         )
 
     def stats(self):
@@ -65,34 +67,41 @@ class User(db.Model):  # type: ignore[assignment]
         return str(self.id)
 
     def __repr__(self):
-        return "<User %r>" % (self.username)
+        return f"<User {self.username!r}>"
 
 
-class TriBoard(db.Model):  # type: ignore[assignment]
+class TriBoard(db.Model):  # ty: ignore
     __tablename__ = "triboard"
+
     id = db.Column(db.Integer, primary_key=True)
     owner_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     player_0_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     player_1_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     player_2_id = db.Column(db.Integer, db.ForeignKey("user.id"))
+
     player_0_accepted = db.Column(db.Boolean, default=False)
     player_1_accepted = db.Column(db.Boolean, default=False)
     player_2_accepted = db.Column(db.Boolean, default=False)
+
     status = db.Column(db.Integer, nullable=False, default=0)
     slog = db.Column(db.Text, default="")
+
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     started_at = db.Column(db.DateTime, server_default=db.func.now())
     modified_at = db.Column(
         db.DateTime, server_default=db.func.now(), onupdate=db.func.now()
     )
+
+    # Explicit foreign key mapping for relationships
     owner = db.relationship(User, foreign_keys=[owner_id])
     player_0 = db.relationship(User, foreign_keys=[player_0_id])
     player_1 = db.relationship(User, foreign_keys=[player_1_id])
     player_2 = db.relationship(User, foreign_keys=[player_2_id])
+
     scores = db.relationship("Score", backref="board")
 
 
-class Score(db.Model):  # type: ignore[assignment]
+class Score(db.Model):  # ty: ignore
     __tablename__ = "score"
     id = db.Column(db.Integer, primary_key=True)
     player_id = db.Column(db.Integer, db.ForeignKey("user.id"))
