@@ -15,7 +15,7 @@ class NewGameForm(FlaskForm):
     seat = SelectField(
         "Select seat",
         validators=[DataRequired()],
-        choices=["Player 1", "Player 2", "Player 3"],
+        choices=["Seat 1", "Seat 2", "Seat 3"],
     )
     submit = SubmitField("Create")
 

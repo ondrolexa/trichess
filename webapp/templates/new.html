@@ -1,8 +1,0 @@
-{% extends "base.html" %}
-{% from 'bootstrap5/form.html' import render_form %}
-
-{%block content%}
-	<h2>New game</h2>
-	<p class="text-muted small mb-4">Select the seat and create a new game</p>
-	{{ render_form(form, form_type='horizontal', horizontal_columns=('lg', 1, 4)) }}
-{%endblock%}

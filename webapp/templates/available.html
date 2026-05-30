@@ -18,8 +18,18 @@
   <tbody>
     {% for game in games %}
     {% set not_in = (game.player_0.id != player_id) and (game.player_1.id != player_id) and (game.player_2.id != player_id) %}
+    {% set user_seat = -1 %}
+    {% if game.player_0 is not none and game.player_0.id == player_id %}
+      {% set user_seat = 0 %}
+    {% elif game.player_1 is not none and game.player_1.id == player_id %}
+      {% set user_seat = 1 %}
+    {% elif game.player_2 is not none and game.player_2.id == player_id %}
+      {% set user_seat = 2 %}
+    {% endif %}
+    {% set occupied_seats = (1 if game.player_0_id else 0) + (1 if game.player_1_id else 0) + (1 if game.player_2_id else 0) %}
+    {% set owner_alone = game.owner_id == player_id and occupied_seats == 1 %}
     <tr>
-    <form action=""{{ url_for('available') }}"" method="post" class="form" role="form">
+    <form action=""{{ url_for('available_games') }}"" method="post" class="form" role="form">
     <th scope="row">{{game.id}}<input type="hidden" id="board" name="board" value="{{game.id}}"/></th>
     <td class="seat">
       {% if game.player_0 is none %}
@@ -50,8 +60,10 @@
     </td>
     <td>{{game.created_at|strftime}}</td>
     <td>
-      {% if game.owner_id == player_id %}
+      {% if owner_alone %}
       <button type="submit" class="btn btn-danger btn-sm" name="delete" value="{{game.id}}">Delete</button>
+      {% elif user_seat >= 0 and game.owner_id != player_id %}
+      <button type="submit" class="btn btn-secondary btn-sm" name="leave" value="{{game.id}}">Leave</button>
       {% endif %}
     </td>
     </form>
@@ -59,5 +71,19 @@
     {% endfor %}
   </tbody>
   </table>
+</div>
+
+<div class="card mt-3">
+  <h5 class="card-header">Create a new game</h5>
+  <div class="card-body">
+    <form method="post" class="row row-cols-lg-auto g-2 align-items-center">
+      {{ form.hidden_tag() }}
+      <div class="col-12 d-flex flex-sm-row flex-column align-items-center gap-2">
+        <span>Choose seat for new game</span>
+        {{ form.seat(class="form-select w-auto") }}
+      </div>
+      <div class="col-12">{{ form.submit(class="btn btn-primary") }}</div>
+    </form>
+  </div>
 </div>
 {%endblock%}

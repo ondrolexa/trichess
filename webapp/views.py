@@ -131,7 +131,7 @@ def index():
 
 @app.route("/games")
 @login_required
-def active():
+def active_games():
     user_in = db.or_(
         TriBoard.player_0_id == g.user.id,
         TriBoard.player_1_id == g.user.id,
@@ -217,107 +217,147 @@ def rating():
 
 @app.route("/join", methods=["GET", "POST"])
 @login_required
-def available():
+def available_games():
     if request.method == "POST":
         delete = request.form.get("delete", None)
-        if delete is None:
-            board = request.form.get("board", None)
-            if board is not None:
-                board = TriBoard.query.filter_by(id=int(board)).first()
-                seat = request.form.get("seat")
-                if board is None:
-                    flash("Game not found", "error")
-                    return redirect(url_for("available"))
-                match seat:
-                    case "0":
-                        if board.player_0_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available"))
-                        board.player_0_id = g.user.id
-                        board.player_0_accepted = True
-                    case "1":
-                        if board.player_1_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available"))
-                        board.player_1_id = g.user.id
-                        board.player_1_accepted = True
-                    case "2":
-                        if board.player_2_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available"))
-                        board.player_2_id = g.user.id
-                        board.player_2_accepted = True
-                if (
-                    (board.player_0_id is not None)
-                    and (board.player_1_id is not None)
-                    and (board.player_2_id is not None)
-                ):
-                    board.status = 1
-                    board.started_at = datetime.now(timezone.utc)
-                    logger.log(
-                        GAME,
-                        "Game started",
-                        extra={
-                            "user_id": g.user.id,
-                            "board_id": board.id,
-                        },
+        if delete is not None:
+            board = db.session.get(TriBoard, int(delete))
+            if board and board.owner_id == g.user.id and board.status == 0:
+                others = [
+                    p
+                    for p in (
+                        board.player_0_id,
+                        board.player_1_id,
+                        board.player_2_id,
                     )
-                    # send notification to first player
-                    post_notification(
-                        board.player_0.username,
-                        f"The game {board.id} just started, it's your turn",
-                        "Game started",
-                        board.id,
-                    )
-                db.session.commit()
-            return redirect(url_for("active"))
-        else:
-            board = TriBoard.query.filter_by(id=delete).first()
-            db.session.delete(board)
+                    if p is not None and p != g.user.id
+                ]
+                if not others:
+                    db.session.delete(board)
+                    db.session.commit()
+            return redirect(url_for("available_games"))
+
+        leave = request.form.get("leave", None)
+        if leave is not None:
+            board = db.session.get(TriBoard, int(leave))
+            if board is None or board.status != 0:
+                flash("Game not found or already started", "error")
+                return redirect(url_for("available_games"))
+            seat = None
+            if board.player_0_id == g.user.id:
+                seat = 0
+            elif board.player_1_id == g.user.id:
+                seat = 1
+            elif board.player_2_id == g.user.id:
+                seat = 2
+            if seat is None:
+                flash("You are not in this game", "error")
+                return redirect(url_for("available_games"))
+            match seat:
+                case 0:
+                    board.player_0_id = None
+                    board.player_0_accepted = False
+                case 1:
+                    board.player_1_id = None
+                    board.player_1_accepted = False
+                case 2:
+                    board.player_2_id = None
+                    board.player_2_accepted = False
             db.session.commit()
-            return redirect(url_for("available"))
-    else:
-        available = TriBoard.query.filter_by(status=0).all()
-    return render_template("available.html", games=available, player_id=g.user.id)
+            return redirect(url_for("available_games"))
 
+        board_id = request.form.get("board", None)
+        if board_id is not None:
+            board = TriBoard.query.filter_by(id=int(board_id)).first()
+            seat = request.form.get("seat")
+            if board is None:
+                flash("Game not found", "error")
+                return redirect(url_for("available_games"))
+            match seat:
+                case "0":
+                    if board.player_0_id is not None:
+                        flash("Seat already taken", "error")
+                        return redirect(url_for("available_games"))
+                    board.player_0_id = g.user.id
+                    board.player_0_accepted = True
+                case "1":
+                    if board.player_1_id is not None:
+                        flash("Seat already taken", "error")
+                        return redirect(url_for("available_games"))
+                    board.player_1_id = g.user.id
+                    board.player_1_accepted = True
+                case "2":
+                    if board.player_2_id is not None:
+                        flash("Seat already taken", "error")
+                        return redirect(url_for("available_games"))
+                    board.player_2_id = g.user.id
+                    board.player_2_accepted = True
+            if (
+                (board.player_0_id is not None)
+                and (board.player_1_id is not None)
+                and (board.player_2_id is not None)
+            ):
+                board.status = 1
+                board.started_at = datetime.now(timezone.utc)
+                logger.log(
+                    GAME,
+                    "Game started",
+                    extra={
+                        "user_id": g.user.id,
+                        "board_id": board.id,
+                    },
+                )
+                # send notification to first player
+                post_notification(
+                    board.player_0.username,
+                    f"The game {board.id} just started, it's your turn",
+                    "Game started",
+                    board.id,
+                )
+            db.session.commit()
+            return redirect(url_for("available_games"))
 
-@app.route("/new", methods=["GET", "POST"])
-@login_required
-def new():
+        form = NewGameForm()
+        if form.validate_on_submit():
+            match form.seat.data:
+                case "Seat 1":
+                    board = TriBoard(
+                        owner_id=g.user.id,
+                        player_0_id=g.user.id,
+                        player_0_accepted=True,
+                    )
+                case "Seat 2":
+                    board = TriBoard(
+                        owner_id=g.user.id,
+                        player_1_id=g.user.id,
+                        player_1_accepted=True,
+                    )
+                case "Seat 3":
+                    board = TriBoard(
+                        owner_id=g.user.id,
+                        player_2_id=g.user.id,
+                        player_2_accepted=True,
+                    )
+            db.session.add(board)
+            db.session.commit()
+            logger.log(
+                GAME,
+                "Game created",
+                extra={
+                    "user_id": g.user.id,
+                    "board_id": board.id,
+                },
+            )
+            flash("Game created successfuly!", "success")
+            return redirect(url_for("available_games"))
+
+        return redirect(url_for("available_games"))
+
+    available = TriBoard.query.filter_by(status=0).all()
     form = NewGameForm()
-    if form.validate_on_submit():
-        match form.seat.data:
-            case "Player 1":
-                board = TriBoard(
-                    owner_id=g.user.id,
-                    player_0_id=g.user.id,
-                    player_0_accepted=True,
-                )
-            case "Player 2":
-                board = TriBoard(
-                    owner_id=g.user.id,
-                    player_1_id=g.user.id,
-                    player_1_accepted=True,
-                )
-            case "Player 3":
-                board = TriBoard(
-                    owner_id=g.user.id,
-                    player_2_id=g.user.id,
-                    player_2_accepted=True,
-                )
-        db.session.add(board)
-        db.session.commit()
-        logger.log(
-            GAME,
-            "Game created",
-            extra={
-                "user_id": g.user.id,
-                "board_id": board.id,
-            },
-        )
-        flash("Game created successfuly!", "success")
-        return redirect(url_for("available"))
-    return render_template("new.html", form=form)
+    return render_template(
+        "available.html", games=available, player_id=g.user.id, form=form
+    )
 
 
 @app.route("/play/<id>")
@@ -347,7 +387,7 @@ def play(id):
         )
     else:
         flash("You have no access to this game", "error")
-        return redirect(url_for("active"))
+        return redirect(url_for("active_games"))
 
 
 @app.route("/profile", methods=["GET", "POST"])
@@ -378,7 +418,7 @@ def profile():
         g.user.pieces = form_profile.pieces.data
         db.session.commit()
         flash("Profile saved successfuly!", "success")
-        return redirect(url_for("active"))
+        return redirect(url_for("active_games"))
     user_in = db.or_(
         TriBoard.player_0_id == g.user.id,
         TriBoard.player_1_id == g.user.id,
@@ -441,7 +481,7 @@ def password():
             g.user.password = generate_password_hash(form_password.password_new.data)
             db.session.commit()
             flash("Password changed successfuly!", "success")
-        return redirect(url_for("active"))
+        return redirect(url_for("active_games"))
     return render_template(
         "profile.html",
         form_profile=form_profile,
@@ -494,7 +534,7 @@ def admin_games():
             )
     else:
         flash("You are not admin.", "error")
-        return redirect(url_for("active"))
+        return redirect(url_for("active_games"))
 
 
 @app.route("/admin-users", methods=["GET", "POST"])
@@ -524,7 +564,7 @@ def admin_users():
             return render_template("admin-users.html", users=users, waiting=waiting)
     else:
         flash("You are not admin.", "error")
-        return redirect(url_for("active"))
+        return redirect(url_for("active_games"))
 
 
 # === User login methods ===
@@ -546,7 +586,7 @@ def login():
         if g.user.id == 1:
             return redirect(url_for("index"))
         else:
-            return redirect(url_for("active"))
+            return redirect(url_for("active_games"))
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
@@ -560,7 +600,7 @@ def login():
                 if user.id == 1:
                     return redirect(url_for("index"))
                 else:
-                    return redirect(url_for("active"))
+                    return redirect(url_for("active_games"))
             else:
                 flash("Invalid username or password", "danger")
         elif user is not None:
