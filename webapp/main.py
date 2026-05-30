@@ -1,7 +1,8 @@
 import logging
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 
+import click
 import requests
 from flask import Flask
 from flask_bootstrap import Bootstrap5
@@ -13,9 +14,42 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 
+# Custom GAME log level (between INFO and WARNING)
+GAME = 25
+logging.addLevelName(GAME, "GAME")
+
+
+class DBHandler(logging.Handler):
+    """Write log records to the Log table via SQLAlchemy."""
+
+    def emit(self, record):
+        try:
+            from flask import current_app
+
+            from webapp.models import Log, db
+
+            _ = current_app._get_current_object()
+        except (RuntimeError, AttributeError):
+            return
+        # Use the existing app context — no nested push so the session stays alive
+        entry = Log(
+            level=record.levelname,
+            message=self.format(record),
+            module=record.module,
+            user_id=getattr(record, "user_id", None),
+            board_id=getattr(record, "board_id", None),
+        )
+        db.session.add(entry)
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Attach DBHandler to the root logger (catches all child loggers)
+db_handler = DBHandler()
+db_handler.setLevel(GAME)
+logging.getLogger().addHandler(db_handler)
 
 app = Flask(__name__)
 allowed_origins = os.environ.get("CORS_ORIGINS", "http://localhost:5000").split(",")
@@ -130,3 +164,15 @@ def resend_notification():
 def resend_notifications_command():
     """Send notifications to players on move for games inactive >24h."""
     resend_notification()
+
+
+@app.cli.command("purge-logs")
+@click.option("--days", default=90, help="Delete logs older than this many days")
+def purge_logs(days):
+    """Delete log entries older than specified number of days."""
+    from webapp.models import Log
+
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    deleted = Log.query.filter(Log.created_at < cutoff).delete()
+    db.session.commit()
+    click.echo(f"Deleted {deleted} log entries older than {days} days")

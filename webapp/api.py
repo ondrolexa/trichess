@@ -9,7 +9,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import aliased
 
 from engine import GameAPI
-from webapp.main import db, post_notification
+from webapp.main import GAME, db, post_notification
 from webapp.models import Score, TriBoard, User
 
 # Configure logging
@@ -711,7 +711,7 @@ class GameBoard(Resource):
                             username=players[ga2.on_move].username
                         ).first()
                         if not ga2.move_possible():
-                            # Game finshed do all needed
+                            # Game finished do all needed
                             tb.status = 2
                             in_chess, gid, who = ga2.in_chess()
                             if ga2.draw():
@@ -731,6 +731,14 @@ class GameBoard(Resource):
                                         "Game over",
                                         state.id,
                                     )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag D (draw)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
+                                )
                             elif ga2.resignation():
                                 resigned = ga2.voting.results(kind="resign")
                                 ruid = set([0, 1, 2]).difference(resigned).pop()
@@ -759,6 +767,14 @@ class GameBoard(Resource):
                                         "Game over",
                                         state.id,
                                     )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag R (resignation)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
+                                )
                             elif in_chess:
                                 score = {0: 0.0, 1: 0.0, 2: 0.0}
                                 tot = [len(p) for p in who.values()]
@@ -789,6 +805,14 @@ class GameBoard(Resource):
                                             "Game over",
                                             state.id,
                                         )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag N (checkmate)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
+                                )
                             else:
                                 score = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
                                 for uid, value in score.items():
@@ -806,6 +830,14 @@ class GameBoard(Resource):
                                         "Game over",
                                         state.id,
                                     )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag S (stalemate)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
+                                )
                         else:
                             # notify next player
                             post_notification(
@@ -814,6 +846,14 @@ class GameBoard(Resource):
                                 "Your turn",
                                 state.id,
                             )
+                        logger.log(
+                            GAME,
+                            "Move made",
+                            extra={
+                                "user_id": user.id,
+                                "board_id": tb.id,
+                            },
+                        )
                         db.session.commit()
                         update_rating_db()
                     else:

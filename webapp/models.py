@@ -111,6 +111,22 @@ class Score(db.Model):  # ty: ignore
     onmove = db.Column(db.Boolean, default=False)
 
 
+class Log(db.Model):
+    __tablename__ = "log"
+    __table_args__ = (db.Index("ix_log_level_created", "level", "created_at"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    level = db.Column(db.String(16), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    board_id = db.Column(db.Integer, db.ForeignKey("triboard.id"), nullable=True)
+    module = db.Column(db.String(64))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    user = db.relationship("User", backref="logs", lazy="select")
+    board = db.relationship("TriBoard", backref="logs", lazy="select")
+
+
 db.event.listen(
     User.__table__,
     "after_create",

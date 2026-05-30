@@ -42,6 +42,7 @@ from webapp.forms import (
     RegistrationForm,
     ResetPasswordForm,
 )
+from webapp.main import GAME
 from webapp.main import __version__ as webapp_version
 from webapp.main import app, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
@@ -253,6 +254,14 @@ def available():
                 ):
                     board.status = 1
                     board.started_at = datetime.now(timezone.utc)
+                    logger.log(
+                        GAME,
+                        "Game started",
+                        extra={
+                            "user_id": g.user.id,
+                            "board_id": board.id,
+                        },
+                    )
                     # send notification to first player
                     post_notification(
                         board.player_0.username,
@@ -298,6 +307,14 @@ def new():
                 )
         db.session.add(board)
         db.session.commit()
+        logger.log(
+            GAME,
+            "Game created",
+            extra={
+                "user_id": g.user.id,
+                "board_id": board.id,
+            },
+        )
         flash("Game created successfuly!", "success")
         return redirect(url_for("available"))
     return render_template("new.html", form=form)
@@ -376,7 +393,18 @@ def profile():
     else:
         avg_length = "Unknown"
 
-    rh_raw = get_user_rating_history(g.user.id)
+    if g.user.id == 1:
+        selected_user_id = request.args.get("user_id", g.user.id, type=int)
+        selected_user = db.session.get(User, selected_user_id) or g.user
+        selected_user_id = selected_user.id
+        users = User.query.order_by(User.username).all()
+        rh_raw = get_user_rating_history(selected_user_id)
+    else:
+        selected_user_id = g.user.id
+        selected_user = g.user
+        users = []
+        rh_raw = get_user_rating_history(g.user.id)
+
     rh_labels = []
     rh_values = []
     for dt, r in rh_raw:
@@ -397,6 +425,9 @@ def profile():
         stats=g.user.stats(),
         rating_history_labels=rh_labels,
         rating_history_values=rh_values,
+        users=users,
+        selected_user=selected_user,
+        selected_user_id=selected_user_id,
     )
 
 
@@ -506,7 +537,7 @@ def before_request():
 
 @lm.user_loader
 def load_user(id):
-    return User.query.get(int(id))
+    return db.session.get(User, int(id))
 
 
 @app.route("/login", methods=["GET", "POST"])

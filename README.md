@@ -50,3 +50,17 @@ pip install -r requirements-dev.txt
 flask --app=webapp run
 ```
 The application will be available at `http://localhost:5000`.
+
+Purge old logs (default to 90 days)
+```bash
+flask --app=webapp purge-logs --days 365
+```
+
+Analyze gamelogs in Python
+```python
+from webapp.main import app
+from webapp.models import Log
+with app.app_context():
+    for row in Log.query.filter_by(level="GAME").order_by(Log.created_at).all():
+        print(row.created_at, row.message, row.user.username, row.board_id)
+```
