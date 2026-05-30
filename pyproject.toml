@@ -20,3 +20,8 @@ dependencies = [
     "wtforms-sqlalchemy>=0.4.2",
     "python-dotenv>=1.0.0",
 ]
+
+[dependency-groups]
+dev = [
+    "isort>=8.0.1",
+]
