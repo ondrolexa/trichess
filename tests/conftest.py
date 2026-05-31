@@ -1,7 +1,6 @@
 import pytest
 
 from engine import Board, GameAPI, Player
-from webapp import app
 
 
 @pytest.fixture

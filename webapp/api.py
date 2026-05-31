@@ -130,7 +130,7 @@ def get_current_ratings():
     Users who have never played a finished game are not included.
     """
     history = get_rating_history()
-    return {uid: points[-1][1] for uid, points in history.items()}
+    return {uid: points[-1][1] for uid, points in history.items() if points}
 
 
 # rating update
@@ -139,7 +139,8 @@ def update_rating_db():
     users = User.query.all()
     current_ratings = get_current_ratings()
     for u in users:
-        u.rating = current_ratings[u.id]
+        if u.id in current_ratings:
+            u.rating = current_ratings[u.id]
 
     db.session.commit()
 
@@ -686,185 +687,185 @@ class GameBoard(Resource):
             managerapi.abort(417, message="An unexpected error occurred")
         else:
             if tb:
-                #                try:
-                ga1 = GameAPI(0)
-                ga1.replay_from_slog(tb.slog)
-                ga2 = GameAPI(0)
-                ga2.replay_from_slog(state.slog)
-                pid = {
-                    tb.player_0.username: 0,
-                    tb.player_1.username: 1,
-                    tb.player_2.username: 2,
-                }
-                players = {
-                    0: tb.player_0,
-                    1: tb.player_1,
-                    2: tb.player_2,
-                }
-                poster = ga1.on_move == pid[username]
-                voting = ga1.voting.active() or ga2.voting.active()
-                oneadded = ga2.move_number - ga1.move_number == 1
-                same = ga2.slog.startswith(ga1.slog)
-                if poster and ((oneadded and same) or voting):
-                    tb.slog = ga2.slog
-                    user = User.query.filter_by(
-                        username=players[ga2.on_move].username
-                    ).first()
-                    if not ga2.move_possible():
-                        # Game finished do all needed
-                        tb.status = 2
-                        in_chess, gid, who = ga2.in_chess()
-                        if ga2.draw():
-                            for uid in players:
-                                new_score = Score(
-                                    player_id=players[uid].id,
-                                    board_id=tb.id,
-                                    score=2.0 / 3,
-                                    tag="D",
-                                    onmove=uid == ga2.on_move,
+                try:
+                    ga1 = GameAPI(0)
+                    ga1.replay_from_slog(tb.slog)
+                    ga2 = GameAPI(0)
+                    ga2.replay_from_slog(state.slog)
+                    pid = {
+                        tb.player_0.username: 0,
+                        tb.player_1.username: 1,
+                        tb.player_2.username: 2,
+                    }
+                    players = {
+                        0: tb.player_0,
+                        1: tb.player_1,
+                        2: tb.player_2,
+                    }
+                    poster = ga1.on_move == pid[username]
+                    voting = ga1.voting.active() or ga2.voting.active()
+                    oneadded = ga2.move_number - ga1.move_number == 1
+                    same = ga2.slog.startswith(ga1.slog)
+                    if poster and ((oneadded and same) or voting):
+                        tb.slog = ga2.slog
+                        user = User.query.filter_by(
+                            username=players[ga2.on_move].username
+                        ).first()
+                        if not ga2.move_possible():
+                            # Game finished do all needed
+                            tb.status = 2
+                            in_chess, gid, who = ga2.in_chess()
+                            if ga2.draw():
+                                for uid in players:
+                                    new_score = Score(
+                                        player_id=players[uid].id,
+                                        board_id=tb.id,
+                                        score=2.0 / 3,
+                                        tag="D",
+                                        onmove=uid == ga2.on_move,
+                                    )
+                                    db.session.add(new_score)
+                                    # notify
+                                    post_notification(
+                                        players[uid].username,
+                                        f"Draw agreed in game {state.id}",
+                                        "Game over",
+                                        state.id,
+                                    )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag D (draw)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
                                 )
-                                db.session.add(new_score)
+                            elif ga2.resignation():
+                                resigned = ga2.voting.results(kind="resign")
+                                ruid = set([0, 1, 2]).difference(resigned).pop()
+                                score = {0: 0.0, 1: 0.0, 2: 0.0}
+                                score[ruid] = 2.0
+                                for uid, value in score.items():
+                                    new_score = Score(
+                                        player_id=players[uid].id,
+                                        board_id=tb.id,
+                                        score=value,
+                                        tag="R",
+                                        onmove=uid == ga2.on_move,
+                                    )
+                                    db.session.add(new_score)
                                 # notify
                                 post_notification(
-                                    players[uid].username,
-                                    f"Draw agreed in game {state.id}",
+                                    players[ruid].username,
+                                    f"You win in game {state.id} by resignation",
                                     "Game over",
                                     state.id,
                                 )
-                            logger.log(
-                                GAME,
-                                "Game finished — tag D (draw)",
-                                extra={
-                                    "user_id": user.id,
-                                    "board_id": tb.id,
-                                },
-                            )
-                        elif ga2.resignation():
-                            resigned = ga2.voting.results(kind="resign")
-                            ruid = set([0, 1, 2]).difference(resigned).pop()
-                            score = {0: 0.0, 1: 0.0, 2: 0.0}
-                            score[ruid] = 2.0
-                            for uid, value in score.items():
-                                new_score = Score(
-                                    player_id=players[uid].id,
-                                    board_id=tb.id,
-                                    score=value,
-                                    tag="R",
-                                    onmove=uid == ga2.on_move,
+                                for uid in resigned:
+                                    post_notification(
+                                        players[uid].username,
+                                        f"You lost in game {state.id} by resignation",
+                                        "Game over",
+                                        state.id,
+                                    )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag R (resignation)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
                                 )
-                                db.session.add(new_score)
-                            # notify
+                            elif in_chess:
+                                score = {0: 0.0, 1: 0.0, 2: 0.0}
+                                tot = [len(p) for p in who.values()]
+                                for uid, v in enumerate(tot):
+                                    game_score = v * 2 / sum(tot)
+                                    if game_score > 0:
+                                        score[uid] = game_score
+                                for uid, value in score.items():
+                                    new_score = Score(
+                                        player_id=players[uid].id,
+                                        board_id=tb.id,
+                                        score=value,
+                                        tag="N",
+                                        onmove=uid == ga2.on_move,
+                                    )
+                                    db.session.add(new_score)
+                                    if uid == ga2.on_move:
+                                        post_notification(
+                                            players[uid].username,
+                                            f"You lost in game {state.id}",
+                                            "Game over",
+                                            state.id,
+                                        )
+                                    else:
+                                        post_notification(
+                                            players[uid].username,
+                                            f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score[uid]:g}",
+                                            "Game over",
+                                            state.id,
+                                        )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag N (checkmate)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
+                                )
+                            else:
+                                score = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
+                                for uid, value in score.items():
+                                    new_score = Score(
+                                        player_id=players[uid].id,
+                                        board_id=tb.id,
+                                        score=value,
+                                        tag="S",
+                                        onmove=uid == ga2.on_move,
+                                    )
+                                    db.session.add(new_score)
+                                    post_notification(
+                                        players[uid].username,
+                                        f"The game {state.id} ended in a stalemate",
+                                        "Game over",
+                                        state.id,
+                                    )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag S (stalemate)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
+                                )
+                            update_rating_db()
+                        else:
+                            # notify next player
                             post_notification(
-                                players[ruid].username,
-                                f"You win in game {state.id} by resignation",
-                                "Game over",
+                                players[ga2.on_move].username,
+                                f"It's your turn in game {state.id}",
+                                "Your turn",
                                 state.id,
                             )
-                            for uid in resigned:
-                                post_notification(
-                                    players[uid].username,
-                                    f"You lost in game {state.id} by resignation",
-                                    "Game over",
-                                    state.id,
-                                )
-                            logger.log(
-                                GAME,
-                                "Game finished — tag R (resignation)",
-                                extra={
-                                    "user_id": user.id,
-                                    "board_id": tb.id,
-                                },
-                            )
-                        elif in_chess:
-                            score = {0: 0.0, 1: 0.0, 2: 0.0}
-                            tot = [len(p) for p in who.values()]
-                            for uid, v in enumerate(tot):
-                                game_score = v * 2 / sum(tot)
-                                if game_score > 0:
-                                    score[uid] = game_score
-                            for uid, value in score.items():
-                                new_score = Score(
-                                    player_id=players[uid].id,
-                                    board_id=tb.id,
-                                    score=value,
-                                    tag="N",
-                                    onmove=uid == ga2.on_move,
-                                )
-                                db.session.add(new_score)
-                                if uid == ga2.on_move:
-                                    post_notification(
-                                        players[uid].username,
-                                        f"You lost in game {state.id}",
-                                        "Game over",
-                                        state.id,
-                                    )
-                                else:
-                                    post_notification(
-                                        players[uid].username,
-                                        f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score[uid]:g}",
-                                        "Game over",
-                                        state.id,
-                                    )
-                            logger.log(
-                                GAME,
-                                "Game finished — tag N (checkmate)",
-                                extra={
-                                    "user_id": user.id,
-                                    "board_id": tb.id,
-                                },
-                            )
-                        else:
-                            score = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
-                            for uid, value in score.items():
-                                new_score = Score(
-                                    player_id=players[uid].id,
-                                    board_id=tb.id,
-                                    score=value,
-                                    tag="S",
-                                    onmove=uid == ga2.on_move,
-                                )
-                                db.session.add(new_score)
-                                post_notification(
-                                    players[uid].username,
-                                    f"The game {state.id} ended in a stalemate",
-                                    "Game over",
-                                    state.id,
-                                )
-                            logger.log(
-                                GAME,
-                                "Game finished — tag S (stalemate)",
-                                extra={
-                                    "user_id": user.id,
-                                    "board_id": tb.id,
-                                },
-                            )
-                        update_rating_db()
-                    else:
-                        # notify next player
-                        post_notification(
-                            players[ga2.on_move].username,
-                            f"It's your turn in game {state.id}",
-                            "Your turn",
-                            state.id,
+                        logger.log(
+                            GAME,
+                            "Move made",
+                            extra={
+                                "user_id": user.id,
+                                "board_id": tb.id,
+                            },
                         )
-                    logger.log(
-                        GAME,
-                        "Move made",
-                        extra={
-                            "user_id": user.id,
-                            "board_id": tb.id,
-                        },
+                        db.session.commit()
+                    else:
+                        managerapi.abort(
+                            409, message="Posted slog is in conflict with server one"
+                        )
+                except Exception as err:
+                    logger.error(
+                        f"[POST /board] Unexpected error during processing triboard: {err}"
                     )
-                    db.session.commit()
-                else:
-                    managerapi.abort(
-                        409, message="Posted slog is in conflict with server one"
-                    )
-                # except Exception as err:
-                #    logger.error(
-                #        f"[POST /board] Unexpected error during processing triboard: {err}"
-                #    )
-                #    managerapi.abort(417, message="An unexpected error occurred")
+                    managerapi.abort(417, message="An unexpected error occurred")
             else:
                 managerapi.abort(404, message="Board not found")
 
