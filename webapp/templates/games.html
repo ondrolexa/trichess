@@ -5,6 +5,7 @@
 <div class="table-responsive-sm">
   <table class="table table-hover table-sm align-middle">
   <thead>
+    {% if games  %}
     <tr>
     <th scope="col">#</th>
     <th scope="col">Seat 1</th>
@@ -14,8 +15,17 @@
     <th scope="col">Last move</th>
     <th class="d-none d-sm-table-cell" scope="col">Created</th>
     </tr>
+    {% endif %}
   </thead>
   <tbody>
+    {% if not games  %}
+    <tr>
+    <th scope="row"></th>
+    </tr>
+    <tr>
+    <th scope="row">You don't have any active games! <br>You can <a class="btn btn-success btn-sm" href="{{ url_for("available_games") }}">create one or join</a> some available games.</th>
+    </tr>
+    {% endif %}
     {% for game in games %}
     {% if game.onmove == 0 %}
     {% if game.player_0.id == uid %}
