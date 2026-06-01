@@ -1,824 +1,933 @@
 {% extends "base.html" %}
 
 {%block content%}
-  <ul class="nav nav-tabs" id="helpTab" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="quick-tab" data-bs-toggle="tab" data-bs-target="#quick" type="button" role="tab" aria-controls="quick" aria-selected="true">Quick-Reference</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="howto-tab" data-bs-toggle="tab" data-bs-target="#howto" type="button" role="tab" aria-controls="howto" aria-selected="false">How to play</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="notify-tab" data-bs-toggle="tab" data-bs-target="#notify" type="button" role="tab" aria-controls="notify" aria-selected="false">Notifications</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab" aria-controls="rules" aria-selected="false">Rules</button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" id="dev-tab" data-bs-toggle="tab" data-bs-target="#dev" type="button" role="tab" aria-controls="dev" aria-selected="false">For developers</button>
-    </li>
-  </ul>
-  <div class="tab-content mt-3" id="helpTabContent">
-    <div class="tab-pane fade show active" id="quick" role="tabpanel" aria-labelledby="quick-tab">
-      <h2>TriChess — Welcome to the Hex</h2>
-      <p>TriChess is chess, but the board bends, the pieces multiply, and <strong>three minds clash</strong> instead of two. Played on a hexagonal board with 169 cells, this is a reimagining of chess for the triangular age. Every piece has more power, every move has more options, and every game has an extra player to negotiate with — or against.</p>
+<ul class="nav nav-tabs" id="helpTab" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="quick-tab" data-bs-toggle="tab" data-bs-target="#quick" type="button" role="tab"
+      aria-controls="quick" aria-selected="true">Quick-Reference</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="howto-tab" data-bs-toggle="tab" data-bs-target="#howto" type="button" role="tab"
+      aria-controls="howto" aria-selected="false">How to play</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="notify-tab" data-bs-toggle="tab" data-bs-target="#notify" type="button" role="tab"
+      aria-controls="notify" aria-selected="false">Notifications</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab"
+      aria-controls="rules" aria-selected="false">Rules</button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="dev-tab" data-bs-toggle="tab" data-bs-target="#dev" type="button" role="tab"
+      aria-controls="dev" aria-selected="false">For developers</button>
+  </li>
+</ul>
+<div class="tab-content mt-3" id="helpTabContent">
+  <div class="tab-pane fade show active" id="quick" role="tabpanel" aria-labelledby="quick-tab">
+    <h2>TriChess — Welcome to the Hex</h2>
+    <p>TriChess is chess, but the board bends, the pieces multiply, and <strong>three minds clash</strong> instead of
+      two. Played on a hexagonal board with 169 cells, this is a reimagining of chess for the triangular age. Every
+      piece has more power, every move has more options, and every game has an extra player to negotiate with — or
+      against.</p>
 
-      <hr>
+    <hr>
 
-      <h3>What Makes TriChess Different?</h3>
+    <h3>What Makes TriChess Different?</h3>
 
-      <h4>1. The Hexagonal Arena</h4>
-      <p>Standard chess is 64 squares in a flat grid. TriChess is 169 hexagons arranged in a honeycomb. Instead of 4 orthogonal directions, pieces move in <strong>6 axial directions</strong> — more space, more routes, more tactics.</p>
+    <h4>1. The Hexagonal Arena</h4>
+    <p>Standard chess is 64 squares in a flat grid. TriChess is 169 hexagons arranged in a honeycomb. Instead of 4
+      orthogonal directions, pieces move in <strong>6 axial directions</strong> — more space, more routes, more tactics.
+    </p>
 
-      <h4>2. More Moves, More Pieces</h4>
-      <p>Every piece gets a boost on the hex board:</p>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Piece</th>
-            <th>Standard Chess</th>
-            <th>TriChess</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Pawn attacks</td>
-            <td>2 diagonals</td>
-            <td><strong>3 forward-diagonals</strong></td>
-          </tr>
-          <tr>
-            <td>Knight moves</td>
-            <td>8 L-shapes</td>
-            <td><strong>12 hex-L-shapes</strong></td>
-          </tr>
-          <tr>
-            <td>Bishop directions</td>
-            <td>4</td>
-            <td><strong>6</strong> (you get 3 bishops!)</td>
-          </tr>
-          <tr>
-            <td>Rook directions</td>
-            <td>4</td>
-            <td><strong>6</strong></td>
-          </tr>
-          <tr>
-            <td>Queen directions</td>
-            <td>8</td>
-            <td><strong>12</strong></td>
-          </tr>
-          <tr>
-            <td>King moves</td>
-            <td>8</td>
-            <td><strong>12</strong> + castling</td>
-          </tr>
-          <tr>
-            <td>Starting pieces</td>
-            <td>16</td>
-            <td><strong>17 per player</strong></td>
-          </tr>
-        </tbody>
-      </table>
-      <p>Each player starts with 17 pieces — that's 51 pieces on the board at the start. The extra bishop means bishops finally cover every diagonal on the hex grid.</p>
+    <h4>2. More Moves, More Pieces</h4>
+    <p>Every piece gets a boost on the hex board:</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Piece</th>
+          <th>Standard Chess</th>
+          <th>TriChess</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Pawn attacks</td>
+          <td>2 diagonals</td>
+          <td><strong>3 forward-diagonals</strong></td>
+        </tr>
+        <tr>
+          <td>Knight moves</td>
+          <td>8 L-shapes</td>
+          <td><strong>12 hex-L-shapes</strong></td>
+        </tr>
+        <tr>
+          <td>Bishop directions</td>
+          <td>4</td>
+          <td><strong>6</strong> (you get 3 bishops!)</td>
+        </tr>
+        <tr>
+          <td>Rook directions</td>
+          <td>4</td>
+          <td><strong>6</strong></td>
+        </tr>
+        <tr>
+          <td>Queen directions</td>
+          <td>8</td>
+          <td><strong>12</strong></td>
+        </tr>
+        <tr>
+          <td>King moves</td>
+          <td>8</td>
+          <td><strong>12</strong> + castling</td>
+        </tr>
+        <tr>
+          <td>Starting pieces</td>
+          <td>16</td>
+          <td><strong>17 per player</strong></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Each player starts with 17 pieces — that's 51 pieces on the board at the start. The extra bishop means bishops
+      finally cover every diagonal on the hex grid.</p>
 
-      <h4>3. Three-Player Diplomacy</h4>
-      <p>With three players, the game becomes social as well as strategic:</p>
-      <ul>
-        <li><strong>Resignation voting</strong>: Two players can vote to resign the third. But here's the twist — if the third refuses to resign (votes "Decline"), <strong>they win</strong> instead. You can't force someone out unless they agree to go.</li>
-        <li><strong>Draw voting</strong>: All three must accept for a draw. One holdout keeps the game going.</li>
-        <li><strong>Proportional checkmate</strong>: When multiple players attack a king, the checkmate points are split proportionally by how many pieces each attacker contributed.</li>
-      </ul>
+    <h4>3. Three-Player Diplomacy</h4>
+    <p>With three players, the game becomes social as well as strategic:</p>
+    <ul>
+      <li><strong>Resignation voting</strong>: Players can vote to resign. But here's the twist — if just one player
+        refuses to resign (votes "Decline"), <strong>he win</strong> instead. You can't force someone out unless they
+        agree to go.</li>
+      <li><strong>Draw voting</strong>: All three must accept for a draw. One holdout keeps the game going.</li>
+      <li><strong>Proportional checkmate</strong>: When multiple players attack a king, the checkmate points are split
+        proportionally by how many pieces each attacker contributed.</li>
+    </ul>
 
-      <h4>4. Unique Scoring</h4>
-      <ul>
-        <li><strong>Win (checkmate)</strong>: 2.0 points (split among attackers if multiple)</li>
-        <li><strong>Draw / Stalemate</strong>: 2/3 point each</li>
-        <li><strong>Resignation</strong>: The non-resigning player gets 2.0</li>
-        <li><strong>Rating</strong>: Multi-player Elo with K=9, L=400, starting at 500</li>
-      </ul>
+    <h4>4. Unique Scoring</h4>
+    <ul>
+      <li><strong>Win (checkmate)</strong>: 2.0 points (split among attackers if multiple)</li>
+      <li><strong>Draw / Stalemate</strong>: 2/3 point each</li>
+      <li><strong>Resignation</strong>: The non-resigning player gets 2.0</li>
+      <li><strong>Rating</strong>: Multi-player Elo starting at 500</li>
+    </ul>
 
-      <h4>5. Two Ways to Play</h4>
-      <p>Choose your board renderer in your profile:</p>
-      <ul>
-        <li><strong>ondro</strong> — Built with Konva.js. Richer visuals, smooth animations, pinch-to-zoom, panning, and scroll-wheel support on mobile.</li>
-        <li><strong>filio</strong> — Raw Canvas 2D. Lighter weight, snappy, but landscape.</li>
-      </ul>
-      <p>Both give you the same game — pick the one that feels right.</p>
+    <h4>5. Two Ways to Play</h4>
+    <p>Choose your board renderer in your profile:</p>
+    <ul>
+      <li><strong>ondro</strong> — Built with Konva.js. Richer visuals, smooth animations, pinch-to-zoom, panning, and
+        scroll-wheel support on mobile.</li>
+      <li><strong>filio</strong> — Raw Canvas 2D. Lighter weight, snappy, but landscape.</li>
+    </ul>
+    <p>Both give you the same game — pick the one that feels right.</p>
 
-      <h4>6. Make It Yours</h4>
-      <ul>
-        <li><strong>6 themes</strong>: Default, Night, Sandy, Contrast, Colorblind, Black &amp; White</li>
-        <li><strong>3 piece sets</strong>: Default, Chubby, School</li>
-        <li>Switch anytime in your profile settings</li>
-      </ul>
+    <h4>6. Make It Yours</h4>
+    <ul>
+      <li><strong>6 themes</strong>: Default, Night, Sandy, Contrast, Colorblind, Black &amp; White</li>
+      <li><strong>3 piece sets</strong>: Default, Chubby, School</li>
+      <li>Switch anytime in your profile settings</li>
+    </ul>
 
-      <h4>7. Colorblind-Friendly</h4>
-      <p>The <code>colorblind</code> theme uses patterns and high-contrast colors so everyone can tell territories and pieces apart.</p>
+    <h4>7. Colorblind-Friendly</h4>
+    <p>The <code>colorblind</code> theme uses patterns and high-contrast colors so everyone can tell territories and
+      pieces apart.</p>
 
-      <hr>
+    <hr>
 
-      <h3>Ready to Play?</h3>
-      <ol>
-        <li>Register an account</li>
-        <li>Head to <strong>Available</strong> to join an open game or create your own</li>
-        <li>Choose your seat — Seat 1, 2, or 3</li>
-        <li>Once all seats are filled, the game starts automatically</li>
-        <li>Click a piece, click a valid move, then hit <strong>Submit</strong></li>
-      </ol>
-      <p>The hexagonal revolution is waiting. See you on the board.</p>
-    </div>
-    <div class="tab-pane fade" id="howto" role="tabpanel" aria-labelledby="howto-tab">
-      <h2>How to Play TriChess</h2>
-      <p>This guide covers the <strong>user interface</strong> — how to navigate, interact with the board, and use the game controls. For the <em>rules</em> of TriChess (movement, checkmate, etc.), see the in-app <strong>Rules</strong> tab.</p>
+    <h3>Ready to Play?</h3>
+    <ol>
+      <li>Register an account</li>
+      <li>Head to <strong>Available</strong> to join an open game or create your own</li>
+      <li>Choose your seat — Seat 1, 2, or 3</li>
+      <li>Once all seats are filled, the game starts automatically and appear on Home page</li>
+      <li>Click a piece, click a valid move, then hit <strong>Submit</strong></li>
+    </ol>
+    <p>The hexagonal revolution is waiting. See you on the board.</p>
+  </div>
+  <div class="tab-pane fade" id="howto" role="tabpanel" aria-labelledby="howto-tab">
+    <h2>How to Play TriChess</h2>
+    <p>This guide covers the <strong>user interface</strong> — how to navigate, interact with the board, and use the
+      game controls. For the <em>rules</em> of TriChess (movement, checkmate, etc.), see the in-app
+      <strong>Rules</strong> tab.</p>
 
-      <hr>
+    <hr>
 
-      <h3>Getting to a Game</h3>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Action</th>
-            <th>How</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Create a game</strong></td>
-            <td>Go to <strong>Games</strong>, pick a seat (1/2/3) below the table, and click <strong>Create</strong></td>
-          </tr>
-          <tr>
-            <td><strong>Join a game</strong></td>
-            <td>Go to <strong>Games</strong>, click <strong>Join</strong> on an empty seat</td>
-          </tr>
-          <tr>
-            <td><strong>Start playing</strong></td>
-            <td>As soon as all 3 seats are filled, the game auto-starts. Click the game row or visit <code>/play/&lt;id&gt;</code></td>
-          </tr>
-        </tbody>
-      </table>
+    <h3>Getting to a Game</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>How</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Join a game</strong></td>
+          <td>Go to <strong>Available</strong>, click <strong>Join</strong> on an empty seat</td>
+        </tr>
+        <tr>
+          <td><strong>Create a game</strong></td>
+          <td>Go to <strong>Available</strong>, pick a seat (1/2/3) in Create a new game widget, and click
+            <strong>Create</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Start playing</strong></td>
+          <td>As soon as all 3 seats are filled, the game auto-starts and appear on Home page. Click the
+            <strong>Play</strong></td>
+        </tr>
+      </tbody>
+    </table>
 
-      <hr>
+    <hr>
 
-      <h3>Board Layout</h3>
-      <p>When you enter a game, the board shows your perspective:</p>
-      <ul>
-        <li><strong>Your seat</strong> is at the bottom of the board</li>
-        <li><strong>Seat 2</strong> is to the left</li>
-        <li><strong>Seat 3</strong> is to the right</li>
-      </ul>
-      <p>Around the board you'll see:</p>
-      <ul>
-        <li><strong>Player name panels</strong> — highlighted green when it's that player's turn, red when in check</li>
-        <li><strong>Eliminated pieces</strong> — captured pieces shown by type, sorted by value</li>
-        <li><strong>Power bars</strong> — proportional bar chart showing each player's remaining piece value</li>
-        <li><strong>Capture bars</strong> — how many opponent pieces each player has eliminated</li>
-        <li><strong>Info bar</strong> (bottom-left) — game ID, move number, and vote status</li>
-      </ul>
+    <h3>Board Layout</h3>
+    <p>When you enter a game, the board shows your perspective:</p>
+    <ul>
+      <li><strong>Your seat</strong> is at the bottom of the board</li>
+      <li><strong>Next seat</strong> is to the left</li>
+      <li><strong>Previous seat</strong> is to the right</li>
+    </ul>
+    <p>Around the board you'll see:</p>
+    <ul>
+      <li><strong>Player name panels</strong> — highlighted green when it's that player's turn, red when in check</li>
+      <li><strong>Eliminated pieces</strong> — captured pieces shown by type, sorted by value</li>
+      <li><strong>Power bars</strong> — proportional bar chart showing each player's remaining piece value</li>
+      <li><strong>Capture bars</strong> — how many opponent pieces each player has eliminated</li>
+      <li><strong>Info bar</strong> (bottom-left) — game ID, move number, and vote status</li>
+    </ul>
 
-      <hr>
+    <hr>
 
-      <h3>Making a Move</h3>
-      <p>This game uses <strong>click-to-select, click-to-move</strong> interaction:</p>
-      <ol>
-        <li><strong>Click a piece</strong> (one of your pieces, when it's your turn)
-          <ul>
-            <li>The hex highlights with a selection border</li>
-            <li>Coordinate axis hints appear through the hex (Ondro only) — shows the q, r, s axes</li>
-            <li>Valid destinations light up:
-              <ul>
-                <li><strong>Green circle</strong> = safe move (empty square)</li>
-                <li><strong>Red X</strong> = attack/capture</li>
-              </ul>
-            </li>
-          </ul>
-        </li>
-        <li><strong>Click a highlighted hex</strong> to move there
-          <ul>
-            <li>If you click the same piece again, you deselect it</li>
-            <li>If you click another one of your pieces, it switches selection</li>
-          </ul>
-        </li>
-        <li><strong>If promoting</strong> (pawn reaches the opposite side), a popup appears:
-          <ul>
-            <li>Choose <strong>Q</strong> (Queen), <strong>R</strong> (Rook), <strong>B</strong> (Bishop), or <strong>N</strong> (Knight)</li>
-            <li>Click your choice — the move is completed</li>
-          </ul>
-        </li>
-      </ol>
+    <h3>Making a Move</h3>
+    <p>This game uses <strong>click-to-select, click-to-move</strong> interaction:</p>
+    <ol>
+      <li><strong>Click a piece</strong> (one of your pieces, when it's your turn)
+        <ul>
+          <li>The hex highlights with a selection border</li>
+          <li>Coordinate axis hints appear through the hex — shows the q, r, s axes</li>
+          <li>Valid destinations light up:
+            <ul>
+              <li><strong>Green circle</strong> = safe move (empty square)</li>
+              <li><strong>Red X</strong> = attack/capture</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+      <li><strong>Click a highlighted hex</strong> to move there
+        <ul>
+          <li>If you click the same piece again, you deselect it</li>
+          <li>If you click another one of your pieces, it switches selection</li>
+        </ul>
+      </li>
+      <li><strong>If promoting</strong> (pawn reaches the opposite side), a popup appears:
+        <ul>
+          <li>Choose <strong>Q</strong> (Queen), <strong>R</strong> (Rook), <strong>B</strong> (Bishop), or
+            <strong>N</strong> (Knight)</li>
+          <li>Click your choice — the move is completed</li>
+        </ul>
+      </li>
+    </ol>
 
-      <h4>Submitting Your Move</h4>
-      <p>Your move is <strong>local</strong> until you submit it. The game does <strong>not</strong> auto-submit:</p>
-      <ul>
-        <li><strong>filio</strong>: Click the <strong>OK</strong> button below the canvas</li>
-        <li><strong>ondro</strong>: Click <strong>Submit</strong> in the right sidebar</li>
-      </ul>
-      <p>After submission, the server validates your move and applies it. If another player submitted before you (race condition), you'll get a conflict warning — just reload and try again.</p>
+    <h4>Submitting Your Move</h4>
+    <p>Your move is <strong>local</strong> until you submit it. The game does <strong>not</strong> auto-submit:</p>
+    <ul>
+      <li><strong>filio</strong>: Click the <strong>OK</strong> button below the canvas</li>
+      <li><strong>ondro</strong>: Click <strong>Submit</strong> in the right sidebar</li>
+    </ul>
+    <p>After submission, the server validates your move and applies it. If another player submitted before you (race
+      condition), you'll get a conflict warning — just reload and try again.</p>
 
-      <hr>
+    <hr>
 
-      <h3>Move History</h3>
-      <p>You can browse the game history or even play the future without affecting the live game:</p>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Button</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Back</strong> / <strong>&lt;</strong></td>
-            <td>Go back one move (truncates local slog)</td>
-          </tr>
-          <tr>
-            <td><strong>Forward</strong> / <strong>&gt;</strong></td>
-            <td>Go forward one move (re-applies from server slog)</td>
-          </tr>
-          <tr>
-            <td><strong>Reload</strong> (filio) / <strong>Reset</strong> (ondro)</td>
-            <td>Discard local changes, reload from server</td>
-          </tr>
-        </tbody>
-      </table>
+    <h3>Move History</h3>
+    <p>You can browse the game history or even play the future without affecting the live game:</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Button</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Back</strong> / <strong>&lt;</strong></td>
+          <td>Go back one move (truncates local slog)</td>
+        </tr>
+        <tr>
+          <td><strong>Forward</strong> / <strong>&gt;</strong></td>
+          <td>Go forward one move (re-applies from server slog)</td>
+        </tr>
+        <tr>
+          <td><strong>Reload</strong> (filio) / <strong>Reset</strong> (ondro)</td>
+          <td>Discard local changes, reload from server</td>
+        </tr>
+      </tbody>
+    </table>
 
-      <hr>
+    <hr>
 
-      <h3>Voting</h3>
-      <p>TriChess has two voting mechanisms. Voting blocks normal moves — you must resolve the vote before playing.</p>
+    <h3>Voting</h3>
+    <p>TriChess has two voting mechanisms. Voting blocks normal moves — you must resolve the vote before playing.</p>
 
-      <h4>Draw Vote</h4>
-      <ol>
-        <li>Click the <strong>Draw</strong> button (only on your turn, at the latest move)</li>
-        <li>A modal shows all three players with Accept/Decline buttons</li>
-        <li>As other players take their turns, they'll see the vote prompt</li>
-        <li><strong>Result</strong>: All 3 accept → draw (2/3 point each). Anyone declines → vote fails, game continues</li>
-      </ol>
+    <h4>Draw Vote</h4>
+    <ol>
+      <li>Click the <strong>Draw</strong> button (only on your turn, at the latest move)</li>
+      <li>A modal shows all three players with Accept/Decline buttons</li>
+      <li>As other players take their turns, they'll see the vote prompt</li>
+      <li><strong>Result</strong>: All 3 accept → draw (2/3 point each). Anyone declines → vote fails, game continues
+      </li>
+    </ol>
 
-      <h4>Resignation Vote</h4>
-      <ol>
-        <li>Click the <strong>Resign</strong> button (same conditions as Draw)</li>
-        <li>Each player votes Accept or Decline</li>
-        <li><strong>Result</strong>: 2 accept, 1 declines → the declining player wins (2.0 points). Otherwise → vote fails</li>
-      </ol>
+    <h4>Resignation Vote</h4>
+    <ol>
+      <li>Click the <strong>Resign</strong> button (same conditions as Draw)</li>
+      <li>Each player votes Accept or Decline</li>
+      <li><strong>Result</strong>: 2 accept, 1 declines → the declining player wins (2.0 points). Otherwise → vote fails
+      </li>
+    </ol>
 
-      <blockquote>
-        <p><strong>Strategic note</strong>: Resignation voting creates a prisoner's dilemma. If two players gang up on the third and vote to resign them, the third can simply decline and take the win. True resignation only happens when someone genuinely wants out.</p>
-      </blockquote>
+    <blockquote>
+      <p><strong>Strategic note</strong>: Resignation voting creates a prisoner's dilemma. If two players gang up on the
+        third and vote to resign them, the third can simply decline and take the win. True resignation only happens when
+        someone genuinely wants out.</p>
+    </blockquote>
 
-      <hr>
+    <hr>
 
-      <h3>Customization</h3>
-      <p>In your <strong>Profile</strong> settings you can change:</p>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Setting</th>
-            <th>Options</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Board renderer</strong></td>
-            <td><code>ondro</code> (Konva.js — richer, animated, touch-friendly) or <code>filio</code> (Canvas 2D — lighter, simpler)</td>
-          </tr>
-          <tr>
-            <td><strong>Theme</strong></td>
-            <td>Default, Night, Sandy, Contrast, Colorblind, Black &amp; White</td>
-          </tr>
-          <tr>
-            <td><strong>Piece set</strong></td>
-            <td>Default, Chubby, School</td>
-          </tr>
-        </tbody>
-      </table>
-      <p>Changes take effect immediately on your next board load.</p>
+    <h3>Customization</h3>
+    <p>In your <strong>Profile</strong> settings you can change:</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Setting</th>
+          <th>Options</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Board renderer</strong></td>
+          <td><code>ondro</code> (Konva.js — richer, animated, touch-friendly) or <code>filio</code> (Canvas 2D —
+            lighter, simpler)</td>
+        </tr>
+        <tr>
+          <td><strong>Theme</strong></td>
+          <td>Default, Night, Sandy, Contrast, Colorblind, Black &amp; White</td>
+        </tr>
+        <tr>
+          <td><strong>Piece set</strong></td>
+          <td>Default, Chubby, School</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Changes take effect immediately on your next board load.</p>
 
-      <hr>
+    <hr>
 
-      <h3>Keyboard &amp; Quick Tips</h3>
-      <ul>
-        <li>No keyboard shortcuts currently — all interaction is click/tap based</li>
-        <li>Theme and pieces are <strong>per-user</strong>, not per-game — your settings follow you</li>
-        <li>If the board looks wrong or you suspect a stale state, use <strong>Reload</strong> / <strong>Reset</strong></li>
-        <li>Your JWT session lasts 1 hour; the page auto-refreshes if the token expires</li>
-      </ul>
-    </div>
-    <div class="tab-pane fade" id="notify" role="tabpanel" aria-labelledby="notify-tab">
-      <h2>Phone notifications</h2>
-      <p>During a game, players can receive a notification whenever it is their turn to move. To enable these notifications on your phone, you need to install the <strong>ntfy</strong> app.</p>
-      <div class="container pt-2">
-        <div class="row">
-          <div class="col-sm-12 col-md-6 col-lg-3">
-            <h6>1. Install the ntfy app</h6>
-            <p>Download and install the ntfy application from your app store (available on both Android and iOS).</p>
-            <div class="row m-4">
-              <a target="_blank" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy"><img alt="Get it on Google Play" src="{{ url_for('static', filename='badge-google.png') }}" width="168" height="50"></a>
-            </div>
-            <div class="row m-4">
-              <a target="_blank" href="https://f-droid.org/en/packages/io.heckel.ntfy/"><img alt="Get it on F-Droid" src="{{ url_for('static', filename='badge-fdroid.png') }}" width="168" height="50"></a>
-            </div>
-            <div class="row m-4">
-              <a target="_blank" href="https://apps.apple.com/us/app/ntfy/id1625396347"><img alt="Download on the App Store" src="{{ url_for('static', filename='badge-apple.png') }}" width="168" height="50"></a>
-            </div>
+    <h3>Keyboard &amp; Quick Tips</h3>
+    <ul>
+      <li>No keyboard shortcuts currently — all interaction is click/tap based</li>
+      <li>Theme and pieces are <strong>per-user</strong>, not per-game — your settings follow you</li>
+      <li>If the board looks wrong or you suspect a stale state, use <strong>Reload</strong> / <strong>Reset</strong>
+      </li>
+      <li>Your JWT session lasts 1 hour; the page auto-refreshes if the token expires</li>
+    </ul>
+  </div>
+  <div class="tab-pane fade" id="notify" role="tabpanel" aria-labelledby="notify-tab">
+    <h2>Phone notifications</h2>
+    <p>During a game, players can receive a notification whenever it is their turn to move. To enable these
+      notifications on your phone, you need to install the <strong>ntfy</strong> app.</p>
+    <div class="container pt-2">
+      <div class="row">
+        <div class="col-sm-12 col-md-6 col-lg-3">
+          <h6>1. Install the ntfy app</h6>
+          <p>Download and install the ntfy application from your app store (available on both Android and iOS).</p>
+          <div class="row m-4">
+            <a target="_blank" href="https://play.google.com/store/apps/details?id=io.heckel.ntfy"><img
+                alt="Get it on Google Play" src="{{ url_for('static', filename='badge-google.png') }}" width="168"
+                height="50"></a>
           </div>
-          <div class="col-sm-12 col-md-6 col-lg-3">
-            <h6>2. Click on the install button.</h6>
-            <figure class="figure">
-              <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_1.png') }}">
-            </figure>
+          <div class="row m-4">
+            <a target="_blank" href="https://f-droid.org/en/packages/io.heckel.ntfy/"><img alt="Get it on F-Droid"
+                src="{{ url_for('static', filename='badge-fdroid.png') }}" width="168" height="50"></a>
           </div>
-          <div class="col-sm-12 col-md-6 col-lg-3">
-            <h6>3. Open the application. Click on the open button.</h6>
-            <figure class="figure">
-              <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_2.png') }}">
-            </figure>
-          </div>
-          <div class="col-sm-12 col-md-6 col-lg-3">
-            <h6>4. Click on the allow button.</h6>
-            <figure class="figure">
-              <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_3.png') }}">
-            </figure>
+          <div class="row m-4">
+            <a target="_blank" href="https://apps.apple.com/us/app/ntfy/id1625396347"><img
+                alt="Download on the App Store" src="{{ url_for('static', filename='badge-apple.png') }}" width="168"
+                height="50"></a>
           </div>
         </div>
-        <div class="row">
-            <div class="col-sm-12 col-md-6 col-lg-3">
-              <h6>5. Click on the plus button to subscribe.</h6>
-              <figure class="figure">
-                <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_4.png') }}">
-              </figure>
-          </div>
-            <div class="col-sm-12 col-md-6 col-lg-3">
-              <h6>6. Tick use another server and provide service URL.</h6>
-              <p>Set server to: <code>https://ntfy.mykuna.eu</code></p>
-              <figure class="figure">
-                <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_5.png') }}">
-              </figure>
-            </div>
-            <div class="col-sm-12 col-md-6 col-lg-3">
-              <h6>7. Provide topic name</h6>
-              <p>Set topic name in format: <code>trichess_username</code>, where username is your actual Trichess username.<br/>For example, if your username is johny, the topic would be: <code>trichess_johny</code>.</p>
-              <p>Click <code>SUBSCRIBE</code></p>
-              <figure class="figure">
-                <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_6.png') }}">
-              </figure>
-            </div>
-            <div class="col-sm-12 col-md-6 col-lg-3">
-              <h6>8. All done!</h6>
-              <figure class="figure">
-                <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_7.png') }}">
-              </figure>
-              <p>Now you will automatically receive a notification on your phone whenever it’s your turn in Trichess.</p>
-              <figure class="figure">
-                <img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/setup_ntfy_8.png') }}">
-              </figure>
-            </div>
+        <div class="col-sm-12 col-md-6 col-lg-3">
+          <h6>2. Click on the install button.</h6>
+          <figure class="figure">
+            <img class="figure-img img-fluid mx-auto d-block w-75"
+              src="{{ url_for('static', filename='img/setup_ntfy_1.png') }}">
+          </figure>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-3">
+          <h6>3. Open the application. Click on the open button.</h6>
+          <figure class="figure">
+            <img class="figure-img img-fluid mx-auto d-block w-75"
+              src="{{ url_for('static', filename='img/setup_ntfy_2.png') }}">
+          </figure>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-3">
+          <h6>4. Click on the allow button.</h6>
+          <figure class="figure">
+            <img class="figure-img img-fluid mx-auto d-block w-75"
+              src="{{ url_for('static', filename='img/setup_ntfy_3.png') }}">
+          </figure>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-12 col-md-6 col-lg-3">
+          <h6>5. Click on the plus button to subscribe.</h6>
+          <figure class="figure">
+            <img class="figure-img img-fluid mx-auto d-block w-75"
+              src="{{ url_for('static', filename='img/setup_ntfy_4.png') }}">
+          </figure>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-3">
+          <h6>6. Tick use another server and provide service URL.</h6>
+          <p>Set server to: <code>https://ntfy.mykuna.eu</code></p>
+          <figure class="figure">
+            <img class="figure-img img-fluid mx-auto d-block w-75"
+              src="{{ url_for('static', filename='img/setup_ntfy_5.png') }}">
+          </figure>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-3">
+          <h6>7. Provide topic name</h6>
+          <p>Set topic name in format: <code>trichess_username</code>, where username is your actual Trichess
+            username.<br />For example, if your username is johny, the topic would be: <code>trichess_johny</code>.</p>
+          <p>Click <code>SUBSCRIBE</code></p>
+          <figure class="figure">
+            <img class="figure-img img-fluid mx-auto d-block w-75"
+              src="{{ url_for('static', filename='img/setup_ntfy_6.png') }}">
+          </figure>
+        </div>
+        <div class="col-sm-12 col-md-6 col-lg-3">
+          <h6>8. All done!</h6>
+          <figure class="figure">
+            <img class="figure-img img-fluid mx-auto d-block w-75"
+              src="{{ url_for('static', filename='img/setup_ntfy_7.png') }}">
+          </figure>
+          <p>Now you will automatically receive a notification on your phone whenever it’s your turn in Trichess.</p>
+          <figure class="figure">
+            <img class="figure-img img-fluid mx-auto d-block w-75"
+              src="{{ url_for('static', filename='img/setup_ntfy_8.png') }}">
+          </figure>
         </div>
       </div>
     </div>
-    <div class="tab-pane fade" id="rules" role="tabpanel" aria-labelledby="rules-tab">
-      <h2>Trichess rules</h2>
-      <p>Trichess is a three-player variation of chess played on a hexagonal board. The board has three colors, which define the diagonals (blue lines), while straight lines (yellow lines) run across the flat sides of the hexagons. Because of the three-colored design, each player begins with three bishops instead of two.</p>
-      <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/directions.png') }}">
-        <figcaption class="figure-caption text-center">Straight and diagonal directions on board</figcaption>
-      </figure>
-      <h3>Play</h3>
-      <p>At the start of the game, Player 1 always makes the first move, and turns rotate clockwise among the three players. On each turn, a player may move only one piece, with the sole exception of castling, which involves moving both the king and rook together.</p>
-      <p>Capturing follows the standard principle: a player removes an opponent’s piece by moving onto its square. A player may not move through or capture their own pieces. Pawns are the only exception to the general rule of moving and capturing in the same way, as pawns move forward but capture diagonally forward.</p>
-      <h3>Turns</h3>
-      <p>In Trichess, all pieces move as in traditional chess, adapted to the hexagonal board's straight and diagonal directions.</p>
-      <p>Pawns move one space forward at a time, but on their very first move they may advance two spaces. Captures are made diagonally forward (see A symbols on figure). If a pawn reaches the one of the opponent side of the board, it is promoted to a stronger piece of the player’s choice, except for the king. Any number of pawns can be promoted during the game.</p>
-      <p><strong>Note:</strong> The en passant capture, which normally allows a pawn to capture an enemy pawn that has advanced two spaces, is not yet implemented in Trichess.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/pawn_first.png') }}">
-        <figcaption class="figure-caption text-center">Pawn can move one or two spaces on first move</figcaption>
-      </figure>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/pawn_other.png') }}">
-        <figcaption class="figure-caption text-center">Pawn can move one space on subsequent moves or move diagonally (A) to take opponents</figcaption>
-      </figure>
-      <p>Rooks move any number of spaces in straight lines, whether forward, backward, or sideways.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/rook_move.png') }}">
-        <figcaption class="figure-caption text-center">Rook moves</figcaption>
-      </figure>
-      <p>Knights are unique in that they jump over intervening pieces. A knight’s movement follows an L-shape: two spaces in one direction, either forward, backward, or sideways, followed by a one-space turn left or right.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/knight_move.png') }}">
-        <figcaption class="figure-caption text-center">Knight moves</figcaption>
-      </figure>
-      <p>Bishops move any number of spaces along diagonals.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/bishop_move.png') }}">
-        <figcaption class="figure-caption text-center">Bishop moves</figcaption>
-      </figure>
-      <p>Queens combine the powers of rook and bishop, moving any number of spaces in straight or diagonal directions.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/queen_move.png') }}">
-        <figcaption class="figure-caption text-center">Queen moves</figcaption>
-      </figure>
-      <p>The king moves only one space at a time in any direction, but may never move into a square that is under attack.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/king_move.png') }}">
-        <figcaption class="figure-caption text-center">King moves</figcaption>
-      </figure>
-      <p>Castling is the only move in which two pieces may move simultaneously. To castle, the king moves two spaces toward a rook, and the rook jumps over the king to land on the other side. Castling is permitted only if the king has not previously moved, the rook has not moved, no pieces stand between them, and the king is not in check, does not pass through a checked square, and does not land in check. It does not matter if the king was in check earlier in the game, or if the rook itself is under attack before castling.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/king_castling.png') }}">
-        <figcaption class="figure-caption text-center">Castling</figcaption>
-      </figure>
-      <h3>Check</h3>
-      <p>A king is considered in check when an opposing piece threatens to capture it on the opponent’s next turn. When in check, a player must respond by moving the king out of check, capturing the attacking piece, or placing another piece in the way to block the attack. A king may never move into a position where it would be in check.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/check.png') }}">
-        <figcaption class="figure-caption text-center">Castling</figcaption>
-      </figure>
-      <h3>Checkmate</h3>
-      <p>Putting an opponent’s king in checkmate is the only way to win the game.</p>
-      <p>Checkmate occurs when a king is in check and cannot escape. In this case, the attacking players earn two points total, split according to how many of their pieces contribute to the checkmate. For example, if one player delivers the checkmate, they earn two points, while if two player’s pieces both contribute to the checkmate, each receives one point.</p>
-      <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75" src="{{ url_for('static', filename='img/checkmate.png') }}">
-        <figcaption class="figure-caption text-center">Castling</figcaption>
-      </figure>
-      <p>In the illustration, the blue queen and yellow knight have the green king in check, and all the spaces where the king can move can be attacked by the queen or knight. The king cannot take the queen, because the other queen is protecting the queen. This is checkmate and 2 points are shared between blue and yellow players according to the number of their pieces giving check. So 1 point for blue (blue queen) and 1 point for yellow (yellow knight).</p>
-      <p>If a player had another piece somewhere on the board that is not blocked, it would have to move. The game would continue.</p>
-      <h3>Basic Strategy</h3>
-      <p>Trichess is an incredibly complex strategic game, and it is impossible to go into all the possible tactics one could use to win. Here are some hints for new players.</p>
-      <p>As in traditional chess, pieces in Trichess have relative values that help guide strategy. Queens are worth nine points, rooks five, bishops and knights three each, and pawns one. However, pawns become more valuable as they approach promotion. Because pawn promotion is such a powerful opportunity, it is almost always best to promote a pawn into a queen.</p>
-      <p>Effective play in Trichess requires both strong offense and solid defense. Players should try to maintain balance across the board, keeping their forces spread out to control key areas. Attacks are most successful when supported by multiple pieces, as lone pieces are easily cut off and captured. At the same time, players must guard their king carefully while also preparing to exploit weaknesses in the defenses of their two opponents.</p>
-      <p>The ultimate objective of Trichess is to checkmate an opponent’s king. Once checkmate is achieved, the winning players are awarded points according to pieces involved in checkmate.</p>
-      <p>Enjoy the game.</p>
-    </div>
-    <div class="tab-pane fade" id="dev" role="tabpanel" aria-labelledby="dev-tab">
-      <h2>TriChess Frontend — Developer Guide</h2>
-
-      <h3>Stack</h3>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Layer</th>
-            <th>Technology</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Language</td>
-            <td>Python 3.14+</td>
-          </tr>
-          <tr>
-            <td>Web framework</td>
-            <td>Flask</td>
-          </tr>
-          <tr>
-            <td>ORM</td>
-            <td>Flask-SQLAlchemy (SQLite dev, adaptable)</td>
-          </tr>
-          <tr>
-            <td>Migrations</td>
-            <td>Flask-Migrate (Alembic)</td>
-          </tr>
-          <tr>
-            <td>Auth (HTML)</td>
-            <td>Flask-Login</td>
-          </tr>
-          <tr>
-            <td>Auth (API)</td>
-            <td>Flask-JWT-Extended (1h access, 30d refresh)</td>
-          </tr>
-          <tr>
-            <td>API</td>
-            <td>Flask-RESTX at <code>/api/v1/*</code></td>
-          </tr>
-          <tr>
-            <td>HTML</td>
-            <td>Bootstrap 5 via <code>bootstrap-flask</code>, Jinja2</td>
-          </tr>
-          <tr>
-            <td>Frontend JS</td>
-            <td><strong>ondro.js</strong> (Konva.js) or <strong>filio.js</strong> (vanilla Canvas 2D)</td>
-          </tr>
-          <tr>
-            <td>Config</td>
-            <td><code>python-dotenv</code> from <code>.env</code></td>
-          </tr>
-          <tr>
-            <td>Notifications</td>
-            <td><code>ntfy.mykuna.eu</code> HTTP push (production only)</td>
-          </tr>
-          <tr>
-            <td>Game engine</td>
-            <td>Pure Python in <code>engine/</code> package (no framework deps)</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <hr>
-
-      <h3>Project Structure</h3>
-      <pre><code>trichess-frontend/
-  engine/                   # Pure Python 3-player chess engine
-    __init__.py
-    gameapi.py              # GameAPI (stateless entry point) + Voting
-    board.py                # Board + Hex classes
-    pieces.py               # Pos, Move, Piece hierarchy
-    player.py               # Per-player direction vectors
-  webapp/                   # Flask application
-    __init__.py
-    main.py                 # App factory, DBHandler, CLI commands, CORS
-    configuration.py        # Config from env vars
-    models.py               # User, TriBoard, Score, Log
-    forms.py                # WTForms for HTML routes
-    views.py                # HTML routes + JWT endpoints
-    api.py                  # REST API blueprint at /api/v1/*
-    email.py                # SMTP email sending
-    token.py                # itsdangerous signed tokens
-    static/
-      ondro.js              # Konva.js board renderer (~1277 lines)
-      filio.js              # Canvas 2D board renderer (~1396 lines)
-      themes/               # 6 YAML color themes
-      pieces/               # 3 YAML piece sets (SVG paths)
-    templates/              # 17 Jinja2 templates
-  migrations/               # Alembic migrations (9 versions)
-  instance/
-    trichess.db             # SQLite database (auto-created)</code></pre>
-
-      <hr>
-
-      <h3>Game Engine Architecture</h3>
-
-      <h4>Stateless Design</h4>
-      <p><code>GameAPI</code> is completely stateless. Every request creates a fresh instance:</p>
-      <pre><code>ga = GameAPI(view_pid)
-ga.replay_from_slog(slog)</code></pre>
-      <p>The <strong>slog</strong> (serialized game log) is the single source of truth — a flat string where every 4 characters encode one action.</p>
-
-      <h4>Slog Encoding</h4>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Type</th>
-            <th>Format</th>
-            <th>Example</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Move</td>
-            <td><code>&lt;q1+72&gt;&lt;r1+72&gt;&lt;q2+72&gt;&lt;r2+72&gt;</code></td>
-            <td><code>BNDL</code> (Pos(-6,-5) → Pos(3,1))</td>
-          </tr>
-          <tr>
-            <td>Promotion</td>
-            <td>One char uppercase</td>
-            <td><code>BNdL</code> → promote to rook</td>
-          </tr>
-          <tr>
-            <td>Resign vote</td>
-            <td><code>r&lt;v0&gt;&lt;v1&gt;&lt;v2&gt;</code></td>
-            <td><code>rAXX</code></td>
-          </tr>
-          <tr>
-            <td>Draw vote</td>
-            <td><code>s&lt;v0&gt;&lt;v1&gt;&lt;v2&gt;</code></td>
-            <td><code>sXAD</code></td>
-          </tr>
-          <tr>
-            <td>Set-vote resign</td>
-            <td><code>R&lt;v0&gt;&lt;v1&gt;&lt;v2&gt;</code></td>
-            <td><code>RAAA</code></td>
-          </tr>
-          <tr>
-            <td>Set-vote draw</td>
-            <td><code>S&lt;v0&gt;&lt;v1&gt;&lt;v2&gt;</code></td>
-            <td><code>SADD</code></td>
-          </tr>
-        </tbody>
-      </table>
-      <p>Vote chars: <code>A</code> = accept, <code>D</code> = decline, <code>X</code> = not voted. When all 3 have voted, individual votes (8 chars) are condensed into a set-vote (4 chars).</p>
-
-      <h4>Piece Movement</h4>
-      <p>Pieces define moves using <strong>direction codes</strong> (<code>FL</code>, <code>FR</code>, <code>SL</code>, <code>DF</code>, <code>DL</code>, <code>DR</code> + <code>r</code> suffix for reverse). Each player (pid 0/1/2) has rotated direction vectors — the same piece code generates different moves depending on orientation.</p>
-      <p>Move kinds: <code>s</code> (standard), <code>a</code> (attack-only), <code>f</code> (forward-only), <code>n</code> (infinite slide), <code>d</code> (double-step), <code>c</code> (castling).</p>
-
-      <hr>
-
-      <h3>Database Models</h3>
-
-      <h4>User</h4>
-      <ul>
-        <li><code>id</code>, <code>username</code>, <code>password</code> (Werkzeug hash), <code>email</code>, <code>email_verified</code></li>
-        <li><code>theme</code> (string, default <code>"default"</code>), <code>board</code> (<code>"ondro"</code>/<code>"filio"</code>), <code>pieces</code> (string)</li>
-        <li><code>active</code> (bool — new users start inactive, admin must approve)</li>
-        <li><code>rating</code> (float, default 500.0, multi-player Elo)</li>
-        <li>Admin auto-created on first run with id=1, username=<code>admin</code></li>
-      </ul>
-
-      <h4>TriBoard</h4>
-      <ul>
-        <li><code>owner_id</code>, <code>player_0/1/2_id</code>, <code>player_0/1/2_accepted</code></li>
-        <li><code>status</code>: 0=available, 1=active, 2=finished</li>
-        <li><code>slog</code> (Text — canonical game state)</li>
-      </ul>
-
-      <h4>Score</h4>
-      <ul>
-        <li><code>player_id</code>, <code>board_id</code>, <code>score</code> (float), <code>tag</code> (N/R/D/S), <code>onmove</code> (bool)</li>
-      </ul>
-
-      <h4>Log</h4>
-      <ul>
-        <li><code>level</code> (string), <code>message</code>, <code>user_id</code> (nullable), <code>board_id</code> (nullable), <code>module</code>, <code>created_at</code></li>
-        <li>Composite index on <code>(level, created_at)</code></li>
-      </ul>
-
-      <hr>
-
-      <h3>API Endpoints</h3>
-      <p>All under <code>/api/v1/</code>, require JWT via <code>@jwt_required()</code>.</p>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Endpoint</th>
-            <th>Method</th>
-            <th>Purpose</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>/manager/board</code></td>
-            <td>GET</td>
-            <td>Get board state (players, slog, view_pid)</td>
-          </tr>
-          <tr>
-            <td><code>/manager/board</code></td>
-            <td>POST</td>
-            <td>Submit move — <strong>row-locked</strong> with <code>with_for_update()</code></td>
-          </tr>
-          <tr>
-            <td><code>/manager/games</code></td>
-            <td>GET</td>
-            <td>List user's active games</td>
-          </tr>
-          <tr>
-            <td><code>/game/info</code></td>
-            <td>POST</td>
-            <td>Full game state (pieces, votes, scores)</td>
-          </tr>
-          <tr>
-            <td><code>/move/valid</code></td>
-            <td>POST</td>
-            <td>Valid moves for a piece at given gid</td>
-          </tr>
-          <tr>
-            <td><code>/move/make</code></td>
-            <td>POST</td>
-            <td>Execute a move locally (returns updated slog)</td>
-          </tr>
-          <tr>
-            <td><code>/vote/draw</code></td>
-            <td>POST</td>
-            <td>Submit draw vote</td>
-          </tr>
-          <tr>
-            <td><code>/vote/resign</code></td>
-            <td>POST</td>
-            <td>Submit resign vote</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <h4>Race Condition Prevention</h4>
-      <p><code>POST /manager/board</code> uses <code>SELECT ... FOR UPDATE</code> row locking. It compares the submitted slog against the server slog — exactly 1 new move must be appended, or a vote must be in progress. Conflicts return HTTP 409.</p>
-
-      <h4>Multi-Player Elo</h4>
-      <pre><code>e_i = 10^(rating_i / L) / sum(10^(rating_j / L) for j in 0..2)
-rating_i += K * (actual_score_i - e_i)</code></pre>
-      <p>K=9.0, L=400.0. Ratings are recalculated on each game finish by replaying ALL finished games chronologically.</p>
-
-      <hr>
-
-      <h3>Frontend Architecture</h3>
-
-      <h4>Two Renderers</h4>
-      <p>The <code>user.board</code> preference selects the template and JS:</p>
-      <ul>
-        <li><code>board == "ondro"</code> → <code>board_ondro.html</code> + <code>ondro.js</code> (Konva.js with scene graph, animations, touch support)</li>
-        <li><code>board == "filio"</code> → <code>board_filio.html</code> + <code>filio.js</code> (raw Canvas 2D, simpler)</li>
-      </ul>
-      <p>Both consume the same API and support the same interactions.</p>
-
-      <h4>Theme &amp; Piece System</h4>
-      <p>YAML files in <code>static/themes/</code> (6 themes) and <code>static/pieces/</code> (3 sets). Loaded by <code>views.py</code> and injected as JSON into the template. Themes define hex colors, piece colors, highlight colors, fonts. Piece sets contain SVG path data for each piece type (P, N, B, R, Q, K).</p>
-
-      <h4>JWT Flow</h4>
-      <ol>
-        <li><code>/play/&lt;id&gt;</code> route creates a short-lived access token (1h)</li>
-        <li>Injected as <code>Authorization: Bearer &lt;token&gt;</code> into the page</li>
-        <li>All JS API calls use this header</li>
-        <li>On 401, the page alerts "Token expired" and reloads</li>
-      </ol>
-
-      <hr>
-
-      <h3>Setup &amp; Development</h3>
-      <pre><code># Create virtual environment and activate it
-python -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies and set the environment
-pip install -r requirements-dev.txt
-cp .env.example .env
-# Edit .env with SECRET_KEY, JWT_SECRET_KEY, etc.
-
-# Database
-flask --app=webapp db upgrade
-
-# Run
-flask --app=webapp --debug run
-# → http://localhost:5000
-
-# Migrations (after model changes)
-uv run flask --app=webapp db migrate -m "Description"
-uv run flask --app=webapp db upgrade</code></pre>
-
-      <h4>Code Formatting</h4>
-      <p>Always run before committing:</p>
-      <pre><code>uv run isort --profile black .
-uv run black .</code></pre>
-
-      <hr>
-
-      <h3>Contribution Guidelines</h3>
-      <ol>
-        <li><strong>Open an issue</strong> first for bugs or feature requests</li>
-        <li><strong>Fork + branch</strong>: <code>git checkout -b feat/my-feature</code></li>
-        <li><strong>Code style</strong>: match existing patterns — stateless API calls, slog-based state, no framework deps in engine</li>
-        <li><strong>Format</strong>: <code>isort</code> + <code>black</code> before commit</li>
-        <li><strong>Schema changes</strong>: create a migration (<code>flask db migrate</code>) and wrap DDL in <code>PRAGMA foreign_keys=OFF/ON</code> for SQLite</li>
-        <li><strong>Logging</strong>: use the custom <code>GAME</code> level (25) for game events, <code>logger.error/warning</code> for operational issues — no structured JSON extras, no manual <code>db.session.commit()</code></li>
-        <li><strong>New renderer features</strong>: implement in both <code>ondro.js</code> and <code>filio.js</code> unless specific to one renderer</li>
-        <li><strong>PR</strong>: describe the change, link the issue, attach screenshots for UI changes</li>
-      </ol>
-
-      <h4>What Needs Help</h4>
-      <ul>
-        <li>Test coverage (currently none — the engine is pure Python and easy to unit test)</li>
-        <li>Additional themes and piece sets</li>
-        <li>Accessibility improvements</li>
-        <li>Mobile responsiveness for Filio renderer</li>
-        <li>Game replay/analysis mode</li>
-      </ul>
-
-      <hr>
-
-      <h3>Logging System</h3>
-      <ul>
-        <li>Custom level <code>GAME</code> (25), between INFO and WARNING</li>
-        <li><code>DBHandler</code> (logging.Handler) writes all GAME+ level records to the <code>log</code> table</li>
-        <li>Attached to root logger — catches all child loggers (views, api, email)</li>
-        <li>Logs are in the caller's transaction (no auto-commit — may be lost on rollback)</li>
-        <li>CLI command: <code>uv run flask --app=webapp purge-logs --days 90</code></li>
-      </ul>
-
-      <hr>
-
-      <h3>Key Files Reference</h3>
-      <table class="table">
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><code>engine/gameapi.py</code></td>
-            <td>GameAPI + Voting — the main engine entry point</td>
-          </tr>
-          <tr>
-            <td><code>engine/board.py</code></td>
-            <td>Board state, piece placement, move validation</td>
-          </tr>
-          <tr>
-            <td><code>engine/pieces.py</code></td>
-            <td>Piece classes, Move, Pos</td>
-          </tr>
-          <tr>
-            <td><code>webapp/main.py</code></td>
-            <td>App factory, DBHandler, CLI commands</td>
-          </tr>
-          <tr>
-            <td><code>webapp/models.py</code></td>
-            <td>All SQLAlchemy models</td>
-          </tr>
-          <tr>
-            <td><code>webapp/views.py</code></td>
-            <td>HTML routes — 17 endpoints</td>
-          </tr>
-          <tr>
-            <td><code>webapp/api.py</code></td>
-            <td>REST API — 9 endpoints</td>
-          </tr>
-          <tr>
-            <td><code>webapp/static/ondro.js</code></td>
-            <td>Konva.js board renderer</td>
-          </tr>
-          <tr>
-            <td><code>webapp/static/filio.js</code></td>
-            <td>Canvas 2D board renderer</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
   </div>
+  <div class="tab-pane fade" id="rules" role="tabpanel" aria-labelledby="rules-tab">
+    <h2>Trichess rules</h2>
+    <p>Trichess is a three-player variation of chess played on a hexagonal board. The board has three colors, which
+      define the diagonals (blue lines), while straight lines (yellow lines) run across the flat sides of the hexagons.
+      Because of the three-colored design, each player begins with three bishops instead of two.</p>
+    <figure class="figure"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/directions.png') }}">
+      <figcaption class="figure-caption text-center">Straight and diagonal directions on board</figcaption>
+    </figure>
+    <h3>Play</h3>
+    <p>At the start of the game, Player 1 always makes the first move, and turns rotate clockwise among the three
+      players. On each turn, a player may move only one piece, with the sole exception of castling, which involves
+      moving both the king and rook together.</p>
+    <p>Capturing follows the standard principle: a player removes an opponent’s piece by moving onto its square. A
+      player may not move through or capture their own pieces. Pawns are the only exception to the general rule of
+      moving and capturing in the same way, as pawns move forward but capture diagonally forward.</p>
+    <h3>Turns</h3>
+    <p>In Trichess, all pieces move as in traditional chess, adapted to the hexagonal board's straight and diagonal
+      directions.</p>
+    <p>Pawns move one space forward at a time, but on their very first move they may advance two spaces. Captures are
+      made diagonally forward (see A symbols on figure). If a pawn reaches the one of the opponent side of the board, it
+      is promoted to a stronger piece of the player’s choice, except for the king. Any number of pawns can be promoted
+      during the game.</p>
+    <p><strong>Note:</strong> The en passant capture, which normally allows a pawn to capture an enemy pawn that has
+      advanced two spaces, is not yet implemented in Trichess.</p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/pawn_first.png') }}">
+      <figcaption class="figure-caption text-center">Pawn can move one or two spaces on first move</figcaption>
+    </figure>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/pawn_other.png') }}">
+      <figcaption class="figure-caption text-center">Pawn can move one space on subsequent moves or move diagonally (A)
+        to take opponents</figcaption>
+    </figure>
+    <p>Rooks move any number of spaces in straight lines, whether forward, backward, or sideways.</p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/rook_move.png') }}">
+      <figcaption class="figure-caption text-center">Rook moves</figcaption>
+    </figure>
+    <p>Knights are unique in that they jump over intervening pieces. A knight’s movement follows an L-shape: two spaces
+      in one direction, either forward, backward, or sideways, followed by a one-space turn left or right.</p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/knight_move.png') }}">
+      <figcaption class="figure-caption text-center">Knight moves</figcaption>
+    </figure>
+    <p>Bishops move any number of spaces along diagonals.</p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/bishop_move.png') }}">
+      <figcaption class="figure-caption text-center">Bishop moves</figcaption>
+    </figure>
+    <p>Queens combine the powers of rook and bishop, moving any number of spaces in straight or diagonal directions.</p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/queen_move.png') }}">
+      <figcaption class="figure-caption text-center">Queen moves</figcaption>
+    </figure>
+    <p>The king moves only one space at a time in any direction, but may never move into a square that is under attack.
+    </p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/king_move.png') }}">
+      <figcaption class="figure-caption text-center">King moves</figcaption>
+    </figure>
+    <p>Castling is the only move in which two pieces may move simultaneously. To castle, the king moves two spaces
+      toward a rook, and the rook jumps over the king to land on the other side. Castling is permitted only if the king
+      has not previously moved, the rook has not moved, no pieces stand between them, and the king is not in check, does
+      not pass through a checked square, and does not land in check. It does not matter if the king was in check earlier
+      in the game, or if the rook itself is under attack before castling.</p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/king_castling.png') }}">
+      <figcaption class="figure-caption text-center">Castling</figcaption>
+    </figure>
+    <h3>Check</h3>
+    <p>A king is considered in check when an opposing piece threatens to capture it on the opponent’s next turn. When in
+      check, a player must respond by moving the king out of check, capturing the attacking piece, or placing another
+      piece in the way to block the attack. A king may never move into a position where it would be in check.</p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/check.png') }}">
+      <figcaption class="figure-caption text-center">Castling</figcaption>
+    </figure>
+    <h3>Checkmate</h3>
+    <p>Putting an opponent’s king in checkmate is the only way to win the game.</p>
+    <p>Checkmate occurs when a king is in check and cannot escape. In this case, the attacking players earn two points
+      total, split according to how many of their pieces contribute to the checkmate. For example, if one player
+      delivers the checkmate, they earn two points, while if two player’s pieces both contribute to the checkmate, each
+      receives one point.</p>
+    <figure class="figure text-center"><img class="figure-img img-fluid mx-auto d-block w-75"
+        src="{{ url_for('static', filename='img/checkmate.png') }}">
+      <figcaption class="figure-caption text-center">Castling</figcaption>
+    </figure>
+    <p>In the illustration, the blue queen and yellow knight have the green king in check, and all the spaces where the
+      king can move can be attacked by the queen or knight. The king cannot take the queen, because the other queen is
+      protecting the queen. This is checkmate and 2 points are shared between blue and yellow players according to the
+      number of their pieces giving check. So 1 point for blue (blue queen) and 1 point for yellow (yellow knight).</p>
+    <p>If a player had another piece somewhere on the board that is not blocked, it would have to move. The game would
+      continue.</p>
+    <h3>Basic Strategy</h3>
+    <p>Trichess is an incredibly complex strategic game, and it is impossible to go into all the possible tactics one
+      could use to win. Here are some hints for new players.</p>
+    <p>As in traditional chess, pieces in Trichess have relative values that help guide strategy. Queens are worth nine
+      points, rooks five, bishops and knights three each, and pawns one. However, pawns become more valuable as they
+      approach promotion. Because pawn promotion is such a powerful opportunity, it is almost always best to promote a
+      pawn into a queen.</p>
+    <p>Effective play in Trichess requires both strong offense and solid defense. Players should try to maintain balance
+      across the board, keeping their forces spread out to control key areas. Attacks are most successful when supported
+      by multiple pieces, as lone pieces are easily cut off and captured. At the same time, players must guard their
+      king carefully while also preparing to exploit weaknesses in the defenses of their two opponents.</p>
+    <p>The ultimate objective of Trichess is to checkmate an opponent’s king. Once checkmate is achieved, the winning
+      players are awarded points according to pieces involved in checkmate.</p>
+    <p>Enjoy the game.</p>
+  </div>
+  <div class="tab-pane fade" id="dev" role="tabpanel" aria-labelledby="dev-tab">
+    <h2>TriChess Frontend — Developer Guide</h2>
+
+    <h3>Stack</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Layer</th>
+          <th>Technology</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Language</td>
+          <td>Python 3.14+</td>
+        </tr>
+        <tr>
+          <td>Web framework</td>
+          <td>Flask</td>
+        </tr>
+        <tr>
+          <td>ORM</td>
+          <td>Flask-SQLAlchemy (SQLite dev, adaptable)</td>
+        </tr>
+        <tr>
+          <td>Migrations</td>
+          <td>Flask-Migrate (Alembic)</td>
+        </tr>
+        <tr>
+          <td>Auth (HTML)</td>
+          <td>Flask-Login</td>
+        </tr>
+        <tr>
+          <td>Auth (API)</td>
+          <td>Flask-JWT-Extended (1h access, 30d refresh)</td>
+        </tr>
+        <tr>
+          <td>API</td>
+          <td>Flask-RESTX at <code>/api/v1/*</code></td>
+        </tr>
+        <tr>
+          <td>HTML</td>
+          <td>Bootstrap 5 via <code>bootstrap-flask</code>, Jinja2</td>
+        </tr>
+        <tr>
+          <td>Frontend JS</td>
+          <td><strong>ondro.js</strong> (Konva.js) or <strong>filio.js</strong> (vanilla Canvas 2D)</td>
+        </tr>
+        <tr>
+          <td>Config</td>
+          <td><code>python-dotenv</code> from <code>.env</code></td>
+        </tr>
+        <tr>
+          <td>Notifications</td>
+          <td><code>ntfy.mykuna.eu</code> HTTP push (production only)</td>
+        </tr>
+        <tr>
+          <td>Game engine</td>
+          <td>Pure Python in <code>engine/</code> package (no framework deps)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <h3>Project Structure</h3>
+    <pre><code>trichess-frontend/
+        engine/ # Pure Python 3-player chess engine
+        __init__.py
+        gameapi.py # GameAPI (stateless entry point) + Voting
+        board.py # Board + Hex classes
+        pieces.py # Pos, Move, Piece hierarchy
+        player.py # Per-player direction vectors
+        webapp/ # Flask application
+        __init__.py
+        main.py # App factory, DBHandler, CLI commands, CORS
+        configuration.py # Config from env vars
+        models.py # User, TriBoard, Score, Log
+        forms.py # WTForms for HTML routes
+        views.py # HTML routes + JWT endpoints
+        api.py # REST API blueprint at /api/v1/*
+        email.py # SMTP email sending
+        token.py # itsdangerous signed tokens
+        static/
+        ondro.js # Konva.js board renderer (~1277 lines)
+        filio.js # Canvas 2D board renderer (~1396 lines)
+        themes/ # 6 YAML color themes
+        pieces/ # 3 YAML piece sets (SVG paths)
+        templates/ # 17 Jinja2 templates
+        migrations/ # Alembic migrations (9 versions)
+        instance/
+        trichess.db # SQLite database (auto-created)</code></pre>
+
+    <hr>
+
+    <h3>Game Engine Architecture</h3>
+
+    <h4>Stateless Design</h4>
+    <p><code>GameAPI</code> is completely stateless. Every request creates a fresh instance:</p>
+    <pre><code>ga = GameAPI(view_pid)
+        ga.replay_from_slog(slog)</code></pre>
+    <p>The <strong>slog</strong> (serialized game log) is the single source of truth — a flat string where every 4
+      characters encode one action.</p>
+
+    <h4>Slog Encoding</h4>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Format</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Move</td>
+          <td><code>&lt;q1+72&gt;&lt;r1+72&gt;&lt;q2+72&gt;&lt;r2+72&gt;</code></td>
+          <td><code>BNDL</code> (Pos(-6,-5) → Pos(3,1))</td>
+        </tr>
+        <tr>
+          <td>Promotion</td>
+          <td>One char uppercase</td>
+          <td><code>BNdL</code> → promote to rook</td>
+        </tr>
+        <tr>
+          <td>Resign vote</td>
+          <td><code>r&lt;v0&gt;&lt;v1&gt;&lt;v2&gt;</code></td>
+          <td><code>rAXX</code></td>
+        </tr>
+        <tr>
+          <td>Draw vote</td>
+          <td><code>s&lt;v0&gt;&lt;v1&gt;&lt;v2&gt;</code></td>
+          <td><code>sXAD</code></td>
+        </tr>
+        <tr>
+          <td>Set-vote resign</td>
+          <td><code>R&lt;v0&gt;&lt;v1&gt;&lt;v2&gt;</code></td>
+          <td><code>RAAA</code></td>
+        </tr>
+        <tr>
+          <td>Set-vote draw</td>
+          <td><code>S&lt;v0&gt;&lt;v1&gt;&lt;v2&gt;</code></td>
+          <td><code>SADD</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Vote chars: <code>A</code> = accept, <code>D</code> = decline, <code>X</code> = not voted. When all 3 have voted,
+      individual votes (8 chars) are condensed into a set-vote (4 chars).</p>
+
+    <h4>Piece Movement</h4>
+    <p>Pieces define moves using <strong>direction codes</strong> (<code>FL</code>, <code>FR</code>, <code>SL</code>,
+      <code>DF</code>, <code>DL</code>, <code>DR</code> + <code>r</code> suffix for reverse). Each player (pid 0/1/2)
+      has rotated direction vectors — the same piece code generates different moves depending on orientation.</p>
+    <p>Move kinds: <code>s</code> (standard), <code>a</code> (attack-only), <code>f</code> (forward-only),
+      <code>n</code> (infinite slide), <code>d</code> (double-step), <code>c</code> (castling).</p>
+
+    <hr>
+
+    <h3>Database Models</h3>
+
+    <h4>User</h4>
+    <ul>
+      <li><code>id</code>, <code>username</code>, <code>password</code> (Werkzeug hash), <code>email</code>,
+        <code>email_verified</code></li>
+      <li><code>theme</code> (string, default <code>"default"</code>), <code>board</code>
+        (<code>"ondro"</code>/<code>"filio"</code>), <code>pieces</code> (string)</li>
+      <li><code>active</code> (bool — new users start inactive, admin must approve)</li>
+      <li><code>rating</code> (float, default 500.0, multi-player Elo)</li>
+      <li>Admin auto-created on first run with id=1, username=<code>admin</code></li>
+    </ul>
+
+    <h4>TriBoard</h4>
+    <ul>
+      <li><code>owner_id</code>, <code>player_0/1/2_id</code>, <code>player_0/1/2_accepted</code></li>
+      <li><code>status</code>: 0=available, 1=active, 2=finished</li>
+      <li><code>slog</code> (Text — canonical game state)</li>
+    </ul>
+
+    <h4>Score</h4>
+    <ul>
+      <li><code>player_id</code>, <code>board_id</code>, <code>score</code> (float), <code>tag</code> (N/R/D/S),
+        <code>onmove</code> (bool)</li>
+    </ul>
+
+    <h4>Log</h4>
+    <ul>
+      <li><code>level</code> (string), <code>message</code>, <code>user_id</code> (nullable), <code>board_id</code>
+        (nullable), <code>module</code>, <code>created_at</code></li>
+      <li>Composite index on <code>(level, created_at)</code></li>
+    </ul>
+
+    <hr>
+
+    <h3>API Endpoints</h3>
+    <p>All under <code>/api/v1/</code>, require JWT via <code>@jwt_required()</code>.</p>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Endpoint</th>
+          <th>Method</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>/manager/board</code></td>
+          <td>GET</td>
+          <td>Get board state (players, slog, view_pid)</td>
+        </tr>
+        <tr>
+          <td><code>/manager/board</code></td>
+          <td>POST</td>
+          <td>Submit move — <strong>row-locked</strong> with <code>with_for_update()</code></td>
+        </tr>
+        <tr>
+          <td><code>/manager/games</code></td>
+          <td>GET</td>
+          <td>List user's active games</td>
+        </tr>
+        <tr>
+          <td><code>/game/info</code></td>
+          <td>POST</td>
+          <td>Full game state (pieces, votes, scores)</td>
+        </tr>
+        <tr>
+          <td><code>/move/valid</code></td>
+          <td>POST</td>
+          <td>Valid moves for a piece at given gid</td>
+        </tr>
+        <tr>
+          <td><code>/move/make</code></td>
+          <td>POST</td>
+          <td>Execute a move locally (returns updated slog)</td>
+        </tr>
+        <tr>
+          <td><code>/vote/draw</code></td>
+          <td>POST</td>
+          <td>Submit draw vote</td>
+        </tr>
+        <tr>
+          <td><code>/vote/resign</code></td>
+          <td>POST</td>
+          <td>Submit resign vote</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>Race Condition Prevention</h4>
+    <p><code>POST /manager/board</code> uses <code>SELECT ... FOR UPDATE</code> row locking. It compares the submitted
+      slog against the server slog — exactly 1 new move must be appended, or a vote must be in progress. Conflicts
+      return HTTP 409.</p>
+
+    <h4>Multi-Player Elo</h4>
+    <pre><code>e_i = 10^(rating_i / L) / sum(10^(rating_j / L) for j in 0..2)
+        rating_i += K * (actual_score_i - e_i)</code></pre>
+    <p>K=9.0, L=400.0. Ratings are recalculated on each game finish by replaying ALL finished games chronologically.</p>
+
+    <hr>
+
+    <h3>Frontend Architecture</h3>
+
+    <h4>Two Renderers</h4>
+    <p>The <code>user.board</code> preference selects the template and JS:</p>
+    <ul>
+      <li><code>board == "ondro"</code> → <code>board_ondro.html</code> + <code>ondro.js</code> (Konva.js with scene
+        graph, animations, touch support)</li>
+      <li><code>board == "filio"</code> → <code>board_filio.html</code> + <code>filio.js</code> (raw Canvas 2D, simpler)
+      </li>
+    </ul>
+    <p>Both consume the same API and support the same interactions.</p>
+
+    <h4>Theme &amp; Piece System</h4>
+    <p>YAML files in <code>static/themes/</code> (6 themes) and <code>static/pieces/</code> (3 sets). Loaded by
+      <code>views.py</code> and injected as JSON into the template. Themes define hex colors, piece colors, highlight
+      colors, fonts. Piece sets contain SVG path data for each piece type (P, N, B, R, Q, K).</p>
+
+    <h4>JWT Flow</h4>
+    <ol>
+      <li><code>/play/&lt;id&gt;</code> route creates a short-lived access token (1h)</li>
+      <li>Injected as <code>Authorization: Bearer &lt;token&gt;</code> into the page</li>
+      <li>All JS API calls use this header</li>
+      <li>On 401, the page alerts "Token expired" and reloads</li>
+    </ol>
+
+    <hr>
+
+    <h3>Setup &amp; Development</h3>
+    <pre><code># Create virtual environment and activate it
+        python -m venv .venv
+        source .venv/bin/activate
+
+        # Install dependencies and set the environment
+        pip install -r requirements-dev.txt
+        cp .env.example .env
+        # Edit .env with SECRET_KEY, JWT_SECRET_KEY, etc.
+
+        # Database
+        flask --app=webapp db upgrade
+
+        # Run
+        flask --app=webapp --debug run
+        # → http://localhost:5000
+
+        # Migrations (after model changes)
+        uv run flask --app=webapp db migrate -m "Description"
+        uv run flask --app=webapp db upgrade</code></pre>
+
+    <h4>Code Formatting</h4>
+    <p>Always run before committing:</p>
+    <pre><code>uv run isort --profile black .
+        uv run black .</code></pre>
+
+    <hr>
+
+    <h3>Contribution Guidelines</h3>
+    <ol>
+      <li><strong>Open an issue</strong> first for bugs or feature requests</li>
+      <li><strong>Fork + branch</strong>: <code>git checkout -b feat/my-feature</code></li>
+      <li><strong>Code style</strong>: match existing patterns — stateless API calls, slog-based state, no framework
+        deps in engine</li>
+      <li><strong>Format</strong>: <code>isort</code> + <code>black</code> before commit</li>
+      <li><strong>Schema changes</strong>: create a migration (<code>flask db migrate</code>) and wrap DDL in
+        <code>PRAGMA foreign_keys=OFF/ON</code> for SQLite</li>
+      <li><strong>Logging</strong>: use the custom <code>GAME</code> level (25) for game events,
+        <code>logger.error/warning</code> for operational issues — no structured JSON extras, no manual
+        <code>db.session.commit()</code></li>
+      <li><strong>New renderer features</strong>: implement in both <code>ondro.js</code> and <code>filio.js</code>
+        unless specific to one renderer</li>
+      <li><strong>PR</strong>: describe the change, link the issue, attach screenshots for UI changes</li>
+    </ol>
+
+    <h4>What Needs Help</h4>
+    <ul>
+      <li>Test coverage (currently none — the engine is pure Python and easy to unit test)</li>
+      <li>Additional themes and piece sets</li>
+      <li>Accessibility improvements</li>
+      <li>Mobile responsiveness for Filio renderer</li>
+      <li>Game replay/analysis mode</li>
+    </ul>
+
+    <hr>
+
+    <h3>Logging System</h3>
+    <ul>
+      <li>Custom level <code>GAME</code> (25), between INFO and WARNING</li>
+      <li><code>DBHandler</code> (logging.Handler) writes all GAME+ level records to the <code>log</code> table</li>
+      <li>Attached to root logger — catches all child loggers (views, api, email)</li>
+      <li>Logs are in the caller's transaction (no auto-commit — may be lost on rollback)</li>
+      <li>CLI command: <code>uv run flask --app=webapp purge-logs --days 90</code></li>
+    </ul>
+
+    <hr>
+
+    <h3>Key Files Reference</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>engine/gameapi.py</code></td>
+          <td>GameAPI + Voting — the main engine entry point</td>
+        </tr>
+        <tr>
+          <td><code>engine/board.py</code></td>
+          <td>Board state, piece placement, move validation</td>
+        </tr>
+        <tr>
+          <td><code>engine/pieces.py</code></td>
+          <td>Piece classes, Move, Pos</td>
+        </tr>
+        <tr>
+          <td><code>webapp/main.py</code></td>
+          <td>App factory, DBHandler, CLI commands</td>
+        </tr>
+        <tr>
+          <td><code>webapp/models.py</code></td>
+          <td>All SQLAlchemy models</td>
+        </tr>
+        <tr>
+          <td><code>webapp/views.py</code></td>
+          <td>HTML routes — 17 endpoints</td>
+        </tr>
+        <tr>
+          <td><code>webapp/api.py</code></td>
+          <td>REST API — 9 endpoints</td>
+        </tr>
+        <tr>
+          <td><code>webapp/static/ondro.js</code></td>
+          <td>Konva.js board renderer</td>
+        </tr>
+        <tr>
+          <td><code>webapp/static/filio.js</code></td>
+          <td>Canvas 2D board renderer</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
 
 
 {%endblock%}
