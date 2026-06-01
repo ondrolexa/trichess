@@ -237,35 +237,6 @@ def available_games():
                     db.session.commit()
             return redirect(url_for("available_games"))
 
-        leave = request.form.get("leave", None)
-        if leave is not None:
-            board = db.session.get(TriBoard, int(leave))
-            if board is None or board.status != 0:
-                flash("Game not found or already started", "error")
-                return redirect(url_for("available_games"))
-            seat = None
-            if board.player_0_id == g.user.id:
-                seat = 0
-            elif board.player_1_id == g.user.id:
-                seat = 1
-            elif board.player_2_id == g.user.id:
-                seat = 2
-            if seat is None:
-                flash("You are not in this game", "error")
-                return redirect(url_for("available_games"))
-            match seat:
-                case 0:
-                    board.player_0_id = None
-                    board.player_0_accepted = False
-                case 1:
-                    board.player_1_id = None
-                    board.player_1_accepted = False
-                case 2:
-                    board.player_2_id = None
-                    board.player_2_accepted = False
-            db.session.commit()
-            return redirect(url_for("available_games"))
-
         board_id = request.form.get("board", None)
         if board_id is not None:
             board = TriBoard.query.filter_by(id=int(board_id)).first()

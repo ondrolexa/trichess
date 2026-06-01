@@ -18,10 +18,12 @@
     <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab"
       aria-controls="rules" aria-selected="false">Rules</button>
   </li>
+{% if current_user.id == 1 %}
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="dev-tab" data-bs-toggle="tab" data-bs-target="#dev" type="button" role="tab"
       aria-controls="dev" aria-selected="false">For developers</button>
   </li>
+{% endif %}
 </ul>
 <div class="tab-content mt-3" id="helpTabContent">
   <div class="tab-pane fade show active" id="quick" role="tabpanel" aria-labelledby="quick-tab">
@@ -526,6 +528,7 @@
       players are awarded points according to pieces involved in checkmate.</p>
     <p>Enjoy the game.</p>
   </div>
+{% if current_user.id == 1 %}
   <div class="tab-pane fade" id="dev" role="tabpanel" aria-labelledby="dev-tab">
     <h2>TriChess Frontend — Developer Guide</h2>
 
@@ -927,6 +930,7 @@
       </tbody>
     </table>
   </div>
+{% endif %}
 </div>
 
 
