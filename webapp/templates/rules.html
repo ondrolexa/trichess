@@ -18,12 +18,12 @@
     <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab"
       aria-controls="rules" aria-selected="false">Rules</button>
   </li>
-{% if current_user.id == 1 %}
+  {% if current_user.id == 1 %}
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="dev-tab" data-bs-toggle="tab" data-bs-target="#dev" type="button" role="tab"
       aria-controls="dev" aria-selected="false">For developers</button>
   </li>
-{% endif %}
+  {% endif %}
 </ul>
 <div class="tab-content mt-3" id="helpTabContent">
   <div class="tab-pane fade show active" id="quick" role="tabpanel" aria-labelledby="quick-tab">
@@ -91,13 +91,13 @@
       </tbody>
     </table>
     <p>Each player starts with 17 pieces — that's 51 pieces on the board at the start. The extra bishop means bishops
-      finally cover every diagonal on the hex grid.</p>
+      successfully cover every diagonal on the hex grid.</p>
 
     <h4>3. Three-Player Diplomacy</h4>
     <p>With three players, the game becomes social as well as strategic:</p>
     <ul>
       <li><strong>Resignation voting</strong>: Players can vote to resign. But here's the twist — if just one player
-        refuses to resign (votes "Decline"), <strong>he win</strong> instead. You can't force someone out unless they
+        refuses to resign (votes "Decline"), <strong>they win</strong> instead. You can't force someone out unless they
         agree to go.</li>
       <li><strong>Draw voting</strong>: All three must accept for a draw. One holdout keeps the game going.</li>
       <li><strong>Proportional checkmate</strong>: When multiple players attack a king, the checkmate points are split
@@ -148,7 +148,8 @@
     <h2>How to Play TriChess</h2>
     <p>This guide covers the <strong>user interface</strong> — how to navigate, interact with the board, and use the
       game controls. For the <em>rules</em> of TriChess (movement, checkmate, etc.), see the in-app
-      <strong>Rules</strong> tab.</p>
+      <strong>Rules</strong> tab.
+    </p>
 
     <hr>
 
@@ -168,12 +169,14 @@
         <tr>
           <td><strong>Create a game</strong></td>
           <td>Go to <strong>Available</strong>, pick a seat (1/2/3) in Create a new game widget, and click
-            <strong>Create</strong></td>
+            <strong>Create</strong>
+          </td>
         </tr>
         <tr>
           <td><strong>Start playing</strong></td>
           <td>As soon as all 3 seats are filled, the game auto-starts and appear on Home page. Click the
-            <strong>Play</strong></td>
+            <strong>Play</strong>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -222,7 +225,8 @@
       <li><strong>If promoting</strong> (pawn reaches the opposite side), a popup appears:
         <ul>
           <li>Choose <strong>Q</strong> (Queen), <strong>R</strong> (Rook), <strong>B</strong> (Bishop), or
-            <strong>N</strong> (Knight)</li>
+            <strong>N</strong> (Knight)
+          </li>
           <li>Click your choice — the move is completed</li>
         </ul>
       </li>
@@ -528,7 +532,7 @@
       players are awarded points according to pieces involved in checkmate.</p>
     <p>Enjoy the game.</p>
   </div>
-{% if current_user.id == 1 %}
+  {% if current_user.id == 1 %}
   <div class="tab-pane fade" id="dev" role="tabpanel" aria-labelledby="dev-tab">
     <h2>TriChess Frontend — Developer Guide</h2>
 
@@ -681,9 +685,11 @@
     <h4>Piece Movement</h4>
     <p>Pieces define moves using <strong>direction codes</strong> (<code>FL</code>, <code>FR</code>, <code>SL</code>,
       <code>DF</code>, <code>DL</code>, <code>DR</code> + <code>r</code> suffix for reverse). Each player (pid 0/1/2)
-      has rotated direction vectors — the same piece code generates different moves depending on orientation.</p>
+      has rotated direction vectors — the same piece code generates different moves depending on orientation.
+    </p>
     <p>Move kinds: <code>s</code> (standard), <code>a</code> (attack-only), <code>f</code> (forward-only),
-      <code>n</code> (infinite slide), <code>d</code> (double-step), <code>c</code> (castling).</p>
+      <code>n</code> (infinite slide), <code>d</code> (double-step), <code>c</code> (castling).
+    </p>
 
     <hr>
 
@@ -692,7 +698,8 @@
     <h4>User</h4>
     <ul>
       <li><code>id</code>, <code>username</code>, <code>password</code> (Werkzeug hash), <code>email</code>,
-        <code>email_verified</code></li>
+        <code>email_verified</code>
+      </li>
       <li><code>theme</code> (string, default <code>"default"</code>), <code>board</code>
         (<code>"ondro"</code>/<code>"filio"</code>), <code>pieces</code> (string)</li>
       <li><code>active</code> (bool — new users start inactive, admin must approve)</li>
@@ -710,7 +717,8 @@
     <h4>Score</h4>
     <ul>
       <li><code>player_id</code>, <code>board_id</code>, <code>score</code> (float), <code>tag</code> (N/R/D/S),
-        <code>onmove</code> (bool)</li>
+        <code>onmove</code> (bool)
+      </li>
     </ul>
 
     <h4>Log</h4>
@@ -803,7 +811,8 @@
     <h4>Theme &amp; Piece System</h4>
     <p>YAML files in <code>static/themes/</code> (6 themes) and <code>static/pieces/</code> (3 sets). Loaded by
       <code>views.py</code> and injected as JSON into the template. Themes define hex colors, piece colors, highlight
-      colors, fonts. Piece sets contain SVG path data for each piece type (P, N, B, R, Q, K).</p>
+      colors, fonts. Piece sets contain SVG path data for each piece type (P, N, B, R, Q, K).
+    </p>
 
     <h4>JWT Flow</h4>
     <ol>
@@ -851,10 +860,12 @@
         deps in engine</li>
       <li><strong>Format</strong>: <code>isort</code> + <code>black</code> before commit</li>
       <li><strong>Schema changes</strong>: create a migration (<code>flask db migrate</code>) and wrap DDL in
-        <code>PRAGMA foreign_keys=OFF/ON</code> for SQLite</li>
+        <code>PRAGMA foreign_keys=OFF/ON</code> for SQLite
+      </li>
       <li><strong>Logging</strong>: use the custom <code>GAME</code> level (25) for game events,
         <code>logger.error/warning</code> for operational issues — no structured JSON extras, no manual
-        <code>db.session.commit()</code></li>
+        <code>db.session.commit()</code>
+      </li>
       <li><strong>New renderer features</strong>: implement in both <code>ondro.js</code> and <code>filio.js</code>
         unless specific to one renderer</li>
       <li><strong>PR</strong>: describe the change, link the issue, attach screenshots for UI changes</li>
@@ -930,7 +941,7 @@
       </tbody>
     </table>
   </div>
-{% endif %}
+  {% endif %}
 </div>
 
 
