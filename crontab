@@ -1,1 +1,1 @@
-0 8 * * * cd /code && uv run flask --app=webapp resend-notifications
+0 8 * * * cd /code && flask --app=webapp resend-notifications
