@@ -1,36 +1,67 @@
-const gid2hex = {};
-const gid2high = {};
-const gid2valid = {};
-const gid2attack = {};
-const gid2piece = {};
-const pos2gid = {};
-const seat2pid = {};
-const seat2name = {};
-const pid2seat = {};
-const pid2name = {};
+// Triches board state
+const AppState = {
+  // Board hex mappings: GID → Konva shape (populated at runtime)
+  gid2hex: {},
+  gid2high: {},
+  gid2valid: {},
+  gid2attack: {},
+  gid2piece: {},
 
-let slog = "";
-let server_slog = "";
-let game_slog = "";
-let game_moves = 0;
-let on_move = false;
-let view_pid = 0;
+  // Coordinate → GID lookup (populated at runtime)
+  pos2gid: {},
 
-const active_tween = { active: false, tween: null };
-const elpieces = { 0: {}, 1: {}, 2: {} };
-const player_names = { 0: "", 1: "", 2: "" };
-const player_names_font = { 0: "", 1: "", 2: "" };
-const player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
+  // Player / seat mappings (populated from server response)
+  seat2pid: {},
+  seat2name: {},
+  pid2seat: {},
+  pid2name: {},
 
-let movelabel_text = "";
-let movestage = -1;
-let target = -1;
-let current = -1;
-let ready = false;
-const targets = new Set();
-const promotions = new Set();
-const lastmove = { gid: -1, tgid: -1 };
+  // Game slog
+  slog: "",
+  server_slog: "",
+  game_slog: "",
+  game_moves: 0,
 
+  // Turn & interaction flags
+  on_move: false,
+  view_pid: 0,
+  ready: false,
+
+  // Animation tween
+  active_tween: { active: false, tween: null },
+
+  // Eliminated-piece Konva shapes per player (populated at runtime)
+  elpieces: { 0: {}, 1: {}, 2: {} },
+
+  // Player display
+  player_names: { 0: "", 1: "", 2: "" },
+  player_names_font: { 0: "", 1: "", 2: "" },
+  player_names_color: { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" },
+
+  // Move label
+  movelabel_text: "",
+
+  // Move-selection
+  movestage: -1,
+  target: -1,
+  current: -1,
+  targets: new Set(),
+  promotions: new Set(),
+  lastmove: { gid: -1, tgid: -1 },
+
+  // Canvas / layout dimensions
+  stageWidth: 20,
+  stageHeight: 17,
+  visual_shift: 20,
+
+  // Touch / pinch-zoom gesture tracking
+  lastCenter: null,
+  lastDist: 0,
+  dragStopped: false,
+};
+// ─────────────────────────────────────────────────────────────────────────────
+
+// DOM references (not state — never reassigned)
 const slogtext = document.getElementById("log");
 const submit = document.getElementById("submitGame");
 const draw = document.getElementById("voteDraw");
@@ -46,19 +77,11 @@ const voteModals = {
   resign: new bootstrap.Modal(document.getElementById("voteResignDialog")),
 };
 
-// to be improved
-let stageWidth = 20;
-let stageHeight = 17;
-let visual_shift = 20;
+// Constants
+const LINE_DASH = [0.2, 0.1];
+const LINE_WIDTH = 0.04;
 
-// variuos settings
-const line_dash = [0.2, 0.1];
-const line_width = 0.04;
-let lastCenter = null;
-let lastDist = 0;
-let dragStopped = false;
-
-const api_url = `${window.location.protocol}//${window.location.host}`;
+const API_URL = `${window.location.protocol}//${window.location.host}`;
 
 const HEX_RADIUS = 7;
 const TOTAL_HEXES = 169;
@@ -74,8 +97,8 @@ function buildHeaders() {
 }
 
 function apiFetch(path, body) {
-  ready = false;
-  return fetch(`${api_url}${path}`, {
+  AppState.ready = false;
+  return fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: buildHeaders(),
     body: JSON.stringify(body),
@@ -83,8 +106,8 @@ function apiFetch(path, body) {
 }
 
 function apiFetchGet(path) {
-  ready = false;
-  return fetch(`${api_url}${path}`, {
+  AppState.ready = false;
+  return fetch(`${API_URL}${path}`, {
     method: "GET",
     headers: buildHeaders(),
   });
@@ -94,12 +117,12 @@ function apiFetchGet(path) {
 
 const stage = new Konva.Stage({
   container: "canvas",
-  width: stageWidth,
-  height: stageHeight,
+  width: AppState.stageWidth,
+  height: AppState.stageHeight,
   draggable: true,
   offset: {
-    x: -stageWidth / 2,
-    y: -stageHeight / 2 + 1,
+    x: -AppState.stageWidth / 2,
+    y: -AppState.stageHeight / 2 + 1,
   },
 });
 
@@ -154,15 +177,15 @@ stage.on("touchmove", function (e) {
   let touch2 = e.evt.touches[1];
 
   // we need to restore dragging, if it was cancelled by multi-touch
-  if (touch1 && !touch2 && !stage.isDragging() && dragStopped) {
+  if (touch1 && !touch2 && !stage.isDragging() && AppState.dragStopped) {
     stage.startDrag();
-    dragStopped = false;
+    AppState.dragStopped = false;
   }
 
   if (touch1 && touch2) {
     // we need to stop Konva's drag&drop and implement our own pan logic with two pointers
     if (stage.isDragging()) {
-      dragStopped = true;
+      AppState.dragStopped = true;
       stage.stopDrag();
     }
 
@@ -177,16 +200,16 @@ stage.on("touchmove", function (e) {
       y: touch2.clientY - rect.top,
     };
 
-    if (!lastCenter) {
-      lastCenter = getCenter(p1, p2);
+    if (!AppState.lastCenter) {
+      AppState.lastCenter = getCenter(p1, p2);
       return;
     }
     let newCenter = getCenter(p1, p2);
 
     let dist = getDistance(p1, p2);
 
-    if (!lastDist) {
-      lastDist = dist;
+    if (!AppState.lastDist) {
+      AppState.lastDist = dist;
     }
 
     // local coordinates of center point
@@ -195,7 +218,7 @@ stage.on("touchmove", function (e) {
       y: (newCenter.y - stage.y()) / stage.scaleX(),
     };
 
-    let scale = stage.scaleX() * (dist / lastDist);
+    let scale = stage.scaleX() * (dist / AppState.lastDist);
 
     stage.scaleX(scale);
     stage.scaleY(scale);
@@ -208,14 +231,14 @@ stage.on("touchmove", function (e) {
 
     stage.position(newPos);
 
-    lastDist = dist;
-    lastCenter = newCenter;
+    AppState.lastDist = dist;
+    AppState.lastCenter = newCenter;
   }
 });
 
 stage.on("touchend", function () {
-  lastDist = 0;
-  lastCenter = null;
+  AppState.lastDist = 0;
+  AppState.lastCenter = null;
 });
 
 const movelabel = new Konva.Shape({
@@ -231,7 +254,7 @@ const movelabel = new Konva.Shape({
     context.font = theme["canvas"]["font-family"];
     context.fillStyle = theme["canvas"]["info"];
     context.textAlign = "center";
-    const lines = movelabel_text.split("\n");
+    const lines = AppState.movelabel_text.split("\n");
     for (let i = 0; i < lines.length; i++)
       context.fillText(lines[i], 0, i * 10);
   },
@@ -247,10 +270,10 @@ const p0name = new Konva.Shape({
     y: 0.07,
   },
   sceneFunc: function (context, shape) {
-    context.font = player_names_font[0];
-    context.fillStyle = player_names_color[0];
+    context.font = AppState.player_names_font[0];
+    context.fillStyle = AppState.player_names_color[0];
     context.textAlign = "center";
-    context.fillText(player_names[0], 0, 0);
+    context.fillText(AppState.player_names[0], 0, 0);
   },
 });
 
@@ -294,10 +317,10 @@ const p1name = new Konva.Shape({
     y: 0.07,
   },
   sceneFunc: function (context, shape) {
-    context.font = player_names_font[1];
-    context.fillStyle = player_names_color[1];
+    context.font = AppState.player_names_font[1];
+    context.fillStyle = AppState.player_names_color[1];
     context.textAlign = "left";
-    context.fillText(player_names[1], 0, 0);
+    context.fillText(AppState.player_names[1], 0, 0);
   },
 });
 
@@ -341,10 +364,10 @@ const p2name = new Konva.Shape({
     y: 0.07,
   },
   sceneFunc: function (context, shape) {
-    context.font = player_names_font[2];
-    context.fillStyle = player_names_color[2];
+    context.font = AppState.player_names_font[2];
+    context.fillStyle = AppState.player_names_color[2];
     context.textAlign = "right";
-    context.fillText(player_names[2], 0, 0);
+    context.fillText(AppState.player_names[2], 0, 0);
   },
 });
 
@@ -415,8 +438,8 @@ gameover.on("click tap", function (evt) {
 const qline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
-  strokeWidth: line_width,
-  dash: line_dash,
+  strokeWidth: LINE_WIDTH,
+  dash: LINE_DASH,
   visible: false,
   listening: false,
 });
@@ -424,8 +447,8 @@ const qline = new Konva.Line({
 const rline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
-  strokeWidth: line_width,
-  dash: line_dash,
+  strokeWidth: LINE_WIDTH,
+  dash: LINE_DASH,
   visible: false,
   listening: false,
 });
@@ -433,8 +456,8 @@ const rline = new Konva.Line({
 const sline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
-  strokeWidth: line_width,
-  dash: line_dash,
+  strokeWidth: LINE_WIDTH,
+  dash: LINE_DASH,
   visible: false,
   listening: false,
 });
@@ -455,18 +478,21 @@ function fitStageIntoDiv() {
   let containerWidth = container.offsetWidth;
   let containerHeight = container.offsetHeight;
   let scale = Math.min(
-    containerWidth / stageWidth,
-    containerHeight / stageHeight,
+    containerWidth / AppState.stageWidth,
+    containerHeight / AppState.stageHeight,
   );
   stage.width(containerWidth);
   if (containerWidth >= 768) {
     stage.height(containerHeight);
   } else {
-    stage.height(stageHeight * scale);
+    stage.height(AppState.stageHeight * scale);
   }
-  stage.offsetX(-stageWidth / 2 - (containerWidth / scale - stageWidth) / 2);
+  stage.offsetX(
+    -AppState.stageWidth / 2 -
+      (containerWidth / scale - AppState.stageWidth) / 2,
+  );
   stage.scale({ x: scale, y: scale });
-  stage.position({ x: -10, y: visual_shift });
+  stage.position({ x: -10, y: AppState.visual_shift });
   stage.draw();
 }
 
@@ -474,31 +500,31 @@ function doOnOrientationChange() {
   switch (window.screen.orientation.type) {
     case "landscape-primary":
       navbar.style.display = "none";
-      stageWidth = 17;
-      stageHeight = 20;
-      visual_shift = 0;
+      AppState.stageWidth = 17;
+      AppState.stageHeight = 20;
+      AppState.visual_shift = 0;
       fitStageIntoDiv();
       window.scrollBy(0, 200);
       break;
     case "portrait-secondary":
       navbar.style.display = "";
-      stageWidth = 20;
-      stageHeight = 17;
-      visual_shift = 20;
+      AppState.stageWidth = 20;
+      AppState.stageHeight = 17;
+      AppState.visual_shift = 20;
       fitStageIntoDiv();
       break;
     case "landscape-secondary":
       navbar.style.display = "none";
-      stageWidth = 17;
-      stageHeight = 20;
-      visual_shift = 0;
+      AppState.stageWidth = 17;
+      AppState.stageHeight = 20;
+      AppState.visual_shift = 0;
       fitStageIntoDiv();
       break;
     default:
       navbar.style.display = "";
-      stageWidth = 20;
-      stageHeight = 17;
-      visual_shift = 20;
+      AppState.stageWidth = 20;
+      AppState.stageHeight = 17;
+      AppState.visual_shift = 20;
       fitStageIntoDiv();
   }
 }
@@ -594,23 +620,23 @@ function createHexLabel(gid, xy, color, strokewidth, data) {
 // Move cycle manager
 
 function manageMove(gid) {
-  if (ready) {
-    current = gid;
-    if (movestage == -1) {
+  if (AppState.ready) {
+    AppState.current = gid;
+    if (AppState.movestage == -1) {
       setCoordHints(gid);
       validMoves(gid);
     } else {
-      if (targets.has(gid)) {
-        if (promotions.has(gid)) {
-          target = gid;
+      if (AppState.targets.has(gid)) {
+        if (AppState.promotions.has(gid)) {
+          AppState.target = gid;
           modalPiece.toggle();
         } else {
-          current = -1;
-          makeMove(movestage, gid);
+          AppState.current = -1;
+          makeMove(AppState.movestage, gid);
         }
       } else {
-        if (gid == movestage) {
-          current = -1;
+        if (gid == AppState.movestage) {
+          AppState.current = -1;
           cleanMove();
           cleanHigh();
         } else {
@@ -625,14 +651,14 @@ function manageMove(gid) {
 
 function promotePiece(label) {
   modalPiece.toggle();
-  makeMove(movestage, target, label);
+  makeMove(AppState.movestage, AppState.target, label);
 }
 
 function cleanHigh() {
   for (let gid = 0; gid < TOTAL_HEXES; gid++) {
-    gid2high[gid].visible(false);
-    gid2valid[gid].visible(false);
-    gid2attack[gid].visible(false);
+    AppState.gid2high[gid].visible(false);
+    AppState.gid2valid[gid].visible(false);
+    AppState.gid2attack[gid].visible(false);
   }
   qline.visible(false);
   rline.visible(false);
@@ -640,22 +666,22 @@ function cleanHigh() {
 }
 
 function backMove() {
-  if (slog.length > 0) {
-    slog = slog.slice(0, -4);
-    movestage = -1;
+  if (AppState.slog.length > 0) {
+    AppState.slog = AppState.slog.slice(0, -4);
+    AppState.movestage = -1;
     cleanHigh();
     gameInfo(false, true);
-    ready = true;
+    AppState.ready = true;
   }
 }
 
 function forwardMove() {
-  if (slog.length < game_slog.length) {
-    slog = game_slog.slice(0, slog.length + 4);
-    movestage = -1;
+  if (AppState.slog.length < AppState.game_slog.length) {
+    AppState.slog = AppState.game_slog.slice(0, AppState.slog.length + 4);
+    AppState.movestage = -1;
     cleanHigh();
     gameInfo(false, true);
-    ready = true;
+    AppState.ready = true;
   }
 }
 
@@ -669,28 +695,28 @@ function boardReset() {
 }
 
 function cleanMove() {
-  gid2high[movestage].visible(false);
-  for (let tgid of targets) {
-    gid2high[tgid].visible(false);
-    gid2valid[tgid].visible(false);
-    gid2attack[tgid].visible(false);
+  AppState.gid2high[AppState.movestage].visible(false);
+  for (let tgid of AppState.targets) {
+    AppState.gid2high[tgid].visible(false);
+    AppState.gid2valid[tgid].visible(false);
+    AppState.gid2attack[tgid].visible(false);
   }
-  targets.clear();
-  promotions.clear();
-  target = -1;
-  movestage = -1;
+  AppState.targets.clear();
+  AppState.promotions.clear();
+  AppState.target = -1;
+  AppState.movestage = -1;
   gameInfo(false, true);
-  ready = true;
+  AppState.ready = true;
 }
 
 function drawPieces(pieces) {
   for (let gid = 0; gid < TOTAL_HEXES; gid++) {
-    gid2piece[gid].data("");
+    AppState.gid2piece[gid].data("");
   }
   for (let [pid, piecesForPid] of Object.entries(pieces)) {
     for (let pcs of piecesForPid) {
-      gid2piece[pcs.gid].data(pieces_paths["pieces"][pcs.piece]);
-      gid2piece[pcs.gid].fill(theme["pieces"]["color"][pid]);
+      AppState.gid2piece[pcs.gid].data(pieces_paths["pieces"][pcs.piece]);
+      AppState.gid2piece[pcs.gid].fill(theme["pieces"]["color"][pid]);
     }
   }
 }
@@ -703,71 +729,71 @@ function updateStats(
   move_number,
 ) {
   for (let p = 0; p < 3; p++) {
-    player_names[p] =
-      `${seat2name[p]} (${pieces_value[seat2pid[p]]}/${eliminated_value[seat2pid[p]]})`;
-    let el = eliminated[seat2pid[p]];
+    AppState.player_names[p] =
+      `${AppState.seat2name[p]} (${pieces_value[AppState.seat2pid[p]]}/${eliminated_value[AppState.seat2pid[p]]})`;
+    let el = eliminated[AppState.seat2pid[p]];
     for (let pcs in el) {
-      elpieces[p][pcs].data(pieces_paths["pieces"][el[pcs]]);
+      AppState.elpieces[p][pcs].data(pieces_paths["pieces"][el[pcs]]);
     }
     for (let i = el.length; i < 23; i++) {
-      elpieces[p][i].data("");
+      AppState.elpieces[p][i].data("");
     }
   }
 
-  p0el1.width(eliminations[seat2pid[0]][seat2pid[1]]);
-  p0el1.offsetX(eliminations[seat2pid[0]][seat2pid[1]]);
-  p0el1.fill(theme["pieces"]["color"][seat2pid[1]]);
-  p0el2.width(eliminations[seat2pid[0]][seat2pid[2]]);
-  p0el2.fill(theme["pieces"]["color"][seat2pid[2]]);
+  p0el1.width(eliminations[AppState.seat2pid[0]][AppState.seat2pid[1]]);
+  p0el1.offsetX(eliminations[AppState.seat2pid[0]][AppState.seat2pid[1]]);
+  p0el1.fill(theme["pieces"]["color"][AppState.seat2pid[1]]);
+  p0el2.width(eliminations[AppState.seat2pid[0]][AppState.seat2pid[2]]);
+  p0el2.fill(theme["pieces"]["color"][AppState.seat2pid[2]]);
 
-  p1el2.width(eliminations[seat2pid[1]][seat2pid[2]]);
-  p1el2.fill(theme["pieces"]["color"][seat2pid[2]]);
-  p1el0.width(eliminations[seat2pid[1]][seat2pid[0]]);
-  p1el0.offsetX(-eliminations[seat2pid[1]][seat2pid[2]]);
-  p1el0.fill(theme["pieces"]["color"][seat2pid[0]]);
+  p1el2.width(eliminations[AppState.seat2pid[1]][AppState.seat2pid[2]]);
+  p1el2.fill(theme["pieces"]["color"][AppState.seat2pid[2]]);
+  p1el0.width(eliminations[AppState.seat2pid[1]][AppState.seat2pid[0]]);
+  p1el0.offsetX(-eliminations[AppState.seat2pid[1]][AppState.seat2pid[2]]);
+  p1el0.fill(theme["pieces"]["color"][AppState.seat2pid[0]]);
 
-  p2el0.width(eliminations[seat2pid[2]][seat2pid[0]]);
+  p2el0.width(eliminations[AppState.seat2pid[2]][AppState.seat2pid[0]]);
   p2el0.offsetX(
-    eliminations[seat2pid[2]][seat2pid[0]] +
-      eliminations[seat2pid[2]][seat2pid[1]],
+    eliminations[AppState.seat2pid[2]][AppState.seat2pid[0]] +
+      eliminations[AppState.seat2pid[2]][AppState.seat2pid[1]],
   );
-  p2el0.fill(theme["pieces"]["color"][seat2pid[0]]);
-  p2el1.width(eliminations[seat2pid[2]][seat2pid[1]]);
-  p2el1.offsetX(eliminations[seat2pid[2]][seat2pid[1]]);
-  p2el1.fill(theme["pieces"]["color"][seat2pid[1]]);
+  p2el0.fill(theme["pieces"]["color"][AppState.seat2pid[0]]);
+  p2el1.width(eliminations[AppState.seat2pid[2]][AppState.seat2pid[1]]);
+  p2el1.offsetX(eliminations[AppState.seat2pid[2]][AppState.seat2pid[1]]);
+  p2el1.fill(theme["pieces"]["color"][AppState.seat2pid[1]]);
 
-  slogtext.textContent = slog;
-  movelabel_text = `Move\n${move_number}/${game_moves}`;
+  slogtext.textContent = AppState.slog;
+  AppState.movelabel_text = `Move\n${move_number}/${AppState.game_moves}`;
 }
 
 function setCoordHints(gid) {
-  let q = gid2hex[gid].getAttr("q");
-  let r = gid2hex[gid].getAttr("r");
-  let gid_l11 = pos2gid[[Math.max(-7 - r, -7), r]];
-  let gid_l12 = pos2gid[[Math.min(7 - r, 7), r]];
-  let gid_l21 = pos2gid[[q, Math.max(-7 - q, -7)]];
-  let gid_l22 = pos2gid[[q, Math.min(7 - q, 7)]];
+  let q = AppState.gid2hex[gid].getAttr("q");
+  let r = AppState.gid2hex[gid].getAttr("r");
+  let gid_l11 = AppState.pos2gid[[Math.max(-7 - r, -7), r]];
+  let gid_l12 = AppState.pos2gid[[Math.min(7 - r, 7), r]];
+  let gid_l21 = AppState.pos2gid[[q, Math.max(-7 - q, -7)]];
+  let gid_l22 = AppState.pos2gid[[q, Math.min(7 - q, 7)]];
   let gid_l31 =
-    pos2gid[[q + Math.min(7 - q, r + 7), r - Math.min(7 - q, r + 7)]];
+    AppState.pos2gid[[q + Math.min(7 - q, r + 7), r - Math.min(7 - q, r + 7)]];
   let gid_l32 =
-    pos2gid[[q - Math.min(q + 7, 7 - r), r + Math.min(q + 7, 7 - r)]];
+    AppState.pos2gid[[q - Math.min(q + 7, 7 - r), r + Math.min(q + 7, 7 - r)]];
   qline.points([
-    gid2hex[gid_l11].x(),
-    gid2hex[gid_l11].y(),
-    gid2hex[gid_l12].x(),
-    gid2hex[gid_l12].y(),
+    AppState.gid2hex[gid_l11].x(),
+    AppState.gid2hex[gid_l11].y(),
+    AppState.gid2hex[gid_l12].x(),
+    AppState.gid2hex[gid_l12].y(),
   ]);
   rline.points([
-    gid2hex[gid_l21].x(),
-    gid2hex[gid_l21].y(),
-    gid2hex[gid_l22].x(),
-    gid2hex[gid_l22].y(),
+    AppState.gid2hex[gid_l21].x(),
+    AppState.gid2hex[gid_l21].y(),
+    AppState.gid2hex[gid_l22].x(),
+    AppState.gid2hex[gid_l22].y(),
   ]);
   sline.points([
-    gid2hex[gid_l31].x(),
-    gid2hex[gid_l31].y(),
-    gid2hex[gid_l32].x(),
-    gid2hex[gid_l32].y(),
+    AppState.gid2hex[gid_l31].x(),
+    AppState.gid2hex[gid_l31].y(),
+    AppState.gid2hex[gid_l32].x(),
+    AppState.gid2hex[gid_l32].y(),
   ]);
   qline.visible(true);
   rline.visible(true);
@@ -777,7 +803,11 @@ function setCoordHints(gid) {
 // API calls
 
 function validMoves(gid) {
-  apiFetch("/api/v1/move/valid", { slog: slog, view_pid: view_pid, gid: gid })
+  apiFetch("/api/v1/move/valid", {
+    slog: AppState.slog,
+    view_pid: AppState.view_pid,
+    gid: gid,
+  })
     .then((response) => {
       if (response.ok) {
         return response.json();
@@ -785,24 +815,24 @@ function validMoves(gid) {
       return Promise.reject(response);
     })
     .then((data) => {
-      gid2high[gid].visible(true);
-      gid2high[gid].stroke(theme["board"]["selection"]);
+      AppState.gid2high[gid].visible(true);
+      AppState.gid2high[gid].stroke(theme["board"]["selection"]);
       for (let target of data.targets) {
         let tgid = target.tgid;
-        targets.add(tgid);
+        AppState.targets.add(tgid);
         if (target.kind == "attack") {
-          gid2attack[tgid].stroke(theme["board"]["attack_move"]);
-          gid2attack[tgid].visible(true);
+          AppState.gid2attack[tgid].stroke(theme["board"]["attack_move"]);
+          AppState.gid2attack[tgid].visible(true);
         } else {
-          gid2valid[tgid].stroke(theme["board"]["valid_move"]);
-          gid2valid[tgid].visible(true);
+          AppState.gid2valid[tgid].stroke(theme["board"]["valid_move"]);
+          AppState.gid2valid[tgid].visible(true);
         }
         if (target.promotion) {
-          promotions.add(tgid);
+          AppState.promotions.add(tgid);
         }
       }
-      movestage = gid;
-      ready = true;
+      AppState.movestage = gid;
+      AppState.ready = true;
     })
     .catch((response) => {
       console.error(
@@ -814,8 +844,8 @@ function validMoves(gid) {
 
 function makeMove(gid, tgid, new_piece = "") {
   apiFetch("/api/v1/move/make", {
-    slog: slog,
-    view_pid: view_pid,
+    slog: AppState.slog,
+    view_pid: AppState.view_pid,
     gid: gid,
     tgid: tgid,
     new_piece: new_piece,
@@ -828,13 +858,13 @@ function makeMove(gid, tgid, new_piece = "") {
     })
     .then((data) => {
       if (new_piece != "") {
-        gid2piece[gid].data(pieces_paths["pieces"][new_piece]);
+        AppState.gid2piece[gid].data(pieces_paths["pieces"][new_piece]);
       }
-      slog = data.slog;
-      if (slog.length >= game_slog.length) {
-        game_slog = slog;
+      AppState.slog = data.slog;
+      if (AppState.slog.length >= AppState.game_slog.length) {
+        AppState.game_slog = AppState.slog;
       }
-      target = tgid;
+      AppState.target = tgid;
       cleanHigh();
       cleanMove();
     })
@@ -848,8 +878,8 @@ function makeMove(gid, tgid, new_piece = "") {
 
 function voteDraw(vote) {
   apiFetch("/api/v1/vote/draw", {
-    slog: slog,
-    view_pid: view_pid,
+    slog: AppState.slog,
+    view_pid: AppState.view_pid,
     vote: vote,
   })
     .then((response) => {
@@ -859,14 +889,14 @@ function voteDraw(vote) {
       return Promise.reject(response);
     })
     .then((data) => {
-      slog = data.slog;
-      if (slog.length >= game_slog.length) {
-        game_slog = slog;
+      AppState.slog = data.slog;
+      if (AppState.slog.length >= AppState.game_slog.length) {
+        AppState.game_slog = AppState.slog;
       }
-      movestage = -1;
+      AppState.movestage = -1;
       cleanHigh();
       gameInfo(false, true);
-      ready = true;
+      AppState.ready = true;
     })
     .catch((response) => {
       console.error(
@@ -878,8 +908,8 @@ function voteDraw(vote) {
 
 function voteResign(vote) {
   apiFetch("/api/v1/vote/resign", {
-    slog: slog,
-    view_pid: view_pid,
+    slog: AppState.slog,
+    view_pid: AppState.view_pid,
     vote: vote,
   })
     .then((response) => {
@@ -889,14 +919,14 @@ function voteResign(vote) {
       return Promise.reject(response);
     })
     .then((data) => {
-      slog = data.slog;
-      if (slog.length >= game_slog.length) {
-        game_slog = slog;
+      AppState.slog = data.slog;
+      if (AppState.slog.length >= AppState.game_slog.length) {
+        AppState.game_slog = AppState.slog;
       }
-      movestage = -1;
+      AppState.movestage = -1;
       cleanHigh();
       gameInfo(false, true);
-      ready = true;
+      AppState.ready = true;
     })
     .catch((response) => {
       console.error(
@@ -915,17 +945,23 @@ function showVoteModal(kind, vote_results) {
   let accepting = [];
   let declining = [];
   for (let p = 0; p < 3; p++) {
-    if (vote_results[seat2pid[p]] === "A") accepting.push(seat2name[p]);
-    else if (vote_results[seat2pid[p]] === "D") declining.push(seat2name[p]);
+    if (vote_results[AppState.seat2pid[p]] === "A")
+      accepting.push(AppState.seat2name[p]);
+    else if (vote_results[AppState.seat2pid[p]] === "D")
+      declining.push(AppState.seat2name[p]);
   }
-  initiated.textContent = seat2name[3 - vote_results["n_voted"]] ?? "Unknown";
+  initiated.textContent =
+    AppState.seat2name[3 - vote_results["n_voted"]] ?? "Unknown";
   acceptPlayers.textContent = accepting.join(" ");
   declinePlayers.textContent = declining.join(" ");
   voteModals[kind].show();
 }
 
 function gameInfo(init = false, redraw = false) {
-  apiFetch("/api/v1/game/info", { slog: slog, view_pid: view_pid })
+  apiFetch("/api/v1/game/info", {
+    slog: AppState.slog,
+    view_pid: AppState.view_pid,
+  })
     .then((response) => {
       if (response.ok) {
         return response.json();
@@ -934,7 +970,7 @@ function gameInfo(init = false, redraw = false) {
     })
     .then((data) => {
       if (init) {
-        on_move = data.onmove == view_pid;
+        AppState.on_move = data.onmove == AppState.view_pid;
       }
       if (redraw) {
         drawPieces(data.pieces);
@@ -942,19 +978,20 @@ function gameInfo(init = false, redraw = false) {
 
       const fontBase = `${theme["canvas"]["font-family"]}, sans-serif`;
       for (let s = 0; s < 3; s++) {
-        const isOnMove = pid2seat[data.onmove] === s;
-        player_names_font[s] = `${isOnMove ? 900 : 400} 10px ${fontBase}`;
-        player_names_color[s] = isOnMove
+        const isOnMove = AppState.pid2seat[data.onmove] === s;
+        AppState.player_names_font[s] =
+          `${isOnMove ? 900 : 400} 10px ${fontBase}`;
+        AppState.player_names_color[s] = isOnMove
           ? data.in_chess
             ? theme["canvas"]["name_inchess"]
             : theme["canvas"]["name_onmove"]
           : theme["canvas"]["name"];
       }
 
-      if (active_tween["active"] == true) {
-        active_tween["tween"].reset();
-        active_tween["tween"].destroy();
-        active_tween["active"] = false;
+      if (AppState.active_tween["active"] == true) {
+        AppState.active_tween["tween"].reset();
+        AppState.active_tween["tween"].destroy();
+        AppState.active_tween["active"] = false;
       }
 
       updateStats(
@@ -965,7 +1002,7 @@ function gameInfo(init = false, redraw = false) {
         data.move_number,
       );
 
-      if (slog == server_slog && on_move) {
+      if (AppState.slog == AppState.server_slog && AppState.on_move) {
         draw.disabled = false;
         resign.disabled = false;
       } else {
@@ -973,21 +1010,24 @@ function gameInfo(init = false, redraw = false) {
         resign.disabled = true;
       }
       // Setup buttons
-      if (slog.slice(0, -4) == server_slog && on_move) {
+      if (
+        AppState.slog.slice(0, -4) == AppState.server_slog &&
+        AppState.on_move
+      ) {
         submit.disabled = false;
         submit.className = "btn btn-danger mb-2 col-12";
       } else {
         submit.disabled = true;
         submit.className = "btn btn-secondary mb-2 col-12";
       }
-      if (slog.length < game_slog.length) {
+      if (AppState.slog.length < AppState.game_slog.length) {
         forwardmove.disabled = false;
         forwardmove.className = "btn btn-primary mb-2 col-12";
       } else {
         forwardmove.disabled = true;
         forwardmove.className = "btn btn-secondary mb-2 col-12";
       }
-      if (slog.length > 0) {
+      if (AppState.slog.length > 0) {
         backmove.disabled = false;
         backmove.className = "btn btn-primary mb-2 col-12";
       } else {
@@ -996,45 +1036,53 @@ function gameInfo(init = false, redraw = false) {
       }
       // Show last move
       if (data.last_move != null) {
-        if (lastmove["gid"] != -1) {
-          gid2high[lastmove["gid"]].visible(false);
+        if (AppState.lastmove["gid"] != -1) {
+          AppState.gid2high[AppState.lastmove["gid"]].visible(false);
         }
-        lastmove["gid"] = data.last_move["gid"];
-        gid2high[lastmove["gid"]].visible(true);
-        if (current == lastmove["gid"]) {
-          gid2high[lastmove["gid"]].stroke(theme["board"]["selection"]);
+        AppState.lastmove["gid"] = data.last_move["gid"];
+        AppState.gid2high[AppState.lastmove["gid"]].visible(true);
+        if (AppState.current == AppState.lastmove["gid"]) {
+          AppState.gid2high[AppState.lastmove["gid"]].stroke(
+            theme["board"]["selection"],
+          );
         } else {
-          gid2high[lastmove["gid"]].stroke(theme["board"]["last_move"]);
+          AppState.gid2high[AppState.lastmove["gid"]].stroke(
+            theme["board"]["last_move"],
+          );
         }
-        if (lastmove["tgid"] != -1) {
-          gid2high[lastmove["tgid"]].visible(false);
+        if (AppState.lastmove["tgid"] != -1) {
+          AppState.gid2high[AppState.lastmove["tgid"]].visible(false);
         }
-        lastmove["tgid"] = data.last_move["tgid"];
-        gid2high[lastmove["tgid"]].visible(true);
-        if (current == lastmove["tgid"]) {
-          gid2high[lastmove["tgid"]].stroke(theme["board"]["selection"]);
+        AppState.lastmove["tgid"] = data.last_move["tgid"];
+        AppState.gid2high[AppState.lastmove["tgid"]].visible(true);
+        if (AppState.current == AppState.lastmove["tgid"]) {
+          AppState.gid2high[AppState.lastmove["tgid"]].stroke(
+            theme["board"]["selection"],
+          );
         } else {
-          gid2high[lastmove["tgid"]].stroke(theme["board"]["last_move"]);
+          AppState.gid2high[AppState.lastmove["tgid"]].stroke(
+            theme["board"]["last_move"],
+          );
         }
       }
       // show piece in chess
       if (data.in_chess) {
-        active_tween["tween"] = new Konva.Tween({
-          node: gid2piece[data.king_pos],
+        AppState.active_tween["tween"] = new Konva.Tween({
+          node: AppState.gid2piece[data.king_pos],
           easing: Konva.Easings.EaseInOut,
           duration: 0.5,
           scaleX: 0.1,
           scaleY: 0.1,
           yoyo: true,
         });
-        active_tween["tween"].play();
-        active_tween["active"] = true;
-        gid2high[data.king_pos].visible(true);
-        gid2high[data.king_pos].stroke(theme["board"]["hex_inchess"]);
+        AppState.active_tween["tween"].play();
+        AppState.active_tween["active"] = true;
+        AppState.gid2high[data.king_pos].visible(true);
+        AppState.gid2high[data.king_pos].stroke(theme["board"]["hex_inchess"]);
         for (let player in data.chess_by) {
           for (let pcs in data.chess_by[player]) {
-            gid2high[data.chess_by[player][pcs].gid].visible(true);
-            gid2high[data.chess_by[player][pcs].gid].stroke(
+            AppState.gid2high[data.chess_by[player][pcs].gid].visible(true);
+            AppState.gid2high[data.chess_by[player][pcs].gid].stroke(
               theme["board"]["hex_inchess"],
             );
           }
@@ -1042,19 +1090,19 @@ function gameInfo(init = false, redraw = false) {
       }
       // Show voting results
       if (data.vote_results != null) {
-        movelabel_text = `Move ${data.move_number}\n${data.vote_results["kind"]} voting`;
+        AppState.movelabel_text = `Move ${data.move_number}\n${data.vote_results["kind"]} voting`;
         for (let p = 0; p < 3; p++) {
-          player_names[p] =
-            `${seat2name[p]} (${data.vote_results[seat2pid[p]]})`;
+          AppState.player_names[p] =
+            `${AppState.seat2name[p]} (${data.vote_results[AppState.seat2pid[p]]})`;
         }
       }
       // Open voting if needed
       board_layer.off("click tap");
       if (data.vote_needed && !data.finished) {
-        if (data.onmove == view_pid) {
+        if (data.onmove == AppState.view_pid) {
           showVoteModal(data.vote_results["kind"], data.vote_results);
         } else {
-          movelabel_text = `${data.vote_results["kind"]} voting\nin progress`;
+          AppState.movelabel_text = `${data.vote_results["kind"]} voting\nin progress`;
         }
       } else if (data.finished) {
         if (data.draw) {
@@ -1068,12 +1116,15 @@ function gameInfo(init = false, redraw = false) {
           } else {
             wid = 2;
           }
-          gameover_text.text("GAME OVER\n" + pid2name[wid] + " win");
+          gameover_text.text("GAME OVER\n" + AppState.pid2name[wid] + " win");
         } else {
-          gameover_text.text("GAME OVER\n" + pid2name[data.onmove] + " lost");
+          gameover_text.text(
+            "GAME OVER\n" + AppState.pid2name[data.onmove] + " lost",
+          );
         }
         for (let p = 0; p < 3; p++) {
-          player_names[p] = `${seat2name[p]} (${data.score[seat2pid[p]]})`;
+          AppState.player_names[p] =
+            `${AppState.seat2name[p]} (${data.score[AppState.seat2pid[p]]})`;
         }
         gameover.visible(true);
       } else {
@@ -1103,17 +1154,17 @@ function boardInfo() {
     .then((data) => {
       // Create seats mappings
       let seats = [data.player_0, data.player_1, data.player_2];
-      view_pid = data.view_pid;
+      AppState.view_pid = data.view_pid;
       for (let p = 0; p < 3; p++) {
-        seat2pid[p] = (p + view_pid) % 3;
-        seat2name[p] = seats[seat2pid[p]];
-        pid2seat[p] = (p + 3 - view_pid) % 3;
-        pid2name[p] = seats[p];
+        AppState.seat2pid[p] = (p + AppState.view_pid) % 3;
+        AppState.seat2name[p] = seats[AppState.seat2pid[p]];
+        AppState.pid2seat[p] = (p + 3 - AppState.view_pid) % 3;
+        AppState.pid2name[p] = seats[p];
       }
-      slog = data.slog;
-      server_slog = data.slog;
-      game_slog = data.slog;
-      game_moves = data.move_number;
+      AppState.slog = data.slog;
+      AppState.server_slog = data.slog;
+      AppState.game_slog = data.slog;
+      AppState.game_moves = data.move_number;
       gameInfo(true, true);
       // Create board mappings
       let gid = 0;
@@ -1124,18 +1175,24 @@ function boardInfo() {
             let x = q + 0.5 * r;
             let y = (r * Math.sqrt(3)) / 2;
             let colorid = (((2 * q + r) % 3) + 3) % 3;
-            pos2gid[[q, r]] = gid;
-            gid2hex[gid] = createHexPatch(
+            AppState.pos2gid[[q, r]] = gid;
+            AppState.gid2hex[gid] = createHexPatch(
               gid,
               [x, y],
               theme["board"]["hex_color"][colorid],
               theme["board"]["hex_border"],
               [q, r],
             );
-            gid2high[gid] = createHexHigh([x, y]);
-            gid2valid[gid] = createHexValid([x, y]);
-            gid2attack[gid] = createHexAttack([x, y]);
-            gid2piece[gid] = createHexLabel(gid, [x, y], "#ffffff", 0, "");
+            AppState.gid2high[gid] = createHexHigh([x, y]);
+            AppState.gid2valid[gid] = createHexValid([x, y]);
+            AppState.gid2attack[gid] = createHexAttack([x, y]);
+            AppState.gid2piece[gid] = createHexLabel(
+              gid,
+              [x, y],
+              "#ffffff",
+              0,
+              "",
+            );
             gid++;
           }
         }
@@ -1169,27 +1226,27 @@ function boardInfo() {
       };
       for (let i = 0; i < 23; i++) {
         for (let p = 0; p < 3; p++) {
-          elpieces[p][i] = createHexLabel(
+          AppState.elpieces[p][i] = createHexLabel(
             0,
             [q[p][i] + 0.5 * r[p][i] - 0.5, (r[p][i] * Math.sqrt(3)) / 2],
-            theme["pieces"]["color"][seat2pid[p]],
+            theme["pieces"]["color"][AppState.seat2pid[p]],
             theme["pieces"]["stroke-color"] != theme["canvas"]["background"]
               ? 0.25
               : 0,
             "",
           );
-          pieces_layer.add(elpieces[p][i]);
+          pieces_layer.add(AppState.elpieces[p][i]);
         }
       }
 
       board_layer.add(background);
       // Add board hexes
       for (let gid = 0; gid < TOTAL_HEXES; gid++) {
-        board_layer.add(gid2hex[gid]);
-        pieces_layer.add(gid2piece[gid]);
-        interactive_layer.add(gid2high[gid]);
-        interactive_layer.add(gid2valid[gid]);
-        pieces_layer.add(gid2attack[gid]);
+        board_layer.add(AppState.gid2hex[gid]);
+        pieces_layer.add(AppState.gid2piece[gid]);
+        interactive_layer.add(AppState.gid2high[gid]);
+        interactive_layer.add(AppState.gid2valid[gid]);
+        pieces_layer.add(AppState.gid2attack[gid]);
       }
 
       pieces_layer.add(movelabel);
@@ -1218,7 +1275,7 @@ function boardInfo() {
       submit.disabled = true;
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
-      ready = true;
+      AppState.ready = true;
     })
     .catch((response) => {
       console.log(`BoardInfo error ${response.status}: ${response.statusText}`);
@@ -1232,7 +1289,7 @@ function boardSubmit() {
   submitText.innerHTML = "";
   loader.style.display = "inline-block";
 
-  apiFetch("/api/v1/manager/board", { id: id, slog: slog })
+  apiFetch("/api/v1/manager/board", { id: id, slog: AppState.slog })
     .then((response) => {
       if (response.ok) {
         return response.json();
@@ -1241,8 +1298,8 @@ function boardSubmit() {
     })
     .then((data) => {
       boardReset();
-      on_move = false;
-      ready = true;
+      AppState.on_move = false;
+      AppState.ready = true;
       submitText.innerHTML = "Submit";
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
