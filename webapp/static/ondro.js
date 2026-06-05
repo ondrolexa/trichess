@@ -9,26 +9,27 @@ const seat2name = {};
 const pid2seat = {};
 const pid2name = {};
 
-var slog = "";
-var server_slog = "";
-var game_slog = "";
-var game_moves = 0;
-var on_move = false;
-var view_pid = 0;
-var active_tween = { active: false, tween: null };
+let slog = "";
+let server_slog = "";
+let game_slog = "";
+let game_moves = 0;
+let on_move = false;
+let view_pid = 0;
 
-var elpieces = { 0: {}, 1: {}, 2: {} };
-var player_names = { 0: "", 1: "", 2: "" };
-var player_names_font = { 0: "", 1: "", 2: "" };
-var player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
-var movelabel_text = "";
-var movestage = -1;
-var target = -1;
-var current = -1;
-var ready = false;
-var targets = new Set();
-var promotions = new Set();
-var lastmove = { gid: -1, tgid: -1 };
+const active_tween = { active: false, tween: null };
+const elpieces = { 0: {}, 1: {}, 2: {} };
+const player_names = { 0: "", 1: "", 2: "" };
+const player_names_font = { 0: "", 1: "", 2: "" };
+const player_names_color = { 0: "#ffffff", 1: "#ffffff", 2: "#ffffff" };
+
+let movelabel_text = "";
+let movestage = -1;
+let target = -1;
+let current = -1;
+let ready = false;
+const targets = new Set();
+const promotions = new Set();
+const lastmove = { gid: -1, tgid: -1 };
 
 const slogtext = document.getElementById("log");
 const submit = document.getElementById("submitGame");
@@ -40,18 +41,22 @@ const backmove = document.getElementById("backMove");
 const forwardmove = document.getElementById("forwardMove");
 const modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
 const navbar = document.getElementById("header");
+const voteModals = {
+  draw: new bootstrap.Modal(document.getElementById("voteDrawDialog")),
+  resign: new bootstrap.Modal(document.getElementById("voteResignDialog")),
+};
 
 // to be improved
-var stageWidth = 20;
-var stageHeight = 17;
-var visual_shift = 20;
+let stageWidth = 20;
+let stageHeight = 17;
+let visual_shift = 20;
 
 // variuos settings
-var line_dash = [0.2, 0.1];
-var line_width = 0.04;
-var lastCenter = null;
-var lastDist = 0;
-var dragStopped = false;
+const line_dash = [0.2, 0.1];
+const line_width = 0.04;
+let lastCenter = null;
+let lastDist = 0;
+let dragStopped = false;
 
 const api_url = `${window.location.protocol}//${window.location.host}`;
 
@@ -60,34 +65,34 @@ const TOTAL_HEXES = 169;
 const MAX_ELIMINATED = 23;
 const HEX_SIZE = Math.sqrt(1 / 3);
 
+function buildHeaders() {
+  return new Headers({
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Authorization: access_token,
+  });
+}
+
 function apiFetch(path, body) {
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
   ready = false;
   return fetch(`${api_url}${path}`, {
     method: "POST",
-    headers: headers,
+    headers: buildHeaders(),
     body: JSON.stringify(body),
   });
 }
 
 function apiFetchGet(path) {
-  const headers = new Headers();
-  headers.append("Accept", "application/json");
-  headers.append("Content-Type", "application/json");
-  headers.append("Authorization", access_token);
   ready = false;
   return fetch(`${api_url}${path}`, {
     method: "GET",
-    headers: headers,
+    headers: buildHeaders(),
   });
 }
 
 // Konva objects and events
 
-var stage = new Konva.Stage({
+const stage = new Konva.Stage({
   container: "canvas",
   width: stageWidth,
   height: stageHeight,
@@ -113,17 +118,17 @@ const background = new Konva.Rect({
 
 stage.on("wheel", function (e) {
   e.evt.preventDefault();
-  var oldScale = stage.scaleX();
+  const oldScale = stage.scaleX();
 
-  var mousePointTo = {
+  const mousePointTo = {
     x: stage.getPointerPosition().x / oldScale - stage.x() / oldScale,
     y: stage.getPointerPosition().y / oldScale - stage.y() / oldScale,
   };
 
-  var newScale = e.evt.deltaY > 0 ? oldScale * 0.95 : oldScale / 0.95;
+  const newScale = e.evt.deltaY > 0 ? oldScale * 0.95 : oldScale / 0.95;
   stage.scale({ x: newScale, y: newScale });
 
-  var newPos = {
+  const newPos = {
     x: -(mousePointTo.x - stage.getPointerPosition().x / newScale) * newScale,
     y: -(mousePointTo.y - stage.getPointerPosition().y / newScale) * newScale,
   };
@@ -133,7 +138,7 @@ stage.on("wheel", function (e) {
 
 Konva.hitOnDragEnabled = true;
 function getDistance(p1, p2) {
-  return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+  return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
 }
 
 function getCenter(p1, p2) {
@@ -145,8 +150,8 @@ function getCenter(p1, p2) {
 
 stage.on("touchmove", function (e) {
   e.evt.preventDefault();
-  const touch1 = e.evt.touches[0];
-  const touch2 = e.evt.touches[1];
+  let touch1 = e.evt.touches[0];
+  let touch2 = e.evt.touches[1];
 
   // we need to restore dragging, if it was cancelled by multi-touch
   if (touch1 && !touch2 && !stage.isDragging() && dragStopped) {
@@ -161,13 +166,13 @@ stage.on("touchmove", function (e) {
       stage.stopDrag();
     }
 
-    const rect = stage.container().getBoundingClientRect();
+    let rect = stage.container().getBoundingClientRect();
 
-    const p1 = {
+    let p1 = {
       x: touch1.clientX - rect.left,
       y: touch1.clientY - rect.top,
     };
-    const p2 = {
+    let p2 = {
       x: touch2.clientX - rect.left,
       y: touch2.clientY - rect.top,
     };
@@ -176,27 +181,27 @@ stage.on("touchmove", function (e) {
       lastCenter = getCenter(p1, p2);
       return;
     }
-    const newCenter = getCenter(p1, p2);
+    let newCenter = getCenter(p1, p2);
 
-    const dist = getDistance(p1, p2);
+    let dist = getDistance(p1, p2);
 
     if (!lastDist) {
       lastDist = dist;
     }
 
     // local coordinates of center point
-    const pointTo = {
+    let pointTo = {
       x: (newCenter.x - stage.x()) / stage.scaleX(),
       y: (newCenter.y - stage.y()) / stage.scaleX(),
     };
 
-    const scale = stage.scaleX() * (dist / lastDist);
+    let scale = stage.scaleX() * (dist / lastDist);
 
     stage.scaleX(scale);
     stage.scaleY(scale);
 
     // calculate new position of the stage
-    const newPos = {
+    let newPos = {
       x: newCenter.x - pointTo.x * scale,
       y: newCenter.y - pointTo.y * scale,
     };
@@ -213,8 +218,8 @@ stage.on("touchend", function () {
   lastCenter = null;
 });
 
-var movelabel = new Konva.Shape({
-  x: -7.5,
+const movelabel = new Konva.Shape({
+  x: -7.7,
   y: 4,
   width: 3.5,
   height: 1,
@@ -226,13 +231,13 @@ var movelabel = new Konva.Shape({
     context.font = theme["canvas"]["font-family"];
     context.fillStyle = theme["canvas"]["info"];
     context.textAlign = "center";
-    var lines = movelabel_text.split("\n");
-    for (var i = 0; i < lines.length; i++)
+    const lines = movelabel_text.split("\n");
+    for (let i = 0; i < lines.length; i++)
       context.fillText(lines[i], 0, i * 10);
   },
 });
 
-var p0name = new Konva.Shape({
+const p0name = new Konva.Shape({
   x: 0,
   y: 7.4,
   width: 8,
@@ -249,7 +254,7 @@ var p0name = new Konva.Shape({
   },
 });
 
-var p0el1 = new Konva.Rect({
+const p0el1 = new Konva.Rect({
   x: 0,
   y: 7.7,
   width: 0,
@@ -264,7 +269,7 @@ var p0el1 = new Konva.Rect({
   },
 });
 
-var p0el2 = new Konva.Rect({
+const p0el2 = new Konva.Rect({
   x: 0,
   y: 7.7,
   width: 0,
@@ -279,7 +284,7 @@ var p0el2 = new Konva.Rect({
   },
 });
 
-var p1name = new Konva.Shape({
+const p1name = new Konva.Shape({
   x: -9.2,
   y: -6.9,
   width: 8,
@@ -296,7 +301,7 @@ var p1name = new Konva.Shape({
   },
 });
 
-var p1el2 = new Konva.Rect({
+const p1el2 = new Konva.Rect({
   x: -9.2,
   y: -7.8,
   width: 0,
@@ -311,7 +316,7 @@ var p1el2 = new Konva.Rect({
   },
 });
 
-var p1el0 = new Konva.Rect({
+const p1el0 = new Konva.Rect({
   x: -9.2,
   y: -7.8,
   width: 0,
@@ -326,7 +331,7 @@ var p1el0 = new Konva.Rect({
   },
 });
 
-var p2name = new Konva.Shape({
+const p2name = new Konva.Shape({
   x: 9.2,
   y: -6.9,
   width: 8,
@@ -343,7 +348,7 @@ var p2name = new Konva.Shape({
   },
 });
 
-var p2el0 = new Konva.Rect({
+const p2el0 = new Konva.Rect({
   x: 9.2,
   y: -7.8,
   width: 0,
@@ -358,7 +363,7 @@ var p2el0 = new Konva.Rect({
   },
 });
 
-var p2el1 = new Konva.Rect({
+const p2el1 = new Konva.Rect({
   x: 9.2,
   y: -7.8,
   width: 0,
@@ -386,7 +391,8 @@ const gameover_bg = new Konva.Rect({
   fill: theme["canvas"]["background"],
   listening: true,
 });
-var gameover_text = new Konva.Text({
+
+const gameover_text = new Konva.Text({
   x: -7,
   y: -2,
   text: "GAME OVER",
@@ -406,7 +412,7 @@ gameover.on("click tap", function (evt) {
   gameover.visible(false);
 });
 
-var qline = new Konva.Line({
+const qline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
   strokeWidth: line_width,
@@ -415,7 +421,7 @@ var qline = new Konva.Line({
   listening: false,
 });
 
-var rline = new Konva.Line({
+const rline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
   strokeWidth: line_width,
@@ -424,7 +430,7 @@ var rline = new Konva.Line({
   listening: false,
 });
 
-var sline = new Konva.Line({
+const sline = new Konva.Line({
   points: [],
   stroke: theme["board"]["hint_lines"],
   strokeWidth: line_width,
@@ -433,10 +439,10 @@ var sline = new Konva.Line({
   listening: false,
 });
 
-var board_layer = new Konva.Layer();
-var interactive_layer = new Konva.Layer();
-var pieces_layer = new Konva.Layer();
-var top_layer = new Konva.Layer();
+const board_layer = new Konva.Layer();
+const interactive_layer = new Konva.Layer();
+const pieces_layer = new Konva.Layer();
+const top_layer = new Konva.Layer();
 stage.add(board_layer);
 stage.add(interactive_layer);
 stage.add(pieces_layer);
@@ -445,10 +451,10 @@ stage.add(top_layer);
 // helpers
 
 function fitStageIntoDiv() {
-  const container = document.querySelector("#canvas");
-  const containerWidth = container.offsetWidth;
-  const containerHeight = container.offsetHeight;
-  const scale = Math.min(
+  let container = document.querySelector("#canvas");
+  let containerWidth = container.offsetWidth;
+  let containerHeight = container.offsetHeight;
+  let scale = Math.min(
     containerWidth / stageWidth,
     containerHeight / stageHeight,
   );
@@ -467,7 +473,7 @@ function fitStageIntoDiv() {
 function doOnOrientationChange() {
   switch (window.screen.orientation.type) {
     case "landscape-primary":
-      header.style.display = "none";
+      navbar.style.display = "none";
       stageWidth = 17;
       stageHeight = 20;
       visual_shift = 0;
@@ -475,21 +481,21 @@ function doOnOrientationChange() {
       window.scrollBy(0, 200);
       break;
     case "portrait-secondary":
-      header.style.display = "";
+      navbar.style.display = "";
       stageWidth = 20;
       stageHeight = 17;
       visual_shift = 20;
       fitStageIntoDiv();
       break;
     case "landscape-secondary":
-      header.style.display = "none";
+      navbar.style.display = "none";
       stageWidth = 17;
       stageHeight = 20;
       visual_shift = 0;
       fitStageIntoDiv();
       break;
     default:
-      header.style.display = "";
+      navbar.style.display = "";
       stageWidth = 20;
       stageHeight = 17;
       visual_shift = 20;
@@ -503,7 +509,7 @@ function createHexPatch(gid, xy, color, stroke, qr) {
     x: xy[0],
     y: xy[1],
     sides: 6,
-    radius: Math.sqrt(1 / 3),
+    radius: HEX_SIZE,
     fill: color,
     stroke: stroke,
     strokeWidth: 0.05,
@@ -518,7 +524,7 @@ function createHexHigh(xy) {
     x: xy[0],
     y: xy[1],
     sides: 6,
-    radius: Math.sqrt(1 / 3) - 0.075,
+    radius: HEX_SIZE - 0.075,
     fillEnabled: false,
     stroke: "black",
     strokeWidth: 0.08,
@@ -623,7 +629,7 @@ function promotePiece(label) {
 }
 
 function cleanHigh() {
-  for (let gid = 0; gid < 169; gid++) {
+  for (let gid = 0; gid < TOTAL_HEXES; gid++) {
     gid2high[gid].visible(false);
     gid2valid[gid].visible(false);
     gid2attack[gid].visible(false);
@@ -678,15 +684,13 @@ function cleanMove() {
 }
 
 function drawPieces(pieces) {
-  for (let gid = 0; gid <= 168; gid++) {
+  for (let gid = 0; gid < TOTAL_HEXES; gid++) {
     gid2piece[gid].data("");
   }
-  for (let pid in pieces) {
-    for (let pcs in pieces[pid]) {
-      gid2piece[pieces[pid][pcs].gid].data(
-        pieces_paths["pieces"][pieces[pid][pcs].piece],
-      );
-      gid2piece[pieces[pid][pcs].gid].fill(theme["pieces"]["color"][pid]);
+  for (let [pid, piecesForPid] of Object.entries(pieces)) {
+    for (let pcs of piecesForPid) {
+      gid2piece[pcs.gid].data(pieces_paths["pieces"][pcs.piece]);
+      gid2piece[pcs.gid].fill(theme["pieces"]["color"][pid]);
     }
   }
 }
@@ -698,10 +702,10 @@ function updateStats(
   pieces_value,
   move_number,
 ) {
-  for (var p = 0; p < 3; p++) {
+  for (let p = 0; p < 3; p++) {
     player_names[p] =
       `${seat2name[p]} (${pieces_value[seat2pid[p]]}/${eliminated_value[seat2pid[p]]})`;
-    el = eliminated[seat2pid[p]];
+    let el = eliminated[seat2pid[p]];
     for (let pcs in el) {
       elpieces[p][pcs].data(pieces_paths["pieces"][el[pcs]]);
     }
@@ -732,19 +736,21 @@ function updateStats(
   p2el1.offsetX(eliminations[seat2pid[2]][seat2pid[1]]);
   p2el1.fill(theme["pieces"]["color"][seat2pid[1]]);
 
-  slogtext.innerHTML = slog;
+  slogtext.textContent = slog;
   movelabel_text = `Move\n${move_number}/${game_moves}`;
 }
 
 function setCoordHints(gid) {
   let q = gid2hex[gid].getAttr("q");
   let r = gid2hex[gid].getAttr("r");
-  const gid_l11 = pos2gid[[Math.max(-7 - r, -7), r]];
-  const gid_l12 = pos2gid[[Math.min(7 - r, 7), r]];
-  const gid_l21 = pos2gid[[q, Math.max(-7 - q, -7)]];
-  const gid_l22 = pos2gid[[q, Math.min(7 - q, 7)]];
-  const gid_l31 = pos2gid[[q + Math.min(7 - q, r + 7), r - Math.min(7 - q, r + 7)]];
-  const gid_l32 = pos2gid[[q - Math.min(q + 7, 7 - r), r + Math.min(q + 7, 7 - r)]];
+  let gid_l11 = pos2gid[[Math.max(-7 - r, -7), r]];
+  let gid_l12 = pos2gid[[Math.min(7 - r, 7), r]];
+  let gid_l21 = pos2gid[[q, Math.max(-7 - q, -7)]];
+  let gid_l22 = pos2gid[[q, Math.min(7 - q, 7)]];
+  let gid_l31 =
+    pos2gid[[q + Math.min(7 - q, r + 7), r - Math.min(7 - q, r + 7)]];
+  let gid_l32 =
+    pos2gid[[q - Math.min(q + 7, 7 - r), r + Math.min(q + 7, 7 - r)]];
   qline.points([
     gid2hex[gid_l11].x(),
     gid2hex[gid_l11].y(),
@@ -781,17 +787,17 @@ function validMoves(gid) {
     .then((data) => {
       gid2high[gid].visible(true);
       gid2high[gid].stroke(theme["board"]["selection"]);
-      for (let i in data.targets) {
-        let tgid = data.targets[i].tgid;
+      for (let target of data.targets) {
+        let tgid = target.tgid;
         targets.add(tgid);
-        if (data.targets[i].kind == "attack") {
+        if (target.kind == "attack") {
           gid2attack[tgid].stroke(theme["board"]["attack_move"]);
           gid2attack[tgid].visible(true);
         } else {
           gid2valid[tgid].stroke(theme["board"]["valid_move"]);
           gid2valid[tgid].visible(true);
         }
-        if (data.targets[i].promotion) {
+        if (target.promotion) {
           promotions.add(tgid);
         }
       }
@@ -799,10 +805,10 @@ function validMoves(gid) {
       ready = true;
     })
     .catch((response) => {
-      console.log(
+      console.error(
         `ValidMoves error ${response.status}: ${response.statusText}`,
       );
-      window.location.reload();
+      // window.location.reload();
     });
 }
 
@@ -833,8 +839,10 @@ function makeMove(gid, tgid, new_piece = "") {
       cleanMove();
     })
     .catch((response) => {
-      console.log(`MakeMove error ${response.status}: ${response.statusText}`);
-      window.location.reload();
+      console.error(
+        `MakeMove error ${response.status}: ${response.statusText}`,
+      );
+      // window.location.reload();
     });
 }
 
@@ -861,8 +869,10 @@ function voteDraw(vote) {
       ready = true;
     })
     .catch((response) => {
-      console.log(`VoteDraw error ${response.status}: ${response.statusText}`);
-      window.location.reload();
+      console.error(
+        `VoteDraw error ${response.status}: ${response.statusText}`,
+      );
+      // window.location.reload();
     });
 }
 
@@ -889,30 +899,29 @@ function voteResign(vote) {
       ready = true;
     })
     .catch((response) => {
-      console.log(
+      console.error(
         `VoteResign error ${response.status}: ${response.statusText}`,
       );
-      window.location.reload();
+      // window.location.reload();
     });
 }
 
 function showVoteModal(kind, vote_results) {
-  const modalId = kind === "draw" ? "voteDrawDialog" : "voteResignDialog";
-  const prefix = kind === "draw" ? "voteDraw" : "voteResign";
-  const modal = new bootstrap.Modal(document.getElementById(modalId));
-  const initiated = document.getElementById(prefix + "Initiated");
-  const acceptPlayers = document.getElementById(prefix + "AcceptPlayers");
-  const declinePlayers = document.getElementById(prefix + "DeclinePlayers");
-  const accepting = [];
-  const declining = [];
+  let modalId = kind === "draw" ? "voteDrawDialog" : "voteResignDialog";
+  let prefix = kind === "draw" ? "voteDraw" : "voteResign";
+  let initiated = document.getElementById(prefix + "Initiated");
+  let acceptPlayers = document.getElementById(prefix + "AcceptPlayers");
+  let declinePlayers = document.getElementById(prefix + "DeclinePlayers");
+  let accepting = [];
+  let declining = [];
   for (let p = 0; p < 3; p++) {
     if (vote_results[seat2pid[p]] === "A") accepting.push(seat2name[p]);
     else if (vote_results[seat2pid[p]] === "D") declining.push(seat2name[p]);
   }
-  initiated.innerHTML = seat2name[3 - vote_results["n_voted"]];
-  acceptPlayers.innerHTML = accepting.join(" ");
-  declinePlayers.innerHTML = declining.join(" ");
-  modal.show();
+  initiated.textContent = seat2name[3 - vote_results["n_voted"]] ?? "Unknown";
+  acceptPlayers.textContent = accepting.join(" ");
+  declinePlayers.textContent = declining.join(" ");
+  voteModals[kind].show();
 }
 
 function gameInfo(init = false, redraw = false) {
@@ -931,39 +940,15 @@ function gameInfo(init = false, redraw = false) {
         drawPieces(data.pieces);
       }
 
-      player_names_font[0] =
-        "400 10px " + theme["canvas"]["font-family"] + ", sans-serif";
-      player_names_color[0] = theme["canvas"]["name"];
-      player_names_font[1] =
-        "400 10px " + theme["canvas"]["font-family"] + ", sans-serif";
-      player_names_color[1] = theme["canvas"]["name"];
-      player_names_font[2] =
-        "400 10px " + theme["canvas"]["font-family"] + ", sans-serif";
-      player_names_color[2] = theme["canvas"]["name"];
-      if (pid2seat[data.onmove] == 0) {
-        player_names_font[0] =
-          "900 10px " + theme["canvas"]["font-family"] + ", sans-serif";
-        if (data.in_chess) {
-          player_names_color[0] = theme["canvas"]["name_inchess"];
-        } else {
-          player_names_color[0] = theme["canvas"]["name_onmove"];
-        }
-      } else if (pid2seat[data.onmove] == 1) {
-        player_names_font[1] =
-          "900 10px " + theme["canvas"]["font-family"] + ", sans-serif";
-        if (data.in_chess) {
-          player_names_color[1] = theme["canvas"]["name_inchess"];
-        } else {
-          player_names_color[1] = theme["canvas"]["name_onmove"];
-        }
-      } else {
-        player_names_font[2] =
-          "900 10px " + theme["canvas"]["font-family"] + ", sans-serif";
-        if (data.in_chess) {
-          player_names_color[2] = theme["canvas"]["name_inchess"];
-        } else {
-          player_names_color[2] = theme["canvas"]["name_onmove"];
-        }
+      const fontBase = `${theme["canvas"]["font-family"]}, sans-serif`;
+      for (let s = 0; s < 3; s++) {
+        const isOnMove = pid2seat[data.onmove] === s;
+        player_names_font[s] = `${isOnMove ? 900 : 400} 10px ${fontBase}`;
+        player_names_color[s] = isOnMove
+          ? data.in_chess
+            ? theme["canvas"]["name_inchess"]
+            : theme["canvas"]["name_onmove"]
+          : theme["canvas"]["name"];
       }
 
       if (active_tween["active"] == true) {
@@ -1046,8 +1031,8 @@ function gameInfo(init = false, redraw = false) {
         active_tween["active"] = true;
         gid2high[data.king_pos].visible(true);
         gid2high[data.king_pos].stroke(theme["board"]["hex_inchess"]);
-        for (var player in data.chess_by) {
-          for (var pcs in data.chess_by[player]) {
+        for (let player in data.chess_by) {
+          for (let pcs in data.chess_by[player]) {
             gid2high[data.chess_by[player][pcs].gid].visible(true);
             gid2high[data.chess_by[player][pcs].gid].stroke(
               theme["board"]["hex_inchess"],
@@ -1057,7 +1042,7 @@ function gameInfo(init = false, redraw = false) {
       }
       // Show voting results
       if (data.vote_results != null) {
-        movelabel_text = `${data.vote_results["kind"]}\nvoting`;
+        movelabel_text = `Move ${data.move_number}\n${data.vote_results["kind"]} voting`;
         for (let p = 0; p < 3; p++) {
           player_names[p] =
             `${seat2name[p]} (${data.vote_results[seat2pid[p]]})`;
@@ -1094,14 +1079,16 @@ function gameInfo(init = false, redraw = false) {
       } else {
         gameover.visible(false);
         board_layer.on("click tap", function (evt) {
-          const shape = evt.target;
+          let shape = evt.target;
           manageMove(shape.id());
         });
       }
     })
     .catch((response) => {
-      console.log(`GameInfo error ${response.status}: ${response.statusText}`);
-      window.location.reload();
+      console.error(
+        `GameInfo error ${response.status}: ${response.statusText}`,
+      );
+      // window.location.reload();
     });
 }
 
@@ -1115,7 +1102,7 @@ function boardInfo() {
     })
     .then((data) => {
       // Create seats mappings
-      var seats = [data.player_0, data.player_1, data.player_2];
+      let seats = [data.player_0, data.player_1, data.player_2];
       view_pid = data.view_pid;
       for (let p = 0; p < 3; p++) {
         seat2pid[p] = (p + view_pid) % 3;
@@ -1132,11 +1119,11 @@ function boardInfo() {
       let gid = 0;
       for (let r = -7; r <= 7; r++) {
         for (let q = -7; q <= 7; q++) {
-          const s = -q - r;
+          let s = -q - r;
           if (s >= -7 && s <= 7) {
-            const x = q + 0.5 * r;
-            const y = (r * Math.sqrt(3)) / 2;
-            const colorid = (((2 * q + r) % 3) + 3) % 3;
+            let x = q + 0.5 * r;
+            let y = (r * Math.sqrt(3)) / 2;
+            let colorid = (((2 * q + r) % 3) + 3) % 3;
             pos2gid[[q, r]] = gid;
             gid2hex[gid] = createHexPatch(
               gid,
@@ -1181,7 +1168,7 @@ function boardInfo() {
         ],
       };
       for (let i = 0; i < 23; i++) {
-        for (var p = 0; p < 3; p++) {
+        for (let p = 0; p < 3; p++) {
           elpieces[p][i] = createHexLabel(
             0,
             [q[p][i] + 0.5 * r[p][i] - 0.5, (r[p][i] * Math.sqrt(3)) / 2],
@@ -1197,7 +1184,7 @@ function boardInfo() {
 
       board_layer.add(background);
       // Add board hexes
-      for (let gid = 0; gid <= 168; gid++) {
+      for (let gid = 0; gid < TOTAL_HEXES; gid++) {
         board_layer.add(gid2hex[gid]);
         pieces_layer.add(gid2piece[gid]);
         interactive_layer.add(gid2high[gid]);
@@ -1235,7 +1222,7 @@ function boardInfo() {
     })
     .catch((response) => {
       console.log(`BoardInfo error ${response.status}: ${response.statusText}`);
-      window.location.reload();
+      // window.location.reload();
     });
 }
 
@@ -1265,7 +1252,7 @@ function boardSubmit() {
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
       alert(`BoardSubmit error ${response.status}: ${response.statusText}`);
-      window.location.reload();
+      // window.location.reload();
     });
 }
 

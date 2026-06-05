@@ -113,10 +113,13 @@ class Voting:
         Returns None when no vote is in progress.
         """
         if self.active():
-            res = {"kind": self.kind, "n_voted": self.n_voted}
-            res[0] = self.log[0]
-            res[1] = self.log[1]
-            res[2] = self.log[2]
+            res = {
+                "kind": self.kind,
+                "n_voted": self.n_voted,
+                0: self.log[0],
+                1: self.log[1],
+                2: self.log[2],
+            }
             return res
 
     def finished(self):
