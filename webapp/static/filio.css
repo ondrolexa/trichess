@@ -1,30 +1,47 @@
-.button {
-    background-color: #919595;
-    border: 1;
-    color: black;
-    text-align: center;
-    font-size: 14px;
-    cursor: pointer;
-    border-radius: 8px;
-    width: 60px;
-    height: 40px;
-    min-width: 100px;
+.btnwid {
+    width: 100% !important;
+    margin-top: 5px;
+    margin-right: 5px;
+}
+.btnbig {
+    width: 100% !important;
+    margin-top: 5px;
+    margin-right: 5px;
 }
 .divbutt {
-    width: 12%;
-    display: flex;
     margin-top: 5px;
-    margin-bottom: 15px;
-    min-width: 75px;
-    max-width: 1200px;
+    margin-bottom: 10px;
 }
-#canvas {
-    width: 88%;
-    min-width: 200px;
-    max-width: 4320px;
-    min-height: 160px;
-    max-height: 2160px;
-    /*border-style: solid;*/
+@media (orientation: landscape) and (min-width: 850px) {
+    .divbutt {
+        width: 12%;
+    }
+    #canvas {
+        width: 88%;
+    }
+    .btnbig {
+        height: 11% !important;
+    }
+    .btnwid {
+        height: 11% !important;
+    }
+}
+@media (orientation: portrait) and (min-width: 350px) {
+    .divbutt {
+        width: 315px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    #canvas {
+        width: 100%;
+    }
+    .btnbig {
+        width: 150px !important;
+    }
+    .btnwid {
+        width: 100px !important;
+    }
 }
 .divmain {
     display: flex;

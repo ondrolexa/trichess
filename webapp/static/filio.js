@@ -1386,6 +1386,8 @@ function Click_Board(event) {
 // Main ////////////////////////////////////////////////////////////////////////////////
 if (isMobile()) {
   document.getElementById("baseFooter").classList.remove("footer");
+  window.scrollTo({  top: 55,  behavior: "smooth",});
+
 }
 var B = new board();
 var F = new fetchData();
