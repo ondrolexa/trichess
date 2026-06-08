@@ -18,6 +18,7 @@
     }
     #canvas {
         width: 88%;
+        /*background: yellow;*/
     }
     .btnbig {
         height: 11% !important;

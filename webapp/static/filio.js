@@ -1,21 +1,21 @@
 const canvas0 = document.getElementById("canvas");
 canvas0.addEventListener("mouseclick", Click_Board);
-const canW = canvas0.width;
-const canH = canvas0.height;
+let portrait = true
+let r = 82
+let boardXoffset = -411;
+let piece_size = 15;
+let mame_size = "150px";
+let info_size = "100px"; //r.toString()+"px";
+let canW = 0;
+let canH = 0;
+const boardYoffset = 8;
 const ctx0 = canvas0.getContext("2d");
 ctx0.lineCap = "round";
-
 const url = `${window.location.protocol}//${window.location.host}`;
-const r = 94; // radius
-const piece_size = 15;
 const bpiece_lineWidth = 0.2;
 const epiece_lineWidth = 0.3;
 const lineWidth = 12;
 const lineStroke = 20;
-const boardXoffset = 450;
-const boardYoffset = 8;
-const mame_size = "150px";
-const info_size = "100px"; //r.toString()+"px";
 const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"));
 // todo vsetky konstanty vytiahnut sem
 let SemaforGreen = true;
@@ -317,7 +317,7 @@ class iinfo {
       //todo
       for (let i = 0; i < 7; i++) {
         this.lines[i] = new llines(
-          "00",
+          '',
           ipos_x,
           ipos_y + line_high * i * ivert,
           ialign,
@@ -385,7 +385,6 @@ class iinfo {
     //ctx0.beginPath()
     //ctx0.fillStyle = "balck"
     for (let i = 0; i < 7; i++) {
-      this.lines[i].text = "";
       if (a == 1 && this.vert == 1) {
         ctx0.clearRect(
           0,
@@ -442,16 +441,26 @@ class iinfos {
     this.panel = [];
     this.players = [];
     this.index = [];
-    this.panel[0] = new iinfo(0, canW - dist_rl, canH - 50, "right", -1);
-    this.panel[1] = new iinfo(1, dist_rl, 0, "left", 1);
-    this.panel[2] = new iinfo(2, canW - dist_rl, 0, "right", 1);
-    this.panel[3] = new iinfo(3, dist_rl, canH - 50, "left", -1);
   }
   set(idata) {
     this.index = rotateArray([0, 1, 2], B.view_player); //todo
+
+    if (portrait) {
+      var dist_rl = 30;
+      this.panel[0] = new iinfo(0, canW/2 , canH/2-50 , "left", 1);
+      this.panel[1] = new iinfo(1, dist_rl, 2800, "left", 1);
+      this.panel[2] = new iinfo(2, canW - dist_rl, 2800, "right", 1);
+      this.panel[3] = new iinfo(3, dist_rl, 2500, "left", -1);
+    }
+    else {
+      var dist_rl = 150;
+      this.panel[0] = new iinfo(0, canW - dist_rl, canH - 50, "right", -1);
+      this.panel[1] = new iinfo(1, dist_rl, 0, "left", 1);
+      this.panel[2] = new iinfo(2, canW - dist_rl, 0, "right", 1);
+      this.panel[3] = new iinfo(3, dist_rl, canH - 50, "left", -1);
+    }
     this.panel[3].lines[4].text = "# " + ID.toString();
-    this.panel[3].lines[3].text =
-      "Move: " + B.move_number_org.toString() + "/" + B.move_number.toString();
+    this.panel[3].lines[3].text = "Move: " + B.move_number_org.toString() + "/" + B.move_number.toString();
     if (idata.vote_results != null) {
       let verb = " offers ";
       let j = 0;
@@ -464,25 +473,19 @@ class iinfos {
       let index2 = rotateArray([0, 1, 2], idata.onmove - vc); //todo
       for (let i = 0; i < 3; i++) {
         if (idata.vote_results[index2[i]] == "A") {
-          this.panel[3].lines[2 - j].text =
-            this.players[index2[i]].substr(0, 12) +
-            verb +
-            idata.vote_results.kind +
-            ".";
+          this.panel[3].lines[2 - j].text = this.players[index2[i]].substr(0, 12)+verb+idata.vote_results.kind+".";
           verb = " accepts ";
           j++;
         } else if (idata.vote_results[index2[i]] == "D") {
-          this.panel[3].lines[2 - j].text =
-            this.players[index2[i]] +
-            " declines " +
-            idata.vote_results.kind +
-            ".";
+          this.panel[3].lines[2 - j].text = this.players[index2[i]]+" declines "+idata.vote_results.kind+".";
           j++;
         } else {
-          //this.panel[3].lines[4-i].text = this .players[index2[i]]+' XXXX'
         }
       }
     } else {
+      for (let i = 0; i < 3; i++) {
+        this.panel[3].lines[i].text = ""
+      }
       // power lines
       this.power_lines(idata);
     }
@@ -534,28 +537,30 @@ class iinfos {
     ctx0.restore();
   }
   power_lines(idata) {
-    let high = 90;
-    let x = this.panel[3].x + 5;
-    let y = this.panel[3].y + 50;
-    let p = 0; //power
-    for (let i = 0; i < 3; i++) {
-      //draw hex
-      y = y - high;
-      p = idata.pieces_value[this.index[i]];
-      this.daw_line(
-        x,
-        y,
-        (1200 / 52) * p,
-        high,
-        theme["pieces"]["color"][this.index[i] % 3],
-      );
+    if (idata.vote_results == null) {
+      let high = r*0.8;
+      let x = this.panel[3].x + 5;
+      let y = this.panel[3].y ;
+      let p = 0; //power
+      for (let i = 0; i < 3; i++) {
+        //draw hex
+        y = y - high;
+        p = idata.pieces_value[this.index[i]];
+        this.daw_line(
+          x,
+          y,
+          (r/4) * p,
+          high,
+          theme["pieces"]["color"][this.index[i] % 3],
+        );
+      }
+      //this.panel[3].lines[2].pos_y = y - 20
+      this.panel[3].lines[2].text = "Power:";
     }
-    //this.panel[3].lines[2].pos_y = y - 20
-    this.panel[3].lines[2].text = "Power:";
   }
   elim_lines(idata) {
-    let high = 35;
-    let step = 23;
+    let high = r/4;
+    let step = r/7;
     let al = -1;
     for (let i = 0; i < 3; i++) {
       if (this.panel[i].align == "left") {
@@ -590,9 +595,14 @@ class iinfos {
     }
   }
   clear() {
-    for (let i = 0; i < 4; i++) {
-      //draw hex tile
-      this.panel[i].clear();
+    if (portrait) {
+        ctx0.clearRect(0,canH/2,canW,canH/2)
+    }
+    else {
+      for (let i = 0; i < 4; i++) {
+        //draw hex tile
+        this.panel[i].clear();
+      }
     }
   }
   getVoteHist() {
@@ -853,7 +863,7 @@ class board {
       this.last_move_from = jdata.last_move.gid;
       this.last_move_to = jdata.last_move.tgid;
     }
-    if (this.move_number_org == -1) {
+    if (this.move_number_org == -1){
       this.move_number_org = jdata.move_number; //this.slog.length/4//jdata.move_number;
     }
     if (this.move_number_max == -1) {
@@ -960,10 +970,8 @@ class board {
     for (let i = 0; i < 169; i++) {
       if (this.hexs[i].show_flag) {
         this.hexs[i].draw();
-        //this.hexs[i].lumi = 0
       }
     }
-    this.draw_border();
   }
 
   draw_pieces() {
@@ -1159,9 +1167,11 @@ function Step_3_setelim_board_and_draw(idata) {
   B.set(idata);
   B.draw_tile();
   B.draw_pieces();
-  II.clear();
   II.set(idata);
+  II.clear();
   II.write();
+  II.power_lines(idata);
+  II.elim_lines(idata);
   button_control();
   //setTimeout(function (){
   if (
@@ -1336,7 +1346,7 @@ function Click_Rotate() {
   );
 }
 function Click_Board(event) {
-  function getMouesPosition(e) {
+function getMouesPosition(e) {
     var mouseX = ((e.offsetX * canvas0.width) / canvas0.clientWidth) | 0;
     var mouseY = ((e.offsetY * canvas0.height) / canvas0.clientHeight) | 0;
     return { x: mouseX, y: mouseY };
@@ -1383,16 +1393,62 @@ function Click_Board(event) {
     SemaforGreen = true;
   }
 }
-// Main ////////////////////////////////////////////////////////////////////////////////
-if (isMobile()) {
-  document.getElementById("baseFooter").classList.remove("footer");
-  window.scrollTo({  top: 55,  behavior: "smooth",});
+function resizee_init () {
+if (window.innerWidth > window.innerHeight) {
+  canvas0.width = 4320
+  canvas0.height = 2180
+  portrait = false
+  r = 94
+  boardXoffset = 450
+  piece_size = 15;
+  mame_size = "150px";
+  info_size = "100px"; //r.toString()+"px";
 
+  }
+else {
+  canvas0.width = 2160
+  canvas0.height = 3800
+  portrait = true
+  r = 82
+  boardXoffset = -411;
+  piece_size = 13;
+  mame_size = "130px";
+  info_size = "80px"; //r.toString()+"px";
+  }
+canW = canvas0.width;
+canH = canvas0.height;
+if (isMobile()) {
+    document.getElementById("baseFooter").classList.remove("footer");
+    window.scrollTo({  top: 50,  behavior: "smooth",});
+  }
 }
+function resizee_refresh () {
+  resizee_init ()
+  B.init();
+  let slog = B.slog.substr(0, B.slog_pointer * 4);
+  F.fetchPOST(
+    url + "/api/v1/game/info",
+    { slog: slog, view_pid: B.view_player },
+    Step_3_setelim_board_and_draw,
+  );
+}
+
+// Main ////////////////////////////////////////////////////////////////////////////////
 var B = new board();
 var F = new fetchData();
 var II = new iinfos();
 var SS = new ssel();
+resizee_init ()
 B.init();
 B.draw_tile();
 Step_1_settoken();
+
+window.addEventListener('orientationchange', function() {
+    // After orientationchange, add a one-time resize event
+    var afterOrientationChange = function() {
+        resizee_refresh()
+        window.removeEventListener('resize', afterOrientationChange);
+    };
+    window.addEventListener('resize', afterOrientationChange);
+});
+
