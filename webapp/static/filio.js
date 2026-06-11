@@ -3,12 +3,13 @@ canvas0.addEventListener("mouseclick", Click_Board);
 let portrait = true
 let r = 82
 let boardXoffset = -411;
+let boardYoffset = 8;
 let piece_size = 15;
 let mame_size = "150px";
 let info_size = "100px"; //r.toString()+"px";
 let canW = 0;
 let canH = 0;
-const boardYoffset = 8;
+
 const ctx0 = canvas0.getContext("2d");
 ctx0.lineCap = "round";
 const url = `${window.location.protocol}//${window.location.host}`;
@@ -315,11 +316,17 @@ class iinfo {
     // info block
     if (iinfo_id == 3) {
       //todo
+      let x_corr=0 //correction
+      let y_corr=0 //correction
       for (let i = 0; i < 7; i++) {
+        if (portrait && i>2) {
+          x_corr=canW/2+500
+          y_corr=line_high*2
+        }
         this.lines[i] = new llines(
           '',
-          ipos_x,
-          ipos_y + line_high * i * ivert,
+          ipos_x+x_corr,
+          ipos_y + line_high * i * ivert+y_corr,
           ialign,
           line_len,
           info_size + " " + theme["canvas"]["font-family"],
@@ -350,14 +357,21 @@ class iinfo {
         10,
         theme["pieces"]["stroke-color"],
       );
-      // elimited
+      // eliminated
       var ofs =
         inf_ofs +
         (40 + Number(mame_size.substring(0, mame_size.length - 2))) * ivert;
       if (ivert == 1) {
         ofs = ofs - 70;
       } //todo
-      for (let i = 2; i < 7; i++) {
+      let line_num = 0
+      if (portrait) {
+        line_num = 8
+      }
+      else {
+        line_num = 7
+      }
+      for (let i = 2; i < line_num; i++) {
         line_len = line_len - 18;
         this.lines[i] = new llines(
           "",
@@ -447,10 +461,10 @@ class iinfos {
 
     if (portrait) {
       var dist_rl = 30;
-      this.panel[0] = new iinfo(0, canW/2 , canH/2-50 , "left", 1);
-      this.panel[1] = new iinfo(1, dist_rl, 2800, "left", 1);
-      this.panel[2] = new iinfo(2, canW - dist_rl, 2800, "right", 1);
-      this.panel[3] = new iinfo(3, dist_rl, 2500, "left", -1);
+      this.panel[0] = new iinfo(0, canW/2-200 , 2400 , "left", 1);
+      this.panel[1] = new iinfo(1, 0, 2400, "left", 1);
+      this.panel[2] = new iinfo(2, canW, 2400, "right", 1);
+      this.panel[3] = new iinfo(3, 0, 320, "left", -1);
     }
     else {
       var dist_rl = 150;
@@ -538,9 +552,9 @@ class iinfos {
   }
   power_lines(idata) {
     if (idata.vote_results == null) {
-      let high = r*0.8;
-      let x = this.panel[3].x + 5;
-      let y = this.panel[3].y ;
+      let high = r*0.7;
+      let x = this.panel[3].lines[0].pos_x
+      let y = this.panel[3].lines[0].pos_y
       let p = 0; //power
       for (let i = 0; i < 3; i++) {
         //draw hex
@@ -596,7 +610,8 @@ class iinfos {
   }
   clear() {
     if (portrait) {
-        ctx0.clearRect(0,canH/2,canW,canH/2)
+      ctx0.clearRect(0,0,canW,320)
+        ctx0.clearRect(0,2400,canW,canH/2)
     }
     else {
       for (let i = 0; i < 4; i++) {
@@ -980,12 +995,12 @@ class board {
       this.hexs[this.last_move_from].draw_hex(
         lineWidth,
         theme["board"]["last_move"],
-        1,
+        0.91,
       );
       this.hexs[this.last_move_to].draw_hex(
         lineWidth,
         theme["board"]["last_move"],
-        1,
+        0.91,
       );
     }
     for (let i = 0; i < 169; i++) {
@@ -1072,6 +1087,9 @@ class butt {
 }
 //----------------------------------------------------
 function elim2array(idata) {
+  if (idata.length ==0) {
+    return
+  }
   const pcs_map1 = { "": "", P: "♟", N: "♞", B: "♝", R: "♜", Q: "♛", K: "♚" };
   const pcs_map2 = {
     "": "",
@@ -1091,7 +1109,12 @@ function elim2array(idata) {
     .reverse()
     .join("")
     .match(/(.)\1*/g);
-  s = "";
+  if (portrait && t[0].length > 4) {  //max 4 pawns one in line -> insert line
+    t.unshift(t[0].substring(0,4))
+    t[1] = t[1].substring(4)
+  }
+
+  //s = "";
   for (i in t) {
     t[i] = t[i].replaceAll(t[i].charAt(0), pcs_map2[t[i].charAt(0)]);
   }
@@ -1400,6 +1423,7 @@ if (window.innerWidth > window.innerHeight) {
   portrait = false
   r = 94
   boardXoffset = 450
+  boardYoffset = 8;
   piece_size = 15;
   mame_size = "150px";
   info_size = "100px"; //r.toString()+"px";
@@ -1407,11 +1431,12 @@ if (window.innerWidth > window.innerHeight) {
   }
 else {
   canvas0.width = 2160
-  canvas0.height = 3800
+  canvas0.height = 3400
   portrait = true
-  r = 82
-  boardXoffset = -411;
-  piece_size = 13;
+  r = 83
+  boardXoffset = -429;
+  boardYoffset = 450;
+  piece_size = 12;
   mame_size = "130px";
   info_size = "80px"; //r.toString()+"px";
   }

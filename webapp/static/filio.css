@@ -36,6 +36,7 @@
     }
     #canvas {
         width: 100%;
+        /*background: green*/
     }
     .btnbig {
         width: 150px !important;
