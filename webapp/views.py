@@ -72,7 +72,7 @@ def add_onmove(games):
         moves = [
             slog[i : i + 4]
             for i in range(0, len(slog), 4)
-            if slog[i] not in ["S", "R", "r", "s"]
+            if slog[i] not in ["S", "R"]
         ]
         game.onmove = len(moves) % 3
 

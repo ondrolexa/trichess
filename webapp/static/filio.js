@@ -610,7 +610,7 @@ class iinfos {
   }
   clear() {
     if (portrait) {
-      ctx0.clearRect(0,0,canW,320)
+      ctx0.clearRect(0,0,canW,400)
         ctx0.clearRect(0,2400,canW,canH/2)
     }
     else {
@@ -1431,14 +1431,14 @@ if (window.innerWidth > window.innerHeight) {
   }
 else {
   canvas0.width = 2160
-  canvas0.height = 3400
+  canvas0.height = 3350
   portrait = true
   r = 83
   boardXoffset = -429;
-  boardYoffset = 450;
+  boardYoffset = 400;
   piece_size = 12;
   mame_size = "130px";
-  info_size = "80px"; //r.toString()+"px";
+  info_size = "100px"; //r.toString()+"px";
   }
 canW = canvas0.width;
 canH = canvas0.height;
