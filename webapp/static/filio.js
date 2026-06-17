@@ -15,9 +15,11 @@ ctx0.lineCap = "round";
 const url = `${window.location.protocol}//${window.location.host}`;
 const bpiece_lineWidth = 0.2;
 const epiece_lineWidth = 0.3;
-const lineWidth = 12;
+const lineWidth = 18  ;
 const lineStroke = 20;
 const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"));
+const modal_go = new bootstrap.Modal(document.getElementById("gameOver"));
+const modalDraw = new bootstrap.Modal(document.getElementById("voteDialog"));
 // todo vsetky konstanty vytiahnut sem
 let SemaforGreen = true;
 let SemaforWait = false;
@@ -318,9 +320,9 @@ class iinfo {
       //todo
       let x_corr=0 //correction
       let y_corr=0 //correction
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 8; i++) {
         if (portrait && i>2) {
-          x_corr=canW/2+500
+          x_corr=canW/2+300
           y_corr=line_high*2
         }
         this.lines[i] = new llines(
@@ -439,11 +441,15 @@ class iinfo {
     for (let i = 0; i < 2; i++) {
       this.lines[i].write();
     }
-    for (let i = 2; i < 7; i++) {
+    let row_cnt = 7
+    if (portrait) {
+      row_cnt = 8
+    }
+    for (let i = 2; i < row_cnt; i++) {
       if (this.info_id != 3) {
         this.lines[i].draw();
-      } else {
-        this.lines[i].write();
+      } else { // info panel 3 power lines...
+         this.lines[i].write();
       }
     }
   }
@@ -461,9 +467,9 @@ class iinfos {
 
     if (portrait) {
       var dist_rl = 30;
-      this.panel[0] = new iinfo(0, canW/2-200 , 2400 , "left", 1);
-      this.panel[1] = new iinfo(1, 0, 2400, "left", 1);
-      this.panel[2] = new iinfo(2, canW, 2400, "right", 1);
+      this.panel[0] = new iinfo(0, canW/3 , 2270 , "left", 1);
+      this.panel[1] = new iinfo(1, 0, 2270, "left", 1);
+      this.panel[2] = new iinfo(2, 2*canW/3, 2270, "left", 1);
       this.panel[3] = new iinfo(3, 0, 320, "left", -1);
     }
     else {
@@ -494,7 +500,7 @@ class iinfos {
           this.panel[3].lines[2 - j].text = this.players[index2[i]]+" declines "+idata.vote_results.kind+".";
           j++;
         } else {
-        }
+          }
       }
     } else {
       for (let i = 0; i < 3; i++) {
@@ -610,7 +616,7 @@ class iinfos {
   }
   clear() {
     if (portrait) {
-      ctx0.clearRect(0,0,canW,400)
+      ctx0.clearRect(0,0,canW,380)
         ctx0.clearRect(0,2400,canW,canH/2)
     }
     else {
@@ -736,7 +742,7 @@ class hex {
     if (i_kind == "safe") {
       ctx0.arc(this.x, this.y, r / 2, 0, 2 * Math.PI);
     } else if (i_kind == "rect") {
-      this.draw_hex(lineWidth, theme["board"]["valid_move"], 0.85); //curso
+      this.draw_hex(lineWidth/3, theme["board"]["valid_move"], 0.85); //curso
       ctx0.lineWidth = lineWidth / 5;
       var axis = [];
       axis[0] = { a1: this.x, a2: this.y, u1: B.hexs[0].x, u2: 0 };
@@ -995,12 +1001,12 @@ class board {
       this.hexs[this.last_move_from].draw_hex(
         lineWidth,
         theme["board"]["last_move"],
-        0.91,
+        0.89,
       );
       this.hexs[this.last_move_to].draw_hex(
         lineWidth,
         theme["board"]["last_move"],
-        0.91,
+        0.89,
       );
     }
     for (let i = 0; i < 169; i++) {
@@ -1207,7 +1213,6 @@ function Step_3_setelim_board_and_draw(idata) {
   //}, 0)
   if (B.finished) {
     var name = II.players[B.onmove];
-    const modal_go = new bootstrap.Modal(document.getElementById("gameOver"));
     const vp = document.getElementById("goVotePlayers");
     if (idata.vote_results == null) {
       vp.innerHTML = "<br>" + name + " lost :-(";
@@ -1215,7 +1220,7 @@ function Step_3_setelim_board_and_draw(idata) {
       B.vote_results_kind == "draw" ||
       B.vote_results_kind == "resign"
     ) {
-      const modal_go = new bootstrap.Modal(document.getElementById("gameOver"));
+      //const modal_go = new bootstrap.Modal(document.getElementById("gameOver"));
       vp.innerHTML = II.getVoteHist();
     } else {
     }
@@ -1233,8 +1238,8 @@ function Step_3_setelim_board_and_draw(idata) {
     modal_go.show();
   }
   //setTimeout(function (){
-  SemaforWait = false;
-  modal_wt.hide();
+  //SemaforWait = false;
+  //modal_wt.hide();
   //}, 0);
 }
 function button_control() {
@@ -1271,7 +1276,6 @@ function button_control() {
 }
 function window_vote(ikind, itext) {
   //var modal = document.getElementById("voteDrawDialog");
-  const modalDraw = new bootstrap.Modal(document.getElementById("voteDialog"));
   const vp = document.getElementById("votePlayers");
   const vk1 = document.getElementById("voteKind1");
   const vk2 = document.getElementById("voteKind2");
@@ -1431,11 +1435,11 @@ if (window.innerWidth > window.innerHeight) {
   }
 else {
   canvas0.width = 2160
-  canvas0.height = 3350
+  canvas0.height = 3330
   portrait = true
   r = 83
   boardXoffset = -429;
-  boardYoffset = 400;
+  boardYoffset = 380;
   piece_size = 12;
   mame_size = "130px";
   info_size = "100px"; //r.toString()+"px";
