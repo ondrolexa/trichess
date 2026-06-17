@@ -200,8 +200,7 @@ class ValidMoves(Resource):
         slog = state.get("slog")
         gid = state.get("gid")
         try:
-            if slog:
-                ga = get_game(state.get("view_pid"), slog)
+            ga = get_game(state.get("view_pid"), slog)
         except Exception:
             moveapi.abort(406, message="slog parsing error")
         else:
@@ -260,8 +259,7 @@ class MakeMove(Resource):
         to_gid = state.get("tgid")
         new_piece = state.get("new_piece")
         try:
-            if slog:
-                ga = get_game(state.get("view_pid"), slog)
+            ga = get_game(state.get("view_pid"), slog)
         except Exception:
             moveapi.abort(406, message="slog parsing error")
         else:
@@ -421,8 +419,7 @@ class GameInfo(Resource):
         state = GameInfoParser.parse_args()
         slog = state.get("slog")
         try:
-            if slog:
-                ga = get_game(state.get("view_pid"), slog)
+            ga = get_game(state.get("view_pid"), slog)
         except Exception:
             gameapi.abort(406, message="slog parsing error")
         else:
@@ -507,8 +504,7 @@ class DrawVote(Resource):
         slog = state.get("slog")
         vote = state.get("vote")
         try:
-            if slog:
-                ga = get_game(state.get("view_pid"), slog)
+            ga = get_game(state.get("view_pid"), slog)
         except Exception:
             voteapi.abort(406, message="slog parsing error")
         else:
@@ -534,8 +530,7 @@ class ResignVote(Resource):
         slog = state.get("slog")
         vote = state.get("vote")
         try:
-            if slog:
-                ga = get_game(state.get("view_pid"), slog)
+            ga = get_game(state.get("view_pid"), slog)
         except Exception:
             voteapi.abort(406, message="slog parsing error")
         else:

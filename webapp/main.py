@@ -29,7 +29,7 @@ class DBHandler(logging.Handler):
             from webapp.models import Log, db
 
             _ = current_app._get_current_object()
-        except (RuntimeError, AttributeError):
+        except RuntimeError, AttributeError:
             return
         # Use the existing app context — no nested push so the session stays alive
         entry = Log(
@@ -92,7 +92,7 @@ lm = LoginManager()
 lm.init_app(app)
 lm.login_view = "login"
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 
 # notifications
