@@ -16,9 +16,8 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import yaml
-from flask import abort, flash, g, jsonify, redirect
+from flask import abort, flash, g, jsonify, redirect, request, url_for
 from flask import render_template as real_render_template
-from flask import request, url_for
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -42,9 +41,8 @@ from webapp.forms import (
     RegistrationForm,
     ResetPasswordForm,
 )
-from webapp.main import GAME
+from webapp.main import GAME, app, db, jwt, lm, post_notification
 from webapp.main import __version__ as webapp_version
-from webapp.main import app, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
 from webapp.token import verify_password_reset_token, verify_verification_token
 
@@ -64,17 +62,6 @@ def _jinja2_filter_timedelta(date):
     native = utc.astimezone(ZoneInfo("Europe/Prague"))
     now = datetime.now(tz=ZoneInfo("Europe/Prague")).replace(microsecond=0)
     return str(now - native) + " ago"
-
-
-def add_onmove(games):
-    for game in games:
-        slog = game.slog
-        moves = [
-            slog[i : i + 4]
-            for i in range(0, len(slog), 4)
-            if slog[i] not in ["S", "R"]
-        ]
-        game.onmove = len(moves) % 3
 
 
 def render_template(*args, **kwargs):
@@ -143,7 +130,12 @@ def active_games():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    add_onmove(active)
+    # add_onmove(active)
+    for game in active:
+        ga = GameAPI(0)
+        ga.replay_from_slog(game.slog)
+        game.onmove = ga.on_move
+        game.voting = ga.voting.active()
     return render_template(
         "games.html", games=active, uid=g.user.id, board=g.user.board
     )

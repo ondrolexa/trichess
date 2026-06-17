@@ -4,78 +4,82 @@
 <h2>Active games</h2>
 {% if games %}
 <div class="table-responsive-sm">
-  <table class="table table-hover table-sm align-middle">
-    <thead>
-      <tr>
-        <th scope="col">#</th>
-        <th scope="col">Seat 1</th>
-        <th scope="col">Seat 2</th>
-        <th scope="col">Seat 3</th>
-        <th scope="col"></th>
-        <th scope="col">Last move</th>
-        <th class="d-none d-sm-table-cell" scope="col">Created</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for game in games %}
-      {% if game.onmove == 0 %}
-      {% if game.player_0.id == uid %}
-      <tr class="table-active">
-        {% else %}
-      <tr>
-        {% endif %}
-        {% elif game.onmove == 1 %}
-        {% if game.player_1.id == uid %}
-      <tr class="table-active">
-        {% else %}
-      <tr>
-        {% endif %}
-        {% else %}
-        {% if game.player_2.id == uid %}
-      <tr class="table-active">
-        {% else %}
-      <tr>
-        {% endif %}
-        {% endif %}
-        <th scope="row">{{game.id}}</th>
-        <td class="seat">
-          {% if game.onmove == 0 %}
-          <strong class="{{ on_move_color }}">{{game.player_0.username}} ({{ game.player_0.rating|round|int }})</strong>
-          {% else %}
-          <span>{{game.player_0.username}} ({{ game.player_0.rating|round|int }})</span>
-          {% endif %}
-        </td>
-        <td class="seat">
-          {% if game.onmove == 1 %}
-          <strong class="{{ on_move_color }}">{{game.player_1.username}} ({{ game.player_1.rating|round|int }})</strong>
-          {% else %}
-          <span>{{game.player_1.username}} ({{ game.player_1.rating|round|int }})</span>
-          {% endif %}
-        </td>
-        <td class="seat">
-          {% if game.onmove == 2 %}
-          <strong class="{{ on_move_color }}">{{game.player_2.username}} ({{ game.player_2.rating|round|int }})</strong>
-          {% else %}
-          <span>{{game.player_2.username}} ({{ game.player_2.rating|round|int }})</span>
-          {% endif %}
-        </td>
-        <td>
-          <a class="btn btn-success btn-sm" href="{{ url_for('play', id=game.id) }}" role="button">Play</a>
-        </td>
-        <td>{{game.modified_at|deltatime}}</td>
-        <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    <table class="table table-hover table-sm align-middle">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">Seat 1</th>
+                <th scope="col">Seat 2</th>
+                <th scope="col">Seat 3</th>
+                <th scope="col"></th>
+                <th scope="col">Last move</th>
+                <th class="d-none d-sm-table-cell" scope="col">Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for game in games %}
+            {% if game.onmove == 0 %}
+            {% if game.player_0.id == uid %}
+            <tr class="table-active">
+                {% else %}
+            <tr>
+                {% endif %}
+                {% elif game.onmove == 1 %}
+                {% if game.player_1.id == uid %}
+            <tr class="table-active">
+                {% else %}
+            <tr>
+                {% endif %}
+                {% else %}
+                {% if game.player_2.id == uid %}
+            <tr class="table-active">
+                {% else %}
+            <tr>
+                {% endif %}
+                {% endif %}
+                <th scope="row">{{game.id}}</th>
+                <td class="seat">
+                    {% if game.onmove == 0 %}
+                    <strong class="{{ on_move_color }}">{{game.player_0.username}} ({{ game.player_0.rating|round|int
+                        }})</strong>
+                    {% else %}
+                    <span>{{game.player_0.username}} ({{ game.player_0.rating|round|int }})</span>
+                    {% endif %}
+                </td>
+                <td class="seat">
+                    {% if game.onmove == 1 %}
+                    <strong class="{{ on_move_color }}">{{game.player_1.username}} ({{ game.player_1.rating|round|int
+                        }})</strong>
+                    {% else %}
+                    <span>{{game.player_1.username}} ({{ game.player_1.rating|round|int }})</span>
+                    {% endif %}
+                </td>
+                <td class="seat">
+                    {% if game.onmove == 2 %}
+                    <strong class="{{ on_move_color }}">{{game.player_2.username}} ({{ game.player_2.rating|round|int
+                        }})</strong>
+                    {% else %}
+                    <span>{{game.player_2.username}} ({{ game.player_2.rating|round|int }})</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a class="btn btn-success btn-sm" href="{{ url_for('play', id=game.id) }}" role="button">{% if
+                        game.voting == true %}Vote{% else %}Play{% endif %}</a>
+                </td>
+                <td>{{game.modified_at|deltatime}}</td>
+                <td class="d-none d-sm-table-cell">{{game.created_at|strftime}}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 <script>
-  window.setTimeout(function () {
-    window.location.reload();
-  }, 30000);
+    window.setTimeout(function () {
+        window.location.reload();
+    }, 30000);
 </script>
 {% else %}
 <p>You have no active games. Head over to <a class="link-opacity-100"
-    href="{{ url_for('available_games') }}">Available</a> to join an open game or create a new one.</p>
+        href="{{ url_for('available_games') }}">Available</a> to join an open game or create a new one.</p>
 {% endif %}
 {%endblock%}
