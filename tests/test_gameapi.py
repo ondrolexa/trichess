@@ -1,5 +1,3 @@
-import pytest
-
 from engine import GameAPI
 from engine.pieces import Pos
 

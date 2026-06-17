@@ -8,7 +8,7 @@ from flask_restx import Api, Resource, fields, reqparse
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import aliased
 
-from engine import GameAPI
+from engine import get_game
 from webapp.main import GAME, db, post_notification
 from webapp.models import Score, TriBoard, User
 
@@ -197,12 +197,11 @@ class ValidMoves(Resource):
     @moveapi.response(200, "Success", valid_response)
     def post(self):
         state = ValidMovesParser.parse_args()
-        ga = GameAPI(state.get("view_pid"))
         slog = state.get("slog")
         gid = state.get("gid")
         try:
             if slog:
-                ga.replay_from_slog(slog)
+                ga = get_game(state.get("view_pid"), slog)
         except Exception:
             moveapi.abort(406, message="slog parsing error")
         else:
@@ -256,14 +255,13 @@ class MakeMove(Resource):
     @moveapi.response(200, "Success", move_response)
     def post(self):
         state = MakeMoveParser.parse_args()
-        ga = GameAPI(state.get("view_pid"))
         slog = state.get("slog")
         from_gid = state.get("gid")
         to_gid = state.get("tgid")
         new_piece = state.get("new_piece")
         try:
             if slog:
-                ga.replay_from_slog(slog)
+                ga = get_game(state.get("view_pid"), slog)
         except Exception:
             moveapi.abort(406, message="slog parsing error")
         else:
@@ -421,11 +419,10 @@ class GameInfo(Resource):
     @gameapi.response(200, "Success", game_response)
     def post(self):
         state = GameInfoParser.parse_args()
-        ga = GameAPI(state.get("view_pid"))
         slog = state.get("slog")
         try:
             if slog:
-                ga.replay_from_slog(slog)
+                ga = get_game(state.get("view_pid"), slog)
         except Exception:
             gameapi.abort(406, message="slog parsing error")
         else:
@@ -507,12 +504,11 @@ class DrawVote(Resource):
     @voteapi.response(200, "Success", vote_response)
     def post(self):
         state = VoteParser.parse_args()
-        ga = GameAPI(state.get("view_pid"))
         slog = state.get("slog")
         vote = state.get("vote")
         try:
             if slog:
-                ga.replay_from_slog(slog)
+                ga = get_game(state.get("view_pid"), slog)
         except Exception:
             voteapi.abort(406, message="slog parsing error")
         else:
@@ -535,12 +531,11 @@ class ResignVote(Resource):
     @voteapi.response(200, "Success", vote_response)
     def post(self):
         state = VoteParser.parse_args()
-        ga = GameAPI(state.get("view_pid"))
         slog = state.get("slog")
         vote = state.get("vote")
         try:
             if slog:
-                ga.replay_from_slog(slog)
+                ga = get_game(state.get("view_pid"), slog)
         except Exception:
             voteapi.abort(406, message="slog parsing error")
         else:
@@ -638,10 +633,9 @@ class GameBoard(Resource):
                 res["player_2"] = tb.player_2.username
                 res["slog"] = tb.slog
                 res["view_pid"] = pid[username]
-                ga = GameAPI(pid[username])
                 try:
                     if tb.slog:
-                        ga.replay_from_slog(tb.slog)
+                        ga = get_game(pid[username], tb.slog)
                         res["move_number"] = ga.move_number
                     else:
                         res["move_number"] = 0
@@ -688,10 +682,8 @@ class GameBoard(Resource):
         else:
             if tb:
                 try:
-                    ga1 = GameAPI(0)
-                    ga1.replay_from_slog(tb.slog)
-                    ga2 = GameAPI(0)
-                    ga2.replay_from_slog(state.slog)
+                    ga1 = get_game(0, tb.slog)
+                    ga2 = get_game(0, state.slog)
                     pid = {
                         tb.player_0.username: 0,
                         tb.player_1.username: 1,
@@ -925,8 +917,7 @@ class ActiveGames(Resource):
             try:
                 dt = []
                 for tb in own:
-                    ga = GameAPI(0)
-                    ga.replay_from_slog(tb.slog)
+                    ga = get_game(0, tb.slog)
                     seats = {
                         tb.player_0.username: 0,
                         tb.player_1.username: 1,
@@ -944,8 +935,7 @@ class ActiveGames(Resource):
                 res["own"] = dt
                 dt = []
                 for tb in joined:
-                    ga = GameAPI(0)
-                    ga.replay_from_slog(tb.slog)
+                    ga = get_game(0, tb.slog)
                     seats = {
                         tb.player_0.username: 0,
                         tb.player_1.username: 1,

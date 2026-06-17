@@ -28,7 +28,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from markupsafe import Markup
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from engine import GameAPI
+from engine import get_game
 from webapp.api import blueprint as api
 from webapp.api import get_user_rating_history
 from webapp.email import send_password_reset_email, send_verification_email
@@ -130,10 +130,9 @@ def active_games():
         .order_by(TriBoard.modified_at.desc())
         .all()
     )
-    # add_onmove(active)
+    # add onmove and voting attributes
     for game in active:
-        ga = GameAPI(0)
-        ga.replay_from_slog(game.slog)
+        ga = get_game(0, game.slog)
         game.onmove = ga.on_move
         game.voting = ga.voting.active()
     return render_template(
@@ -170,8 +169,7 @@ def archive():
             board_id=game.id, player_id=game.player_2_id
         ).first()
         game.player_2_score = score_2.score if score_2 is not None else 0.0
-        ga = GameAPI(0)
-        ga.replay_from_slog(game.slog)
+        ga = get_game(0, game.slog)
         game.moves = ga.move_number
     return render_template("archive.html", games=archive, board=g.user.board)
 
@@ -490,8 +488,13 @@ def admin_games():
                 .order_by(TriBoard.modified_at.desc())
                 .all()
             )
-            add_onmove(active)
-            add_onmove(archive)
+            # add onmove attribute
+            for game in active:
+                ga = get_game(0, game.slog)
+                game.onmove = ga.on_move
+            for game in archive:
+                ga = get_game(0, game.slog)
+                game.onmove = ga.on_move
             return render_template(
                 "admin-games.html", available=available, active=active, archive=archive
             )
