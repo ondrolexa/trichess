@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 from engine.board import Board
 from engine.pieces import Pos
 from engine.player import Player
@@ -506,7 +504,6 @@ class GameAPI:
         return False
 
 
-@lru_cache(maxsize=100)
 def get_game(view_pid, slog):
     ga = GameAPI(view_pid)
     ga.replay_from_slog(slog)
