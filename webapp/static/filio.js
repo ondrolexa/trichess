@@ -15,7 +15,7 @@ ctx0.lineCap = "round";
 const url = `${window.location.protocol}//${window.location.host}`;
 const bpiece_lineWidth = 0.2;
 const epiece_lineWidth = 0.3;
-const lineWidth = 18  ;
+const lineWidth = 16  ;
 const lineStroke = 20;
 const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"));
 const modal_go = new bootstrap.Modal(document.getElementById("gameOver"));
@@ -234,8 +234,14 @@ class llines {
     this.color = icolor;
     this.strokeLine = istrokeLine;
     this.strokeColor = istrokeColor;
-    ctx0.font = ifont;
-    this.text_width = ctx0.measureText(this.text).width; // todo orezavat prilis dlhy text
+    this.text_width = 0;
+  }
+  set_text(itext) {
+    ctx0.save();
+    this.text = itext;
+    ctx0.font = this.font;
+    this.text_width = ctx0.measureText(this.text).width;
+    ctx0.restore();
   }
   write() {
     ctx0.save();
@@ -263,9 +269,16 @@ class llines {
       var align = 1;
       var strokeColor = this.strokeColor;
       var c = 0;
+      let center_cor = 0;
       if (this.align == "right") {
         align = -1;
       }
+      if (this.align == "center") {
+        center_cor = -200;
+        align = -1;
+        offset =  -1*(piece_size *4.5)*(this.text.length-1)
+      }
+
       for (let i = 0; i < this.text.length; i++) {
         if (this.text[i] == "B" && this.player_id != -1) {
           strokeColor = B.bishop_elim[this.player_id][c];
@@ -467,13 +480,13 @@ class iinfos {
 
     if (portrait) {
       var dist_rl = 30;
-      this.panel[0] = new iinfo(0, canW/3 , 2270 , "left", 1);
+      this.panel[0] = new iinfo(0, canW/2 , 2270 , "center", 1);
       this.panel[1] = new iinfo(1, 0, 2270, "left", 1);
-      this.panel[2] = new iinfo(2, 2*canW/3, 2270, "left", 1);
+      this.panel[2] = new iinfo(2, canW, 2270, "right", 1);
       this.panel[3] = new iinfo(3, 0, 320, "left", -1);
     }
     else {
-      var dist_rl = 150;
+      var dist_rl = 80;
       this.panel[0] = new iinfo(0, canW - dist_rl, canH - 50, "right", -1);
       this.panel[1] = new iinfo(1, dist_rl, 0, "left", 1);
       this.panel[2] = new iinfo(2, canW - dist_rl, 0, "right", 1);
@@ -511,7 +524,7 @@ class iinfos {
     }
     this.elim_lines(idata);
     for (let i = 0; i < 3; i++) {
-      this.panel[i].lines[0].text = this.players[this.index[i]]; // set players names
+      this.panel[i].lines[0].set_text(this.players[this.index[i]]); // set players names
       for (let z = 0; z < 7; z++) {
         this.panel[i].lines[z].player_id = this.index[i];
       }
@@ -593,15 +606,21 @@ class iinfos {
       let e2 = idata.eliminations[ind[0]][ind[2]];
       let x = this.panel[i].lines[1].pos_x;
       let y = this.panel[i].lines[1].pos_y;
+      let corr1 = 0;
+      let corr2 = 0;
+      if (this.panel[i].lines[1].align == "center") {
+        corr1 = (e1 * step)/2;
+        corr2 = (e2 * step)/2;
+      }
       this.daw_line(
-        x,
+        x+corr1,
         y,
         al * e1 * step,
         high * this.panel[i].vert,
         theme["pieces"]["color"][ind[1]],
       );
       this.daw_line(
-        x,
+        x+corr2,
         y - high,
         al * e2 * step,
         high * this.panel[i].vert,
@@ -617,7 +636,7 @@ class iinfos {
   clear() {
     if (portrait) {
       ctx0.clearRect(0,0,canW,380)
-        ctx0.clearRect(0,2400,canW,canH/2)
+      ctx0.clearRect(0,2290,canW,canH/2)
     }
     else {
       for (let i = 0; i < 4; i++) {
@@ -1001,12 +1020,12 @@ class board {
       this.hexs[this.last_move_from].draw_hex(
         lineWidth,
         theme["board"]["last_move"],
-        0.89,
+        0.88,
       );
       this.hexs[this.last_move_to].draw_hex(
         lineWidth,
         theme["board"]["last_move"],
-        0.89,
+        0.88,
       );
     }
     for (let i = 0; i < 169; i++) {
