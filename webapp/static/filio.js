@@ -15,7 +15,7 @@ ctx0.lineCap = "round";
 const url = `${window.location.protocol}//${window.location.host}`;
 const bpiece_lineWidth = 0.2;
 const epiece_lineWidth = 0.3;
-const lineWidth = 16  ;
+const lineWidth = 5  ;
 const lineStroke = 20;
 const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"));
 const modal_go = new bootstrap.Modal(document.getElementById("gameOver"));
@@ -150,58 +150,66 @@ class fetchData {
 class ssel {
   constructor() {
     this.active = false;
+    this.selx = 0;
+    this.sely = 0;
+    this.ps = 0
     this.line = [];
     this.line[0] = new llines(
-      "Select piece:",
-      2160,
-      1040,
-      "center",
-      200,
-      mame_size + " " + theme["pieces"]["font-family"],
-      theme["canvas"]["info"],
+        "Select piece:",
+        2160,
+        1040,
+        "center",
+        200,
+        info_size + " " + theme["pieces"]["font-family"],
+        theme["canvas"]["info"],
     );
     this.line[1] = new llines(
-      "QRBN",
-      1880,
-      1170,
-      "center",
-      200,
-      info_size + " " + theme["pieces"]["font-family"],
-      "green",
-      2,
-      theme["pieces"]["stroke-color"],
+        "QRBN",
+        2463,
+        1170,
+        "right",
+        200,
+        info_size + " " + theme["pieces"]["font-family"],
+        "green",
+        2,
+        theme["pieces"]["stroke-color"],
     );
   }
-  getpromo(ix, iy) {
-    const possx = 1865;
-    const possy = 1090;
-    const ps = piece_size * 10;
-    const pcs = ["Q", "R", "B", "N"];
-    for (let i = 0; i < 4; i++) {
-      if (
-        possx + i * ps < ix &&
-        ix < possx + (i + 1) * ps &&
-        possy < iy &&
-        iy < possy + ps
-      ) {
-        return pcs[i];
-      }
+  set() {
+    if (portrait) {
+      this.line[0].pos_x = 1080;
+      this.line[0].pos_y = 1300;
+      this.line[0].length = 200
+      this.line[1].pos_x = 1320;
+      this.line[1].pos_y = 1420;
+      this.line[1].length = 200
+      this.selx = 870;
+      this.sely = 1364;
+      this.ps = piece_size * 9;
+      ctx0.rect(650, 1170, 860, 330);
     }
-    return "";
+    else {
+      this.line[0].pos_x = 2160;
+      this.line[0].pos_y = 1040;
+      this.line[0].length = 200
+      this.line[1].pos_x = 2463;
+      this.line[1].pos_y = 1170;
+      this.line[1].length = 200
+      this.selx = 1900;
+      this.sely = 1100;
+      this.ps = piece_size * 9;
+      ctx0.rect(1670, 894, 978, 375);
+    }
   }
   write() {
     ctx0.save();
     ctx0.beginPath();
     ctx0.fillStyle = theme["canvas"]["background"];
-    ctx0.rect(1670, 894, 978, 375);
-    ctx0.fill();
-    const possx = 1900;
-    const possy = 1100;
-    const ps = piece_size * 9; //todo
-    ctx0.strokeLine = 40;
+    this.set();
     for (let i = 0; i < 4; i++) {
-      ctx0.rect(possx, possy, ps + i * ps, ps);
+      ctx0.rect(this.selx + i * this.ps, this.sely, this.ps, this.ps);
     }
+    ctx0.fill();
     ctx0.closePath();
     ctx0.stroke();
     ctx0.restore();
@@ -209,6 +217,26 @@ class ssel {
     this.line[1].draw();
     this.active = true;
     ctx0.restore();
+  }
+  getpromo(ix, iy) {
+    const ps = piece_size * 9;
+    const pcs = ["N", "B", "R", "Q"];
+    for (let i = 0; i < 4; i++) {
+      ctx0.fillStyle = "green";
+      ctx0.rect(this.selx + i * this.ps, this.sely, this.ps, this.ps);
+      ctx0.fill();
+      if (
+          this.selx + i * ps < ix &&
+          ix < this.selx + (i + 1) * ps &&
+          this.sely < iy &&
+          iy < this.sely + ps
+      ) {
+        SS.active = false;
+        return pcs[i];
+      }
+    }
+    SS.active = false;
+    return "";
   }
 }
 // llines ////////////////////////////////////////////////
@@ -608,7 +636,7 @@ class iinfos {
       let y = this.panel[i].lines[1].pos_y;
       let corr1 = 0;
       let corr2 = 0;
-      if (this.panel[i].lines[1].align == "center") {
+      if (this.panel[i].lines[1].align == "center" && e1!=0 && e2!=0 ) {
         corr1 = (e1 * step)/2;
         corr2 = (e2 * step)/2;
       }
@@ -761,8 +789,8 @@ class hex {
     if (i_kind == "safe") {
       ctx0.arc(this.x, this.y, r / 2, 0, 2 * Math.PI);
     } else if (i_kind == "rect") {
-      this.draw_hex(lineWidth/3, theme["board"]["valid_move"], 0.85); //curso
-      ctx0.lineWidth = lineWidth / 5;
+      this.draw_hex(lineWidth, theme["board"]["valid_move"], 0.85); //curso
+      ctx0.lineWidth = lineWidth/2 ;
       var axis = [];
       axis[0] = { a1: this.x, a2: this.y, u1: B.hexs[0].x, u2: 0 };
       axis[1] = { a1: this.x, a2: this.y, u1: 1 / 2, u2: Math.sqrt(3) / 2 };
@@ -1018,12 +1046,12 @@ class board {
     // mark last move
     if (this.last_move_from != -1) {
       this.hexs[this.last_move_from].draw_hex(
-        lineWidth,
+        lineWidth*3,
         theme["board"]["last_move"],
         0.88,
       );
       this.hexs[this.last_move_to].draw_hex(
-        lineWidth,
+        lineWidth*3,
         theme["board"]["last_move"],
         0.88,
       );
@@ -1220,6 +1248,9 @@ function Step_3_setelim_board_and_draw(idata) {
   II.write();
   II.power_lines(idata);
   II.elim_lines(idata);
+  if (SS.active) {
+    SS.write()
+  }
   button_control();
   //setTimeout(function (){
   if (
