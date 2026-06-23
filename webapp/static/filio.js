@@ -226,10 +226,10 @@ class ssel {
       ctx0.rect(this.selx + i * this.ps, this.sely, this.ps, this.ps);
       ctx0.fill();
       if (
-          this.selx + i * ps < ix &&
-          ix < this.selx + (i + 1) * ps &&
+          this.selx + i * this.ps < ix &&
+          ix < this.selx + (i + 1) * this.ps &&
           this.sely < iy &&
-          iy < this.sely + ps
+          iy < this.sely + this.ps
       ) {
         SS.active = false;
         return pcs[i];
