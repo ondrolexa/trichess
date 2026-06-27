@@ -680,10 +680,16 @@ class iinfos {
   }
 }
 // hex ///////////////////////////////////////////////////
+function  setx(a,b) {
+  return (a + b * 0.5) * (r * Math.sqrt(3)) + boardXoffset;
+  }
+  function sety(b) {
+    return   (1 + b * 1.5) * r + boardYoffset;
+  }
 class hex {
   constructor(a, b, id) {
-    this.x = (a + b * 0.5) * (r * Math.sqrt(3)) + boardXoffset;
-    this.y = (1 + b * 1.5) * r + boardYoffset;
+    this.x = setx(a,b);
+    this.y = sety(b);
     this.id = id;
     this.piece = { piece: "", player_id: -1 };
     this.hex_color = theme["board"]["hex_color"][(2 * a + b) % 3];
@@ -813,6 +819,8 @@ class hex {
         }
         ctx0.moveTo(point[0].x, point[0].y);
         ctx0.lineTo(point[1].x, point[1].y);
+        ctx0.closePath();
+        ctx0.stroke();
         j = 0;
         point = [];
       }
@@ -834,7 +842,7 @@ class board {
   constructor() {
     this.hexs = [];
     this.gid_old = 85;
-    this.gid_new = 85;
+    this.gid_new = 0;
     this.slog = "";
     this.view_player = 0;
     this.view_player_org = 0;
@@ -852,17 +860,8 @@ class board {
     this.vote_needed = false;
     this.vote_results_kind = "x";
   }
-  init() {
-    let cnt = 0;
-    for (let i = 0; i < 15; i++) {
-      for (let j = 0; j < 15; j++) {
-        if (j + i > 6 && j < 15 && i < 15 && j + i < 22) {
-          this.hexs[cnt] = new hex(j, i, cnt);
-          cnt = ++cnt;
-        }
-      }
-    }
-    this.border[0] = {
+  set_border(){
+     this.border[0] = {
       b1: this.hexs[0].x,
       b2: this.hexs[0].y,
       z1: this.hexs[0].x,
@@ -898,6 +897,31 @@ class board {
       z1: 1 / 2,
       z2: -Math.sqrt(3) / 2,
     };
+  }
+  init() {
+    let cnt = 0;
+    for (let i = 0; i < 15; i++) {
+      for (let j = 0; j < 15; j++) {
+        if (j + i > 6 && j < 15 && i < 15 && j + i < 22) {
+          this.hexs[cnt] = new hex(j, i, cnt);
+          cnt = ++cnt;
+        }
+      }
+    }
+    this.set_border();
+  }
+  init_xy() { //todo zjednotit s init
+    let cnt = 0;
+    for (let i = 0; i < 15; i++) {
+      for (let j = 0; j < 15; j++) {
+        if (j + i > 6 && j < 15 && i < 15 && j + i < 22) {
+          this.hexs[cnt].x = setx(j, i);
+          this.hexs[cnt].y = sety(i);
+          cnt = ++cnt;
+        }
+      }
+    }
+    this.set_border();
   }
   bishop_elim_color() {
     var c = [];
@@ -1191,7 +1215,7 @@ function Step_make_move(idata) {
 function Step_valid_moves(idata) {
   for (let j = 0; j < 169; j++) {
     B.hexs[j].valid_flag = false;
-    B.hexs[j].promo_flag = false;
+    //B.hexs[j].promo_flag = false;
   }
   const jsonData = idata;
   for (let i in jsonData.targets) {
@@ -1249,8 +1273,13 @@ function Step_3_setelim_board_and_draw(idata) {
   II.power_lines(idata);
   II.elim_lines(idata);
   if (SS.active) {
+    SS.set()
     SS.write()
   }
+  if (B.gid_new > 0) {
+    B.hexs[B.gid_new].draw_mark("rect") //show cursor
+    B.moveValid();
+    }
   button_control();
   //setTimeout(function (){
   if (
@@ -1345,6 +1374,7 @@ function Click_Vote(ivalue) {
   if (!B.vote_needed && !ivalue) {
     return; //chncel decline
   }
+  SS.active = false;
   F.fetchPOST(
     url + "/api/v1/vote/" + B.vote_results_kind,
     { slog: B.slog, view_pid: B.view_player, vote: ivalue },
@@ -1364,6 +1394,7 @@ function Click_Resign() {
   window_vote("resign", ["Do you want to offer the resignation?"]);
 }
 function Click_Backward() {
+  SS.active = false;
   //todo
   B.slog_pointer = B.slog_pointer - 1;
   let slog = B.slog.substr(0, B.slog_pointer * 4);
@@ -1375,6 +1406,7 @@ function Click_Backward() {
   );
 }
 function Click_Forward() {
+  SS.active = false;
   //todo
   B.slog_pointer = B.slog_pointer + 1;
   let slog = B.slog.substr(0, B.slog_pointer * 4);
@@ -1385,6 +1417,7 @@ function Click_Forward() {
   );
 }
 function Click_OK() {
+  SS.active = false;
   if (
     B.move_number_org == B.move_number - 1 &&
     B.view_player_org == (B.onmove + 2) % 3
@@ -1408,12 +1441,14 @@ function Click_Refresh() {
   B.move_number_max = -1;
   B.move_number_org = -1;
   B.hist_changed = false;
+  B.gid_new = 0;
   F.fetchGET(
     url + "/api/v1/manager/board?id=" + ID.toString(),
     Step_2_setplayers,
   );
 }
 function Click_Rotate() {
+  SS.active = false;
   let slog = B.getSlog();
   B.view_player = (B.view_player + 1) % 3;
   F.fetchPOST(
@@ -1436,7 +1471,6 @@ function getMouesPosition(e) {
     let y = pos.y;
     //if pieces window is open
     if (B.hexs[B.gid_new].promo_flag && SS.active) {
-      B.hexs[B.gid_new].promo_flag = false;
       //CP.elems[7].e.show_flag = false
       //CP.elems[8].e.show_flag = false
       a = SS.getpromo(x, y);
@@ -1448,6 +1482,7 @@ function getMouesPosition(e) {
         return;
       }
       B.moveMake(a);
+      B.hexs[B.gid_new].promo_flag = false;
       SemaforGreen = true;
       return;
     }
@@ -1503,13 +1538,14 @@ if (isMobile()) {
 }
 function resizee_refresh () {
   resizee_init ()
-  B.init();
+  B.init_xy();
   let slog = B.slog.substr(0, B.slog_pointer * 4);
   F.fetchPOST(
     url + "/api/v1/game/info",
     { slog: slog, view_pid: B.view_player },
     Step_3_setelim_board_and_draw,
   );
+   // show cursor
 }
 
 // Main ////////////////////////////////////////////////////////////////////////////////
