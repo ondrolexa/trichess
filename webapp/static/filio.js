@@ -819,8 +819,6 @@ class hex {
         }
         ctx0.moveTo(point[0].x, point[0].y);
         ctx0.lineTo(point[1].x, point[1].y);
-        ctx0.closePath();
-        ctx0.stroke();
         j = 0;
         point = [];
       }
