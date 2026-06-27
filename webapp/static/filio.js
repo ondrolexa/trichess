@@ -1108,6 +1108,25 @@ class board {
     let slog = this.slog.substr(0, this.slog_pointer * 4);
     return slog;
   }
+  get_gid_rotate() {
+    let xc = this.hexs[84].x
+    let yc = this.hexs[84].y
+    let xp = this.hexs[this.gid_new].x
+    let yp = this.hexs[this.gid_new].y
+    let c = Math.sqrt( Math.pow(xc - xp, 2) +Math.pow(yc - yp, 2));
+    let a = yc-yp
+    let angle = Math.asin(a/c)
+    angle = angle + 2*(Math.PI / 3) // otocit o 120 stupnu
+    let x = c*Math.cos(angle)+xc
+    let y =  -c*Math.sin(angle)+yc
+    for (let z = 0; z < 169; z++) {
+      if (Math.round(this.hexs[z].x) == Math.round(x) &&  Math.round(this.hexs[z].y)  == Math.round(y)) {
+      return z
+      }
+    }
+    return -1
+  }
+
   // move ---------------------------------------------
   moveValid() {
     if (
@@ -1448,6 +1467,7 @@ function Click_Refresh() {
 function Click_Rotate() {
   SS.active = false;
   let slog = B.getSlog();
+  B.gid_new = B.get_gid_rotate();
   B.view_player = (B.view_player + 1) % 3;
   F.fetchPOST(
     url + "/api/v1/game/info",
