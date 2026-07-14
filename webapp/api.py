@@ -44,6 +44,52 @@ def _parse_ts(raw):
     return datetime.min
 
 
+def _seat_map(tb):
+    """username -> seat index (0/1/2) for a TriBoard's three players."""
+    return {
+        tb.player_0.username: 0,
+        tb.player_1.username: 1,
+        tb.player_2.username: 2,
+    }
+
+
+def _board_summary(tb, username):
+    """Dict shape shared by ActiveGames.get()'s "own"/"joined" lists."""
+    ga = get_game(0, tb.slog)
+    seats = _seat_map(tb)
+    return {
+        "id": tb.id,
+        "player_0": tb.player_0.username,
+        "player_1": tb.player_1.username,
+        "player_2": tb.player_2.username,
+        "my_turn": seats[username] == ga.on_move,
+    }
+
+
+def compute_outcome_scores(ga):
+    """Score (out of 2.0) awarded to each player once a finished game's result
+    is known — shared by the API's finished-game preview (GameInfo) and its
+    persist path (GameBoard), which previously reimplemented this separately."""
+    if ga.draw():
+        return {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
+    if ga.resignation():
+        resigned = ga.voting.results(kind="resign")
+        uid = set([0, 1, 2]).difference(resigned).pop()
+        scores = {0: 0.0, 1: 0.0, 2: 0.0}
+        scores[uid] = 2.0
+        return scores
+    in_chess, _, who = ga.in_chess()
+    if in_chess:
+        scores = {0: 0.0, 1: 0.0, 2: 0.0}
+        tot = [len(p) for p in who.values()]
+        for uid, v in enumerate(tot):
+            score = v * 2 / sum(tot)
+            if score > 0:
+                scores[uid] = score
+        return scores
+    return {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
+
+
 def get_rating_history():
     """Replay every finished triboard game in chronological order and return
     the full rating trajectory for every player who has appeared in at least
@@ -201,7 +247,8 @@ class ValidMoves(Resource):
         gid = state.get("gid")
         try:
             ga = get_game(state.get("view_pid"), slog)
-        except Exception:
+        except Exception as err:
+            logger.error(f"[POST /valid] slog parsing error: {err}")
             moveapi.abort(406, message="slog parsing error")
         else:
             try:
@@ -260,7 +307,8 @@ class MakeMove(Resource):
         new_piece = state.get("new_piece")
         try:
             ga = get_game(state.get("view_pid"), slog)
-        except Exception:
+        except Exception as err:
+            logger.error(f"[POST /make] slog parsing error: {err}")
             moveapi.abort(406, message="slog parsing error")
         else:
             try:
@@ -420,7 +468,8 @@ class GameInfo(Resource):
         slog = state.get("slog")
         try:
             ga = get_game(state.get("view_pid"), slog)
-        except Exception:
+        except Exception as err:
+            logger.error(f"[POST /info] slog parsing error: {err}")
             gameapi.abort(406, message="slog parsing error")
         else:
             try:
@@ -441,21 +490,7 @@ class GameInfo(Resource):
                 res["vote_results"] = ga.voting.votes()
                 res["score"] = {0: 0.0, 1: 0.0, 2: 0.0}
                 if not ga.move_possible():
-                    in_chess, gid, who = ga.in_chess()
-                    if ga.draw():
-                        res["score"] = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
-                    elif ga.resignation():
-                        resigned = ga.voting.results(kind="resign")
-                        uid = set([0, 1, 2]).difference(resigned).pop()
-                        res["score"][uid] = 2.0
-                    elif in_chess:
-                        tot = [len(p) for p in who.values()]
-                        for uid, v in enumerate(tot):
-                            score = v * 2 / sum(tot)
-                            if score > 0:
-                                res["score"][uid] = score
-                    else:
-                        res["score"] = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
+                    res["score"] = compute_outcome_scores(ga)
                 return res
             except Exception as err:
                 logger.error(f"[POST /info] Unexpected error: {err}")
@@ -505,7 +540,8 @@ class DrawVote(Resource):
         vote = state.get("vote")
         try:
             ga = get_game(state.get("view_pid"), slog)
-        except Exception:
+        except Exception as err:
+            logger.error(f"[POST /draw] slog parsing error: {err}")
             voteapi.abort(406, message="slog parsing error")
         else:
             try:
@@ -531,7 +567,8 @@ class ResignVote(Resource):
         vote = state.get("vote")
         try:
             ga = get_game(state.get("view_pid"), slog)
-        except Exception:
+        except Exception as err:
+            logger.error(f"[POST /resign] slog parsing error: {err}")
             voteapi.abort(406, message="slog parsing error")
         else:
             try:
@@ -597,11 +634,7 @@ class GameBoard(Resource):
         username = get_jwt_identity()
         try:
             user = User.query.filter_by(username=username).first()
-            user_in = db.or_(
-                TriBoard.player_0_id == user.id,
-                TriBoard.player_1_id == user.id,
-                TriBoard.player_2_id == user.id,
-            )
+            user_in = TriBoard.for_player(user.id)
             active_or_archive = db.or_(
                 TriBoard.status == 1,
                 TriBoard.status == 2,
@@ -617,11 +650,7 @@ class GameBoard(Resource):
             managerapi.abort(417, message="An unexpected error occurred")
         else:
             try:
-                pid = {
-                    tb.player_0.username: 0,
-                    tb.player_1.username: 1,
-                    tb.player_2.username: 2,
-                }
+                pid = _seat_map(tb)
                 res["id"] = tb.id
                 res["player_0"] = tb.player_0.username
                 res["player_1"] = tb.player_1.username
@@ -634,10 +663,12 @@ class GameBoard(Resource):
                         res["move_number"] = ga.move_number
                     else:
                         res["move_number"] = 0
-                except Exception:
-                    gameapi.abort(406, message="slog parsing error")
+                except Exception as err:
+                    logger.error(f"[GET /board] slog parsing error: {err}")
+                    managerapi.abort(406, message="slog parsing error")
                 return res
-            except Exception:
+            except Exception as err:
+                logger.error(f"[GET /board] Board not found: {err}")
                 managerapi.abort(404, message="Board not found")
 
     @managerapi.doc(
@@ -657,11 +688,7 @@ class GameBoard(Resource):
         username = get_jwt_identity()
         try:
             user = User.query.filter_by(username=username).first()
-            user_in = db.or_(
-                TriBoard.player_0_id == user.id,
-                TriBoard.player_1_id == user.id,
-                TriBoard.player_2_id == user.id,
-            )
+            user_in = TriBoard.for_player(user.id)
             tb = (
                 db.session.query(TriBoard)
                 .with_for_update()
@@ -679,11 +706,7 @@ class GameBoard(Resource):
                 try:
                     ga1 = get_game(0, tb.slog)
                     ga2 = get_game(0, state.slog)
-                    pid = {
-                        tb.player_0.username: 0,
-                        tb.player_1.username: 1,
-                        tb.player_2.username: 2,
-                    }
+                    pid = _seat_map(tb)
                     players = {
                         0: tb.player_0,
                         1: tb.player_1,
@@ -701,13 +724,14 @@ class GameBoard(Resource):
                         if not ga2.move_possible():
                             # Game finished do all needed
                             tb.status = 2
-                            in_chess, gid, who = ga2.in_chess()
+                            in_chess, _, _ = ga2.in_chess()
                             if ga2.draw():
-                                for uid in players:
+                                scores = compute_outcome_scores(ga2)
+                                for uid, value in scores.items():
                                     new_score = Score(
                                         player_id=players[uid].id,
                                         board_id=tb.id,
-                                        score=2.0 / 3,
+                                        score=value,
                                         tag="D",
                                         onmove=uid == ga2.on_move,
                                     )
@@ -730,9 +754,8 @@ class GameBoard(Resource):
                             elif ga2.resignation():
                                 resigned = ga2.voting.results(kind="resign")
                                 ruid = set([0, 1, 2]).difference(resigned).pop()
-                                score = {0: 0.0, 1: 0.0, 2: 0.0}
-                                score[ruid] = 2.0
-                                for uid, value in score.items():
+                                scores = compute_outcome_scores(ga2)
+                                for uid, value in scores.items():
                                     new_score = Score(
                                         player_id=players[uid].id,
                                         board_id=tb.id,
@@ -764,13 +787,8 @@ class GameBoard(Resource):
                                     },
                                 )
                             elif in_chess:
-                                score = {0: 0.0, 1: 0.0, 2: 0.0}
-                                tot = [len(p) for p in who.values()]
-                                for uid, v in enumerate(tot):
-                                    game_score = v * 2 / sum(tot)
-                                    if game_score > 0:
-                                        score[uid] = game_score
-                                for uid, value in score.items():
+                                scores = compute_outcome_scores(ga2)
+                                for uid, value in scores.items():
                                     new_score = Score(
                                         player_id=players[uid].id,
                                         board_id=tb.id,
@@ -789,7 +807,7 @@ class GameBoard(Resource):
                                     else:
                                         post_notification(
                                             players[uid].username,
-                                            f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {score[uid]:g}",
+                                            f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {scores[uid]:g}",
                                             "Game over",
                                             state.id,
                                         )
@@ -802,8 +820,8 @@ class GameBoard(Resource):
                                     },
                                 )
                             else:
-                                score = {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
-                                for uid, value in score.items():
+                                scores = compute_outcome_scores(ga2)
+                                for uid, value in scores.items():
                                     new_score = Score(
                                         player_id=players[uid].id,
                                         board_id=tb.id,
@@ -852,6 +870,8 @@ class GameBoard(Resource):
                     logger.error(
                         f"[POST /board] Unexpected error during processing triboard: {err}"
                     )
+                    # Undo any Score rows already added but not yet committed above.
+                    db.session.rollback()
                     managerapi.abort(417, message="An unexpected error occurred")
             else:
                 managerapi.abort(404, message="Board not found")
@@ -891,11 +911,7 @@ class ActiveGames(Resource):
         try:
             username = get_jwt_identity()
             user = User.query.filter_by(username=username).first()
-            user_in = db.or_(
-                TriBoard.player_0_id == user.id,
-                TriBoard.player_1_id == user.id,
-                TriBoard.player_2_id == user.id,
-            )
+            user_in = TriBoard.for_player(user.id)
             own = TriBoard.query.filter_by(status=1, owner_id=user.id).all()
             joined = (
                 TriBoard.query.filter_by(status=1)
@@ -910,42 +926,8 @@ class ActiveGames(Resource):
             managerapi.abort(417, message="An unexpected error occurred")
         else:
             try:
-                dt = []
-                for tb in own:
-                    ga = get_game(0, tb.slog)
-                    seats = {
-                        tb.player_0.username: 0,
-                        tb.player_1.username: 1,
-                        tb.player_2.username: 2,
-                    }
-                    dt.append(
-                        {
-                            "id": tb.id,
-                            "player_0": tb.player_0.username,
-                            "player_1": tb.player_1.username,
-                            "player_2": tb.player_2.username,
-                            "my_turn": seats[username] == ga.on_move,
-                        }
-                    )
-                res["own"] = dt
-                dt = []
-                for tb in joined:
-                    ga = get_game(0, tb.slog)
-                    seats = {
-                        tb.player_0.username: 0,
-                        tb.player_1.username: 1,
-                        tb.player_2.username: 2,
-                    }
-                    dt.append(
-                        {
-                            "id": tb.id,
-                            "player_0": tb.player_0.username,
-                            "player_1": tb.player_1.username,
-                            "player_2": tb.player_2.username,
-                            "my_turn": seats[username] == ga.on_move,
-                        }
-                    )
-                res["joined"] = dt
+                res["own"] = [_board_summary(tb, username) for tb in own]
+                res["joined"] = [_board_summary(tb, username) for tb in joined]
                 return res
             except Exception as err:
                 logger.error(

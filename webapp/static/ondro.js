@@ -49,10 +49,36 @@ const AppState = {
   promotions: new Set(),
   lastmove: { gid: -1, tgid: -1 },
 
-  // Canvas / layout dimensions
-  stageWidth: 20,
-  stageHeight: 17,
-  visual_shift: 20,
+  // Canvas / layout dimensions. Defaults are the portrait-optimized values
+  // (bigger/lower board) since doOnOrientationChange() never fires on many
+  // mobile browsers' initial page load — only on an actual rotation — so a
+  // fresh load must already start in this state. Landscape cases in
+  // doOnOrientationChange() explicitly override back to the original values.
+  stageWidth: 15.8,
+  stageHeight: 15.5,
+  visual_shift: 70,
+  baseScale: 1,
+
+  // Player-cluster anchor points (world coords) — see applyAnchors(). All
+  // default to the portrait-tuned values for the same reason as stageWidth
+  // above (a fresh load must start in the portrait state without waiting
+  // for an orientation event); landscape cases in doOnOrientationChange()
+  // explicitly override each one back to its original unshifted value.
+  // Derived by symmetry from anchor2 (the canonical reference): anchor1 is
+  // its exact mirror across the vertical axis (x=0). anchor0el started as
+  // the same mirror across the horizontal axis (y=0), but in portrait that
+  // exact mirror clipped player 0's outermost eliminated-piece row at the
+  // bottom edge — the large portrait visual_shift pushes everything down
+  // uniformly, and player 0's rack (already the lowest cluster) had the
+  // least margin to spare, unlike player 2's (top) mirror-image position.
+  // anchor0el.y is now tuned independently (not a strict mirror) to claw
+  // back that margin; anchor0el.x is still the exact mirror. See
+  // doOnOrientationChange().
+  anchor0name: { x: 0, y: 7.4 },
+  anchor0el: { x: 7.35, y: 7.6 },
+  anchor1: { x: -7.35, y: -8.4 },
+  anchor2: { x: 7.35, y: -8.4 },
+  anchorMove: { x: -6.4, y: 5.5 },
 
   // Touch / pinch-zoom gesture tracking
   lastCenter: null,
@@ -83,10 +109,14 @@ const LINE_WIDTH = 0.04;
 
 const API_URL = `${window.location.protocol}//${window.location.host}`;
 
-const HEX_RADIUS = 7;
 const TOTAL_HEXES = 169;
 const MAX_ELIMINATED = 23;
 const HEX_SIZE = Math.sqrt(1 / 3);
+
+// Zoom bounds, relative to AppState.baseScale (the natural-fit scale set by
+// fitStageIntoDiv()) — can't zoom out past the natural fit or in past 4x.
+const MIN_ZOOM_FACTOR = 1.0;
+const MAX_ZOOM_FACTOR = 4.0;
 
 function buildHeaders() {
   return new Headers({
@@ -139,24 +169,33 @@ const background = new Konva.Rect({
   listening: false,
 });
 
+// Shared by wheel-zoom and pinch-zoom: clamps newScale to
+// [baseScale*MIN_ZOOM_FACTOR, baseScale*MAX_ZOOM_FACTOR], rescales the stage
+// while keeping focalPoint (in stage-container pixel coordinates) visually
+// stationary, and redraws.
+function applyZoom(newScale, focalPoint) {
+  const oldScale = stage.scaleX();
+  const clampedScale = Math.min(
+    Math.max(newScale, AppState.baseScale * MIN_ZOOM_FACTOR),
+    AppState.baseScale * MAX_ZOOM_FACTOR,
+  );
+  const pointTo = {
+    x: (focalPoint.x - stage.x()) / oldScale,
+    y: (focalPoint.y - stage.y()) / oldScale,
+  };
+  stage.scale({ x: clampedScale, y: clampedScale });
+  stage.position({
+    x: focalPoint.x - pointTo.x * clampedScale,
+    y: focalPoint.y - pointTo.y * clampedScale,
+  });
+  stage.batchDraw();
+}
+
 stage.on("wheel", function (e) {
   e.evt.preventDefault();
   const oldScale = stage.scaleX();
-
-  const mousePointTo = {
-    x: stage.getPointerPosition().x / oldScale - stage.x() / oldScale,
-    y: stage.getPointerPosition().y / oldScale - stage.y() / oldScale,
-  };
-
   const newScale = e.evt.deltaY > 0 ? oldScale * 0.95 : oldScale / 0.95;
-  stage.scale({ x: newScale, y: newScale });
-
-  const newPos = {
-    x: -(mousePointTo.x - stage.getPointerPosition().x / newScale) * newScale,
-    y: -(mousePointTo.y - stage.getPointerPosition().y / newScale) * newScale,
-  };
-  stage.position(newPos);
-  stage.batchDraw();
+  applyZoom(newScale, stage.getPointerPosition());
 });
 
 Konva.hitOnDragEnabled = true;
@@ -212,24 +251,8 @@ stage.on("touchmove", function (e) {
       AppState.lastDist = dist;
     }
 
-    // local coordinates of center point
-    let pointTo = {
-      x: (newCenter.x - stage.x()) / stage.scaleX(),
-      y: (newCenter.y - stage.y()) / stage.scaleX(),
-    };
-
     let scale = stage.scaleX() * (dist / AppState.lastDist);
-
-    stage.scaleX(scale);
-    stage.scaleY(scale);
-
-    // calculate new position of the stage
-    let newPos = {
-      x: newCenter.x - pointTo.x * scale,
-      y: newCenter.y - pointTo.y * scale,
-    };
-
-    stage.position(newPos);
+    applyZoom(scale, newCenter);
 
     AppState.lastDist = dist;
     AppState.lastCenter = newCenter;
@@ -262,7 +285,7 @@ const movelabel = new Konva.Shape({
 
 const p0name = new Konva.Shape({
   x: 0,
-  y: 7.4,
+  y: 0,
   width: 8,
   height: 1,
   scale: {
@@ -279,7 +302,7 @@ const p0name = new Konva.Shape({
 
 const p0el1 = new Konva.Rect({
   x: 0,
-  y: 7.7,
+  y: 0.3,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][1],
@@ -294,7 +317,7 @@ const p0el1 = new Konva.Rect({
 
 const p0el2 = new Konva.Rect({
   x: 0,
-  y: 7.7,
+  y: 0.3,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][2],
@@ -308,8 +331,8 @@ const p0el2 = new Konva.Rect({
 });
 
 const p1name = new Konva.Shape({
-  x: -9.2,
-  y: -6.9,
+  x: 0,
+  y: 0,
   width: 8,
   height: 1,
   scale: {
@@ -325,8 +348,8 @@ const p1name = new Konva.Shape({
 });
 
 const p1el2 = new Konva.Rect({
-  x: -9.2,
-  y: -7.8,
+  x: 0,
+  y: -0.9,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][2],
@@ -340,8 +363,8 @@ const p1el2 = new Konva.Rect({
 });
 
 const p1el0 = new Konva.Rect({
-  x: -9.2,
-  y: -7.8,
+  x: 0,
+  y: -0.9,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][0],
@@ -355,8 +378,8 @@ const p1el0 = new Konva.Rect({
 });
 
 const p2name = new Konva.Shape({
-  x: 9.2,
-  y: -6.9,
+  x: 0,
+  y: 0,
   width: 8,
   height: 1,
   scale: {
@@ -372,8 +395,8 @@ const p2name = new Konva.Shape({
 });
 
 const p2el0 = new Konva.Rect({
-  x: 9.2,
-  y: -7.8,
+  x: 0,
+  y: -0.9,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][0],
@@ -387,8 +410,8 @@ const p2el0 = new Konva.Rect({
 });
 
 const p2el1 = new Konva.Rect({
-  x: 9.2,
-  y: -7.8,
+  x: 0,
+  y: -0.9,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][1],
@@ -400,6 +423,26 @@ const p2el1 = new Konva.Rect({
     y: 0.07,
   },
 });
+
+// Anchor groups: each player's UI cluster is children of a Group positioned
+// at a single tunable "anchor" point, so per-orientation repositioning (see
+// AppState.anchor*/applyAnchors()) moves the whole cluster as a rigid unit
+// instead of requiring every shape's own hardcoded coordinate to be
+// rescaled individually. Player 1 and 2's name/rack/eliminated-pieces share
+// ONE anchor each (they're already co-located in one board corner). Player
+// 0's name+rack is NOT co-located with player 0's eliminated pieces (name
+// is bottom-center for readability, pieces are in a board corner like
+// players 1/2), so player 0 keeps two separate anchors. Every anchor is
+// derived from symmetry: anchor1 mirrors anchor2 across the vertical axis
+// (x=0), anchor0el mirrors anchor2 across the horizontal axis (y=0) — see
+// doOnOrientationChange()/applyInitialLayout() for the derivation.
+const group0name = new Konva.Group({ x: 0, y: 7.4 });
+group0name.add(p0name, p0el1, p0el2);
+const group0el = new Konva.Group({ x: 9.2, y: 6.9 });
+const group1 = new Konva.Group({ x: -9.2, y: -6.9 });
+group1.add(p1name, p1el2, p1el0);
+const group2 = new Konva.Group({ x: 9.2, y: -6.9 });
+group2.add(p2name, p2el0, p2el1);
 
 const gameover = new Konva.Group({
   visible: false,
@@ -473,6 +516,15 @@ stage.add(top_layer);
 
 // helpers
 
+function applyAnchors() {
+  group0name.position(AppState.anchor0name);
+  group0el.position(AppState.anchor0el);
+  group1.position(AppState.anchor1);
+  group2.position(AppState.anchor2);
+  movelabel.position(AppState.anchorMove);
+  pieces_layer.batchDraw();
+}
+
 function fitStageIntoDiv() {
   let container = document.querySelector("#canvas");
   let containerWidth = container.offsetWidth;
@@ -481,52 +533,158 @@ function fitStageIntoDiv() {
     containerWidth / AppState.stageWidth,
     containerHeight / AppState.stageHeight,
   );
+  // Always match the container div's own measured size — sizing from
+  // stageHeight*scale instead (as a previous version did below a 768px
+  // breakpoint) only equals containerHeight when scale happens to be
+  // height-bound. On portrait phones the virtual world (stageWidth=20,
+  // stageHeight=17, wider than tall) is reliably width-bound against a
+  // container that's taller than wide, so that formula systematically
+  // undersized the canvas — leaving a gap below the board, and clipping
+  // zoomed content at the canvas's own (too-small) pixel boundary.
   stage.width(containerWidth);
-  if (containerWidth >= 768) {
-    stage.height(containerHeight);
-  } else {
-    stage.height(AppState.stageHeight * scale);
-  }
+  stage.height(containerHeight);
   stage.offsetX(
     -AppState.stageWidth / 2 -
       (containerWidth / scale - AppState.stageWidth) / 2,
   );
+  // offsetY was previously only ever set once, at stage construction, from
+  // AppState.stageHeight's literal default (15.5, the portrait value) — it
+  // never got recomputed per orientation/mode the way offsetX does above.
+  // That's harmless whenever the live stageHeight happens to match that
+  // default (true for portrait), but for any mode using a different
+  // stageHeight (e.g. desktop's 16.7) it silently rendered with a stale,
+  // wrong vertical center — most likely the real cause of desktop's
+  // "everything needs to shift down, player 1/2 not visible" (a stale,
+  // too-small-magnitude offsetY shifts content up on screen). The "+1" is
+  // an intentional fixed downward-from-center bias (unrelated to scale),
+  // preserved here exactly as it was at construction.
+  stage.offsetY(-AppState.stageHeight / 2 + 1);
   stage.scale({ x: scale, y: scale });
+  // x: -10 is an intentional empirical correction, not dead pixel-offset
+  // cruft — removing it (tried once) made the board visibly off-center to
+  // the user, even though the offsetX math above centers world-x=0 on the
+  // container's own midpoint. Something outside this formula (likely
+  // asymmetric visual weight from the player racks, or container
+  // box-model quirks) shifts the true visual center left of world-x=0.
   stage.position({ x: -10, y: AppState.visual_shift });
-  stage.draw();
+  // Natural-fit scale, used as the zoom-out floor by applyZoom().
+  AppState.baseScale = scale;
+  stage.batchDraw();
 }
 
 function doOnOrientationChange() {
+  if (!window.screen || !window.screen.orientation) {
+    return;
+  }
+  // requestAnimationFrame: navbar.style.display changes just below, and
+  // fitStageIntoDiv()/applyAnchors() read the container's layout size right
+  // after — deferring to the next paint avoids measuring a stale size from
+  // before the browser has reflowed the navbar toggle.
+  // Mobile-landscape (both cases below) stays at its original baseline
+  // size (stageHeight 20, the binding dimension in landscape) — a ~10%
+  // scale-up was tried here but made the board too big on real devices, so
+  // only mobile-portrait and desktop (applyInitialLayout() below) got a
+  // permanent size increase; mobile-landscape did not.
   switch (window.screen.orientation.type) {
     case "landscape-primary":
       navbar.style.display = "none";
       AppState.stageWidth = 17;
-      AppState.stageHeight = 20;
-      AppState.visual_shift = 0;
-      fitStageIntoDiv();
-      window.scrollBy(0, 200);
+      AppState.stageHeight = 20.7;
+      AppState.visual_shift = -20;
+      AppState.anchor0name = { x: 0, y: 7.4 };
+      AppState.anchor0el = { x: 9.2, y: 6.9 };
+      AppState.anchor1 = { x: -9.2, y: -6.9 };
+      AppState.anchor2 = { x: 9.2, y: -6.9 };
+      AppState.anchorMove = { x: -7.7, y: 4 };
+      requestAnimationFrame(() => {
+        fitStageIntoDiv();
+        applyAnchors();
+        window.scrollTo(0, 10);
+      });
       break;
     case "portrait-secondary":
       navbar.style.display = "";
-      AppState.stageWidth = 20;
-      AppState.stageHeight = 17;
-      AppState.visual_shift = 20;
-      fitStageIntoDiv();
+      AppState.stageWidth = 15.8;
+      AppState.stageHeight = 15.5;
+      AppState.visual_shift = 70;
+      AppState.anchor0name = { x: 0, y: 7.4 };
+      AppState.anchor0el = { x: 7.35, y: 7.6 };
+      AppState.anchor1 = { x: -7.35, y: -8.4 };
+      AppState.anchor2 = { x: 7.35, y: -8.4 };
+      AppState.anchorMove = { x: -6.4, y: 5.5 };
+      requestAnimationFrame(() => {
+        fitStageIntoDiv();
+        applyAnchors();
+      });
       break;
     case "landscape-secondary":
       navbar.style.display = "none";
       AppState.stageWidth = 17;
-      AppState.stageHeight = 20;
-      AppState.visual_shift = 0;
-      fitStageIntoDiv();
+      AppState.stageHeight = 20.7;
+      AppState.visual_shift = -20;
+      AppState.anchor0name = { x: 0, y: 7.4 };
+      AppState.anchor0el = { x: 9.2, y: 6.9 };
+      AppState.anchor1 = { x: -9.2, y: -6.9 };
+      AppState.anchor2 = { x: 9.2, y: -6.9 };
+      AppState.anchorMove = { x: -7.7, y: 4 };
+      requestAnimationFrame(() => {
+        fitStageIntoDiv();
+        applyAnchors();
+        window.scrollTo(0, 10);
+      });
       break;
     default:
       navbar.style.display = "";
-      AppState.stageWidth = 20;
-      AppState.stageHeight = 17;
-      AppState.visual_shift = 20;
-      fitStageIntoDiv();
+      AppState.stageWidth = 15.8;
+      AppState.stageHeight = 15.5;
+      AppState.visual_shift = 70;
+      AppState.anchor0name = { x: 0, y: 7.4 };
+      AppState.anchor0el = { x: 7.35, y: 7.6 };
+      AppState.anchor1 = { x: -7.35, y: -8.4 };
+      AppState.anchor2 = { x: 7.35, y: -8.4 };
+      AppState.anchorMove = { x: -6.4, y: 5.5 };
+      requestAnimationFrame(() => {
+        fitStageIntoDiv();
+        applyAnchors();
+      });
   }
+}
+
+function applyInitialLayout() {
+  // window.screen.orientation existing is NOT a reliable mobile signal —
+  // desktop Chrome/Edge/Firefox all expose it too (reporting
+  // "landscape-primary" for an ordinary monitor), which used to route
+  // desktop into doOnOrientationChange()'s mobile-landscape case: navbar
+  // force-hidden, smaller mobile scale instead of desktop's own, and a
+  // mobile-only window.scrollBy(0, 200) — the exact "navbar disappeared,
+  // board too high" desktop regression. Gate on touch capability instead,
+  // which real mobile/tablet devices have and desktop browsers don't.
+  const isTouchDevice =
+    "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  if (isTouchDevice && window.screen && window.screen.orientation) {
+    doOnOrientationChange(); // covers all mobile cases correctly, portrait or landscape, from a cold load
+    return;
+  }
+  // Desktop (or any non-touch browser) — classify by actual measured
+  // dimensions instead, so first load isn't stuck with mobile-portrait
+  // values. Desktop's non-portrait branch is scaled ~20% bigger than the
+  // original baseline (bigger than mobile-landscape's ~10%, since desktop
+  // has more room to spare) — stageHeight 20 -> 16.7 is what drives that,
+  // being the binding dimension whenever the window is wider than tall.
+  navbar.style.display = "";
+  const isPortrait = window.innerHeight > window.innerWidth;
+  AppState.stageWidth = isPortrait ? 15.8 : 14.2;
+  AppState.stageHeight = isPortrait ? 15.5 : 16.7;
+  AppState.visual_shift = isPortrait ? 70 : 40;
+  AppState.anchor0name = { x: 0, y: 7.4 };
+  AppState.anchor0el = isPortrait ? { x: 7.35, y: 7.6 } : { x: 9.2, y: 6.9 };
+  AppState.anchor1 = isPortrait ? { x: -7.35, y: -8.4 } : { x: -9.2, y: -6.9 };
+  AppState.anchor2 = isPortrait ? { x: 7.35, y: -8.4 } : { x: 9.2, y: -6.9 };
+  AppState.anchorMove = isPortrait
+    ? { x: -6.4, y: 5.5 }
+    : { x: -7.7, y: 4 };
+  fitStageIntoDiv();
+  applyAnchors();
 }
 
 function createHexPatch(gid, xy, color, stroke, qr) {
@@ -539,6 +697,14 @@ function createHexPatch(gid, xy, color, stroke, qr) {
     fill: color,
     stroke: stroke,
     strokeWidth: 0.05,
+    // NOTE: no hitStrokeWidth here. This hex grid tiles edge-to-edge with
+    // zero gap between adjacent cells (center-to-center spacing == HEX_SIZE
+    // * sqrt(3), a standard zero-gap hex tiling identity), so any positive
+    // hitStrokeWidth pads every hex's hit region into its neighbors' — a
+    // touch-target enlargement that works for isolated buttons breaks a
+    // tightly tessellated grid like this one (a click can register on the
+    // wrong neighboring hex instead). Hit region intentionally matches the
+    // visual fill exactly.
     q: qr[0],
     r: qr[1],
   });
@@ -649,6 +815,11 @@ function manageMove(gid) {
   }
 }
 
+function handleBoardClick(evt) {
+  let shape = evt.target;
+  manageMove(shape.id());
+}
+
 function promotePiece(label) {
   modalPiece.toggle();
   makeMove(AppState.movestage, AppState.target, label);
@@ -687,10 +858,24 @@ function forwardMove() {
 
 function boardReset() {
   cleanHigh();
-  board_layer.removeChildren();
-  interactive_layer.removeChildren();
-  pieces_layer.removeChildren();
-  top_layer.removeChildren();
+  // Destroy only the per-gid shapes boardInfo() recreates on every reset —
+  // removeChildren() alone leaks their listeners. Layer "chrome" (background,
+  // qline/rline/sline, player-name labels, gameover) is a set of singletons
+  // that boardInfo() re-adds by reference each time and must NOT be destroyed
+  // here (gameover in particular has a click handler attached once at module
+  // scope — destroying it would break the tap-to-dismiss game-over banner).
+  for (let gid = 0; gid < TOTAL_HEXES; gid++) {
+    AppState.gid2hex[gid].destroy();
+    AppState.gid2high[gid].destroy();
+    AppState.gid2valid[gid].destroy();
+    AppState.gid2attack[gid].destroy();
+    AppState.gid2piece[gid].destroy();
+  }
+  for (let p = 0; p < 3; p++) {
+    for (let i = 0; i < MAX_ELIMINATED; i++) {
+      AppState.elpieces[p][i].destroy();
+    }
+  }
   boardInfo();
 }
 
@@ -735,7 +920,7 @@ function updateStats(
     for (let pcs in el) {
       AppState.elpieces[p][pcs].data(pieces_paths["pieces"][el[pcs]]);
     }
-    for (let i = el.length; i < 23; i++) {
+    for (let i = el.length; i < MAX_ELIMINATED; i++) {
       AppState.elpieces[p][i].data("");
     }
   }
@@ -838,6 +1023,7 @@ function validMoves(gid) {
       console.error(
         `ValidMoves error ${response.status}: ${response.statusText}`,
       );
+      AppState.ready = true;
       // window.location.reload();
     });
 }
@@ -872,6 +1058,7 @@ function makeMove(gid, tgid, new_piece = "") {
       console.error(
         `MakeMove error ${response.status}: ${response.statusText}`,
       );
+      AppState.ready = true;
       // window.location.reload();
     });
 }
@@ -902,6 +1089,7 @@ function voteDraw(vote) {
       console.error(
         `VoteDraw error ${response.status}: ${response.statusText}`,
       );
+      AppState.ready = true;
       // window.location.reload();
     });
 }
@@ -932,6 +1120,7 @@ function voteResign(vote) {
       console.error(
         `VoteResign error ${response.status}: ${response.statusText}`,
       );
+      AppState.ready = true;
       // window.location.reload();
     });
 }
@@ -1097,7 +1286,7 @@ function gameInfo(init = false, redraw = false) {
         }
       }
       // Open voting if needed
-      board_layer.off("click tap");
+      board_layer.off("click tap", handleBoardClick);
       if (data.vote_needed && !data.finished) {
         if (data.onmove == AppState.view_pid) {
           showVoteModal(data.vote_results["kind"], data.vote_results);
@@ -1129,16 +1318,14 @@ function gameInfo(init = false, redraw = false) {
         gameover.visible(true);
       } else {
         gameover.visible(false);
-        board_layer.on("click tap", function (evt) {
-          let shape = evt.target;
-          manageMove(shape.id());
-        });
+        board_layer.on("click tap", handleBoardClick);
       }
     })
     .catch((response) => {
       console.error(
         `GameInfo error ${response.status}: ${response.statusText}`,
       );
+      AppState.ready = true;
       // window.location.reload();
     });
 }
@@ -1199,8 +1386,11 @@ function boardInfo() {
       }
       // Create mappings for eliminated
       let q = {
+        // Vertical mirror of player 2's array (q0 = q2 + r2), so player 0's
+        // rack is the vertical mirror image of player 2's — fills bottom-up
+        // the same way player 2's fills toward the board.
         0: [
-          9, 8, 8, 7, 8, 7, 6, 7, 6, 5, 7, 6, 5, 4, 6, 5, 4, 3, 6, 5, 4, 3, 2,
+          6, 5, 4, 3, 2, 6, 5, 4, 3, 7, 6, 5, 4, 7, 6, 5, 8, 7, 6, 8, 7, 9, 8,
         ],
         1: [
           -5, -4, -3, -2, -1, -5, -4, -3, -2, -6, -5, -4, -3, -6, -5, -4, -7,
@@ -1212,8 +1402,9 @@ function boardInfo() {
         ],
       };
       let r = {
+        // Vertical mirror of player 2's array (r0 = -r2).
         0: [
-          1, 1, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7,
+          7, 7, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1,
         ],
         1: [
           -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3,
@@ -1224,18 +1415,38 @@ function boardInfo() {
           -3, -3, -2, -2, -1, -1,
         ],
       };
-      for (let i = 0; i < 23; i++) {
+      const elpiecesGroup = [group0el, group1, group2];
+      for (let i = 0; i < MAX_ELIMINATED; i++) {
         for (let p = 0; p < 3; p++) {
+          let x = q[p][i] + 0.5 * r[p][i] - 0.5;
+          let y = (r[p][i] * Math.sqrt(3)) / 2;
+          // Convert to group-local coordinates using each group's fixed
+          // landscape/desktop construction anchor as the reference offset
+          // (not the live, mutable AppState.anchor1/anchor2/anchor0el —
+          // those change per orientation via applyAnchors(), and using them
+          // here would double-apply the shift on top of the group's own
+          // .position()). Player 0's reference (9.2, 6.9) mirrors player 2's
+          // (9.2, -6.9) across y=0, matching the q0/r0 mirror above.
+          if (p === 1) {
+            x += 9.2;
+            y += 6.9;
+          } else if (p === 2) {
+            x -= 9.2;
+            y += 6.9;
+          } else if (p === 0) {
+            x -= 9.2;
+            y -= 6.9;
+          }
           AppState.elpieces[p][i] = createHexLabel(
             0,
-            [q[p][i] + 0.5 * r[p][i] - 0.5, (r[p][i] * Math.sqrt(3)) / 2],
+            [x, y],
             theme["pieces"]["color"][AppState.seat2pid[p]],
             theme["pieces"]["stroke-color"] != theme["canvas"]["background"]
               ? 0.25
               : 0,
             "",
           );
-          pieces_layer.add(AppState.elpieces[p][i]);
+          elpiecesGroup[p].add(AppState.elpieces[p][i]);
         }
       }
 
@@ -1250,15 +1461,7 @@ function boardInfo() {
       }
 
       pieces_layer.add(movelabel);
-      pieces_layer.add(p0name);
-      pieces_layer.add(p0el1);
-      pieces_layer.add(p0el2);
-      pieces_layer.add(p1name);
-      pieces_layer.add(p1el2);
-      pieces_layer.add(p1el0);
-      pieces_layer.add(p2name);
-      pieces_layer.add(p2el0);
-      pieces_layer.add(p2el1);
+      pieces_layer.add(group0name, group0el, group1, group2);
 
       // game over
       top_layer.add(gameover);
@@ -1266,12 +1469,12 @@ function boardInfo() {
       interactive_layer.add(qline);
       interactive_layer.add(rline);
       interactive_layer.add(sline);
-      board_layer.draw();
-      interactive_layer.draw();
-      pieces_layer.draw();
-      top_layer.draw();
+      board_layer.batchDraw();
+      interactive_layer.batchDraw();
+      pieces_layer.batchDraw();
+      top_layer.batchDraw();
 
-      fitStageIntoDiv();
+      applyInitialLayout();
       submit.disabled = true;
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
@@ -1279,6 +1482,7 @@ function boardInfo() {
     })
     .catch((response) => {
       console.log(`BoardInfo error ${response.status}: ${response.statusText}`);
+      AppState.ready = true;
       // window.location.reload();
     });
 }
@@ -1286,7 +1490,7 @@ function boardInfo() {
 function boardSubmit() {
   submit.disabled = true;
   submit.className = "btn btn-secondary p-0 mb-0 col-12";
-  submitText.innerHTML = "";
+  submitText.textContent = "";
   loader.style.display = "inline-block";
 
   apiFetch("/api/v1/manager/board", { id: id, slog: AppState.slog })
@@ -1300,12 +1504,12 @@ function boardSubmit() {
       boardReset();
       AppState.on_move = false;
       AppState.ready = true;
-      submitText.innerHTML = "Submit";
+      submitText.textContent = "Submit";
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
     })
     .catch((response) => {
-      submitText.innerHTML = "Submit";
+      submitText.textContent = "Submit";
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
       alert(`BoardSubmit error ${response.status}: ${response.statusText}`);
@@ -1313,7 +1517,15 @@ function boardSubmit() {
     });
 }
 
-window.addEventListener("resize", fitStageIntoDiv);
+function debounce(fn, delayMs) {
+  let timer = null;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delayMs);
+  };
+}
+
+window.addEventListener("resize", debounce(fitStageIntoDiv, 150));
 window.addEventListener("orientationchange", doOnOrientationChange);
 
 // ready to go

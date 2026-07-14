@@ -2,6 +2,7 @@ import os
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
+from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 
 from webapp.main import db
@@ -54,6 +55,10 @@ class User(db.Model):  # ty: ignore
                     stats["pass"] += 1
         return stats
 
+    @property
+    def is_admin(self):
+        return self.id == 1
+
     def is_authenticated(self):
         return True
 
@@ -100,6 +105,15 @@ class TriBoard(db.Model):  # ty: ignore
 
     scores = db.relationship("Score", backref="board")
 
+    @classmethod
+    def for_player(cls, user_id):
+        """Filter expression matching boards where user_id occupies any of the 3 seats."""
+        return db.or_(
+            cls.player_0_id == user_id,
+            cls.player_1_id == user_id,
+            cls.player_2_id == user_id,
+        )
+
 
 class Score(db.Model):  # ty: ignore
     __tablename__ = "score"
@@ -127,10 +141,17 @@ class Log(db.Model):
     board = db.relationship("TriBoard", backref="logs", lazy="select")
 
 
-db.event.listen(
-    User.__table__,
-    "after_create",
-    db.DDL(
-        f"INSERT INTO user (id, username, password, theme, board, pieces) VALUES (1, 'admin', {generate_password_hash(os.environ.get("ADMIN_PASSWORD", ""))}, 'night', 'ondro', 'default')"
-    ),
-)
+def _seed_admin_user(target, connection, **kwargs):
+    # Bound parameter, not string interpolation — the hash (e.g. "scrypt:32768:8:1$...")
+    # contains ":"/"$" characters that break a raw-DDL string (SQLite reads ":32768"
+    # as a bind-parameter marker).
+    connection.execute(
+        text(
+            "INSERT INTO user (id, username, password, theme, board, pieces) "
+            "VALUES (1, 'admin', :password, 'night', 'ondro', 'default')"
+        ),
+        {"password": generate_password_hash(os.environ.get("ADMIN_PASSWORD", ""))},
+    )
+
+
+db.event.listen(User.__table__, "after_create", _seed_admin_user)

@@ -8,7 +8,7 @@ from wtforms import (
     StringField,
     SubmitField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp
 
 
 class NewGameForm(FlaskForm):
@@ -22,7 +22,15 @@ class NewGameForm(FlaskForm):
 
 class RegistrationForm(FlaskForm):
     username = StringField(
-        "Username", validators=[DataRequired(), Length(min=4, max=20)]
+        "Username",
+        validators=[
+            DataRequired(),
+            Length(min=4, max=20),
+            Regexp(
+                r"^[A-Za-z0-9_-]+$",
+                message="Username may only contain letters, numbers, underscores and hyphens.",
+            ),
+        ],
     )
     password = PasswordField(
         "Password", validators=[DataRequired(), Length(min=6, max=128)]

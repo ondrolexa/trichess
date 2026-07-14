@@ -24,6 +24,7 @@
         {% for game in available %}
         <tr>
         <form action=""{{ url_for('admin_games') }}"" method="post" class="form" role="form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         <td><strong>{{game.player_0.username}}</strong></td>
@@ -58,6 +59,7 @@
         {% for game in active %}
         <tr>
         <form action=""{{ url_for('admin_games') }}"" method="post" class="form" role="form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         {% if game.onmove == 0 %}
@@ -116,6 +118,7 @@
         {% for game in archive %}
         <tr>
         <form action=""{{ url_for('admin_games') }}"" method="post" class="form" role="form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
         <th scope="row">{{game.id}}</th>
         {% if game.player_0.id == game.owner_id %}
         {% if game.onmove == 0 %}

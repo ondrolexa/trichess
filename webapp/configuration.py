@@ -13,7 +13,19 @@ class Config(object):
 
     DEBUG = os.environ.get("DEBUG", "false").lower() == "true"
     TESTING = False
-    SQLALCHEMY_DATABASE_URI = "sqlite:///trichess.db"
+    # Overridable via env var so tests/conftest.py can force sqlite:///:memory:
+    # *before* webapp.main's module-level `db = SQLAlchemy(app)` runs. That
+    # call reads this value once at import time and permanently caches the
+    # resulting engine on the app object — flask-sqlalchemy's own docs say
+    # "changes to application config after this call will not be reflected" —
+    # so mutating app.config["SQLALCHEMY_DATABASE_URI"] afterwards (e.g. in a
+    # pytest fixture) is a silent no-op that leaves the engine pointed at the
+    # real db. That exact gap made every pytest run drop/recreate tables
+    # against the real instance/trichess.db, which is what was previously
+    # being investigated as recurring/unexplained data loss.
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "SQLALCHEMY_DATABASE_URI", "sqlite:///trichess.db"
+    )
     BOOTSTRAP_FONTAWESOME = True
     SECRET_KEY = os.environ.get(
         "FLASK_SECRET_KEY", "dev-fallback-change-me-in-production"
@@ -21,7 +33,6 @@ class Config(object):
     JWT_SECRET_KEY = os.environ.get(
         "JWT_SECRET_KEY", "dev-fallback-change-me-in-production"
     )
-    CSRF_ENABLED = True
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PROPAGATE_EXCEPTIONS = True
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "")

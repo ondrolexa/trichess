@@ -30,6 +30,7 @@
     {% set owner_alone = game.owner_id == player_id and occupied_seats == 1 %}
     <tr>
     <form action=""{{ url_for('available_games') }}"" method="post" class="form" role="form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <th scope="row">{{game.id}}<input type="hidden" id="board" name="board" value="{{game.id}}"/></th>
     <td class="seat">
       {% if game.player_0 is none %}

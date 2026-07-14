@@ -11,8 +11,10 @@ from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import CSRFProtect
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
+from werkzeug.exceptions import HTTPException
 
 # Custom GAME log level (between INFO and WARNING)
 GAME = 25
@@ -40,6 +42,12 @@ class DBHandler(logging.Handler):
             board_id=getattr(record, "board_id", None),
         )
         db.session.add(entry)
+        try:
+            db.session.commit()
+        except Exception:
+            # A logging failure must never mask/replace the exception that
+            # triggered this log record in the first place.
+            db.session.rollback()
 
 
 # Configure logging
@@ -58,6 +66,11 @@ CORS(app, origins=allowed_origins, supports_credentials=True)
 # Configuration of application, see configuration.py, choose one and uncomment.
 app.config.from_object("webapp.configuration.Config")
 
+# CSRF protection for cookie/session-authenticated HTML form routes. The /api/v1/*
+# blueprint and the /token view are bearer-JWT-only (no cookies involved) and are
+# exempted from it in views.py where they're registered.
+csrf = CSRFProtect(app)
+
 
 # Add security headers
 @app.after_request
@@ -68,6 +81,25 @@ def add_security_headers(response):
     # Uncomment the following line in production to enforce HTTPS
     # response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     return response
+
+
+@app.errorhandler(404)
+def handle_not_found(err):
+    return "Not found", 404
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(err):
+    # Registering this handler is what stops uncaught non-HTTP exceptions from
+    # propagating past Flask to the WSGI server (PROPAGATE_EXCEPTIONS=True
+    # otherwise re-raises them once no handler is found). Flask's error-handler
+    # lookup walks the raised exception's full MRO, so a bare Exception handler
+    # also matches HTTPException subclasses (abort(), CSRFError, flask-restx's
+    # .abort(), ...) unless they're passed through untouched here.
+    if isinstance(err, HTTPException):
+        return err
+    logger.error(f"Unhandled exception: {err}", exc_info=True)
+    return "Internal server error", 500
 
 
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
@@ -109,6 +141,7 @@ def post_notification(username, text, title, gameid):
                 "Title": title,
                 "Click": click,
             },
+            timeout=(3, 5),
         )
     except requests.exceptions.ConnectionError:
         logger.error("Connection error during notification post.")

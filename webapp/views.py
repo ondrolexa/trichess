@@ -16,8 +16,9 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import yaml
-from flask import abort, flash, g, jsonify, redirect, request, url_for
+from flask import abort, flash, g, jsonify, redirect
 from flask import render_template as real_render_template
+from flask import request, url_for
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -41,8 +42,9 @@ from webapp.forms import (
     RegistrationForm,
     ResetPasswordForm,
 )
-from webapp.main import GAME, app, db, jwt, lm, post_notification
+from webapp.main import GAME
 from webapp.main import __version__ as webapp_version
+from webapp.main import app, csrf, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
 from webapp.token import verify_password_reset_token, verify_verification_token
 
@@ -119,11 +121,7 @@ def index():
 @app.route("/games")
 @login_required
 def active_games():
-    user_in = db.or_(
-        TriBoard.player_0_id == g.user.id,
-        TriBoard.player_1_id == g.user.id,
-        TriBoard.player_2_id == g.user.id,
-    )
+    user_in = TriBoard.for_player(g.user.id)
     active = (
         TriBoard.query.filter_by(status=1)
         .filter(user_in)
@@ -143,11 +141,7 @@ def active_games():
 @app.route("/archive")
 @login_required
 def archive():
-    user_in = db.or_(
-        TriBoard.player_0_id == g.user.id,
-        TriBoard.player_1_id == g.user.id,
-        TriBoard.player_2_id == g.user.id,
-    )
+    user_in = TriBoard.for_player(g.user.id)
     archive = (
         TriBoard.query.filter_by(status=2)
         .filter(user_in)
@@ -184,11 +178,7 @@ def rating():
     pos = 1
     for user in users:
         user.score = sum([s.score for s in user.scores])
-        user_in = db.or_(
-            TriBoard.player_0_id == user.id,
-            TriBoard.player_1_id == user.id,
-            TriBoard.player_2_id == user.id,
-        )
+        user_in = TriBoard.for_player(user.id)
         boards = (
             TriBoard.query.filter_by(status=2)
             .filter(user_in)
@@ -209,9 +199,9 @@ def rating():
 @login_required
 def available_games():
     if request.method == "POST":
-        delete = request.form.get("delete", None)
+        delete = request.form.get("delete", type=int)
         if delete is not None:
-            board = db.session.get(TriBoard, int(delete))
+            board = db.session.get(TriBoard, delete)
             if board and board.owner_id == g.user.id and board.status == 0:
                 others = [
                     p
@@ -227,9 +217,9 @@ def available_games():
                     db.session.commit()
             return redirect(url_for("available_games"))
 
-        board_id = request.form.get("board", None)
+        board_id = request.form.get("board", type=int)
         if board_id is not None:
-            board = TriBoard.query.filter_by(id=int(board_id)).first()
+            board = TriBoard.query.filter_by(id=board_id).first()
             seat = request.form.get("seat")
             if board is None:
                 flash("Game not found", "error")
@@ -321,15 +311,11 @@ def available_games():
     )
 
 
-@app.route("/play/<id>")
+@app.route("/play/<int:id>")
 @login_required
 def play(id):
     access_token = create_access_token(identity=g.user.username)
-    user_in = db.or_(
-        TriBoard.player_0_id == g.user.id,
-        TriBoard.player_1_id == g.user.id,
-        TriBoard.player_2_id == g.user.id,
-    )
+    user_in = TriBoard.for_player(g.user.id)
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
         pieces_file = os.path.join(
@@ -380,11 +366,7 @@ def profile():
         db.session.commit()
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active_games"))
-    user_in = db.or_(
-        TriBoard.player_0_id == g.user.id,
-        TriBoard.player_1_id == g.user.id,
-        TriBoard.player_2_id == g.user.id,
-    )
+    user_in = TriBoard.for_player(g.user.id)
     active = TriBoard.query.filter_by(status=1).filter(user_in).all()
     archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
     avg = sum([t.modified_at - t.started_at for t in archive], timedelta(0))
@@ -394,7 +376,7 @@ def profile():
     else:
         avg_length = "Unknown"
 
-    if g.user.id == 1:
+    if g.user.is_admin:
         selected_user_id = request.args.get("user_id", g.user.id, type=int)
         selected_user = db.session.get(User, selected_user_id) or g.user
         selected_user_id = selected_user.id
@@ -464,13 +446,14 @@ def help():
 @app.route("/admin-games", methods=["GET", "POST"])
 @login_required
 def admin_games():
-    if g.user.id == 1:
+    if g.user.is_admin:
         if request.method == "POST":
-            delete = request.form.get("delete", None)
+            delete = request.form.get("delete", type=int)
             if delete is not None:
                 board = TriBoard.query.filter_by(id=delete).first()
-                db.session.delete(board)
-                db.session.commit()
+                if board is not None:
+                    db.session.delete(board)
+                    db.session.commit()
                 return redirect(url_for("admin_games"))
         else:
             available = (
@@ -506,18 +489,20 @@ def admin_games():
 @app.route("/admin-users", methods=["GET", "POST"])
 @login_required
 def admin_users():
-    if g.user.id == 1:
+    if g.user.is_admin:
         if request.method == "POST":
-            approve = request.form.get("approve", None)
-            delete = request.form.get("delete", None)
+            approve = request.form.get("approve", type=int)
+            delete = request.form.get("delete", type=int)
             if approve is not None:
                 user = User.query.filter_by(id=approve).first()
-                user.active = True
-                db.session.commit()
+                if user is not None:
+                    user.active = True
+                    db.session.commit()
             elif delete is not None:
                 user = User.query.filter_by(id=delete).first()
-                db.session.delete(user)
-                db.session.commit()
+                if user is not None:
+                    db.session.delete(user)
+                    db.session.commit()
             return redirect(url_for("admin_users"))
         else:
             waiting = User.query.filter(User.id > 1).filter(User.active == 0).all()
@@ -549,7 +534,7 @@ def load_user(id):
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if g.user is not None and g.user.is_authenticated:
-        if g.user.id == 1:
+        if g.user.is_admin:
             return redirect(url_for("index"))
         else:
             return redirect(url_for("active_games"))
@@ -563,7 +548,7 @@ def login():
                 user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
                 flash("Login successful!", "success")
-                if user.id == 1:
+                if user.is_admin:
                     return redirect(url_for("index"))
                 else:
                     return redirect(url_for("active_games"))
@@ -614,6 +599,7 @@ def reset(token):
 
 
 @app.route("/token", methods=["POST"])
+@csrf.exempt
 def token():
     """Request from client app to return JWT token"""
     json = request.get_json()
@@ -631,6 +617,7 @@ def token():
 
 @app.route("/refresh", methods=["POST"])
 @jwt_required(refresh=True)
+@csrf.exempt
 def refresh():
     username = get_jwt_identity()
     if username:
@@ -640,6 +627,7 @@ def refresh():
 
 
 @app.route("/logout/")
+@login_required
 def logout():
     logout_user()
     return redirect(url_for("index"))
@@ -722,5 +710,6 @@ def verify(token):
     return redirect(url_for("login"))
 
 
-# register API blueprint
+# register API blueprint (bearer-JWT-only, no cookies — CSRF doesn't apply)
 app.register_blueprint(api, url_prefix="/api/v1")
+csrf.exempt(api)
