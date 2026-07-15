@@ -5,7 +5,7 @@
 .canvas-container {
     display: flex;
     justify-content: center;
-    min-height: calc(100vh - 56px);
+    min-height: calc(100vh - 60px);
 }
 
 #mainCanvas {
@@ -76,7 +76,7 @@
     }
 
     .canvas-container {
-        min-height: 35vh;
+        min-height: 38vh;
     }
 
     #mainCanvas {

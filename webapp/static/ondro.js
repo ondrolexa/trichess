@@ -331,8 +331,8 @@ const p0el2 = new Konva.Rect({
 });
 
 const p1name = new Konva.Shape({
-  x: 0,
-  y: 0,
+  x: 1.5,
+  y: 1,
   width: 8,
   height: 1,
   scale: {
@@ -348,8 +348,8 @@ const p1name = new Konva.Shape({
 });
 
 const p1el2 = new Konva.Rect({
-  x: 0,
-  y: -0.9,
+  x: 1.5,
+  y: 0.1,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][2],
@@ -363,8 +363,8 @@ const p1el2 = new Konva.Rect({
 });
 
 const p1el0 = new Konva.Rect({
-  x: 0,
-  y: -0.9,
+  x: 1.5,
+  y: 0.1,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][0],
@@ -378,8 +378,8 @@ const p1el0 = new Konva.Rect({
 });
 
 const p2name = new Konva.Shape({
-  x: 0,
-  y: 0,
+  x: -1.5,
+  y: 1,
   width: 8,
   height: 1,
   scale: {
@@ -395,8 +395,8 @@ const p2name = new Konva.Shape({
 });
 
 const p2el0 = new Konva.Rect({
-  x: 0,
-  y: -0.9,
+  x: -1.5,
+  y: 0.1,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][0],
@@ -410,8 +410,8 @@ const p2el0 = new Konva.Rect({
 });
 
 const p2el1 = new Konva.Rect({
-  x: 0,
-  y: -0.9,
+  x: -1.5,
+  y: 0.1,
   width: 0,
   height: 2.5,
   fill: theme["pieces"]["color"][1],
@@ -588,13 +588,13 @@ function doOnOrientationChange() {
   switch (window.screen.orientation.type) {
     case "landscape-primary":
       navbar.style.display = "none";
-      AppState.stageWidth = 17;
-      AppState.stageHeight = 20.7;
-      AppState.visual_shift = -20;
+      AppState.stageWidth = 15.8;
+      AppState.stageHeight = 20.5;
+      AppState.visual_shift = 20;
       AppState.anchor0name = { x: 0, y: 7.4 };
-      AppState.anchor0el = { x: 9.2, y: 6.9 };
-      AppState.anchor1 = { x: -9.2, y: -6.9 };
-      AppState.anchor2 = { x: 9.2, y: -6.9 };
+      AppState.anchor0el = { x: 11.2, y: 6.9 };
+      AppState.anchor1 = { x: -11.2, y: -6.9 };
+      AppState.anchor2 = { x: 11.2, y: -6.9 };
       AppState.anchorMove = { x: -7.7, y: 4 };
       requestAnimationFrame(() => {
         fitStageIntoDiv();
@@ -608,9 +608,9 @@ function doOnOrientationChange() {
       AppState.stageHeight = 15.5;
       AppState.visual_shift = 70;
       AppState.anchor0name = { x: 0, y: 7.4 };
-      AppState.anchor0el = { x: 7.35, y: 7.6 };
-      AppState.anchor1 = { x: -7.35, y: -8.4 };
-      AppState.anchor2 = { x: 7.35, y: -8.4 };
+      AppState.anchor0el = { x: 8.8, y: 9.5 };
+      AppState.anchor1 = { x: -8.8, y: -9.5 };
+      AppState.anchor2 = { x: 8.8, y: -9.5 };
       AppState.anchorMove = { x: -6.4, y: 5.5 };
       requestAnimationFrame(() => {
         fitStageIntoDiv();
@@ -619,13 +619,13 @@ function doOnOrientationChange() {
       break;
     case "landscape-secondary":
       navbar.style.display = "none";
-      AppState.stageWidth = 17;
-      AppState.stageHeight = 20.7;
-      AppState.visual_shift = -20;
+      AppState.stageWidth = 15.8;
+      AppState.stageHeight = 20.5;
+      AppState.visual_shift = 20;
       AppState.anchor0name = { x: 0, y: 7.4 };
-      AppState.anchor0el = { x: 9.2, y: 6.9 };
-      AppState.anchor1 = { x: -9.2, y: -6.9 };
-      AppState.anchor2 = { x: 9.2, y: -6.9 };
+      AppState.anchor0el = { x: 11.2, y: 6.9 };
+      AppState.anchor1 = { x: -11.2, y: -6.9 };
+      AppState.anchor2 = { x: 11.2, y: -6.9 };
       AppState.anchorMove = { x: -7.7, y: 4 };
       requestAnimationFrame(() => {
         fitStageIntoDiv();
@@ -639,10 +639,10 @@ function doOnOrientationChange() {
       AppState.stageHeight = 15.5;
       AppState.visual_shift = 70;
       AppState.anchor0name = { x: 0, y: 7.4 };
-      AppState.anchor0el = { x: 7.35, y: 7.6 };
-      AppState.anchor1 = { x: -7.35, y: -8.4 };
-      AppState.anchor2 = { x: 7.35, y: -8.4 };
-      AppState.anchorMove = { x: -6.4, y: 5.5 };
+      AppState.anchor0el = { x: 8.8, y: 9.5 };
+      AppState.anchor1 = { x: -8.8, y: -9.5 };
+      AppState.anchor2 = { x: 8.8, y: -9.5 };
+      AppState.anchorMove = { x: -6, y: 7 };
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
@@ -677,9 +677,9 @@ function applyInitialLayout() {
   AppState.stageHeight = isPortrait ? 15.5 : 16.7;
   AppState.visual_shift = isPortrait ? 70 : 40;
   AppState.anchor0name = { x: 0, y: 7.4 };
-  AppState.anchor0el = isPortrait ? { x: 7.35, y: 7.6 } : { x: 9.2, y: 6.9 };
-  AppState.anchor1 = isPortrait ? { x: -7.35, y: -8.4 } : { x: -9.2, y: -6.9 };
-  AppState.anchor2 = isPortrait ? { x: 7.35, y: -8.4 } : { x: 9.2, y: -6.9 };
+  AppState.anchor0el = isPortrait ? { x: 7.35, y: 7.6 } : { x: 11.2, y: 7.6 };
+  AppState.anchor1 = isPortrait ? { x: -7.35, y: -8.4 } : { x: -11.2, y: -7.6 };
+  AppState.anchor2 = isPortrait ? { x: 7.35, y: -8.4 } : { x: 11.2, y: -7.6 };
   AppState.anchorMove = isPortrait
     ? { x: -6.4, y: 5.5 }
     : { x: -7.7, y: 4 };
@@ -1418,8 +1418,8 @@ function boardInfo() {
       const elpiecesGroup = [group0el, group1, group2];
       for (let i = 0; i < MAX_ELIMINATED; i++) {
         for (let p = 0; p < 3; p++) {
-          let x = q[p][i] + 0.5 * r[p][i] - 0.5;
-          let y = (r[p][i] * Math.sqrt(3)) / 2;
+          let x = q[p][i] / 1.2 + 0.5 * r[p][i] / 1.2 - 0.5;
+          let y = (r[p][i] * Math.sqrt(3)) / 2 / 1.2;
           // Convert to group-local coordinates using each group's fixed
           // landscape/desktop construction anchor as the reference offset
           // (not the live, mutable AppState.anchor1/anchor2/anchor0el —

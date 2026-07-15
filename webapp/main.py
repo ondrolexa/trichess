@@ -124,7 +124,7 @@ lm = LoginManager()
 lm.init_app(app)
 lm.login_view = "login"
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 
 # notifications
