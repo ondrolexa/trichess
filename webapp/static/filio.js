@@ -840,7 +840,7 @@ class board {
   constructor() {
     this.hexs = [];
     this.gid_old = 85;
-    this.gid_new = 0;
+    this.gid_new = -1;
     this.slog = "";
     this.view_player = 0;
     this.view_player_org = 0;
@@ -1113,12 +1113,20 @@ class board {
     let yc = this.hexs[84].y
     let xp = this.hexs[this.gid_new].x
     let yp = this.hexs[this.gid_new].y
-    let c = Math.sqrt( Math.pow(xc - xp, 2) +Math.pow(yc - yp, 2));
-    let a = yc-yp
+    let c = Math.sqrt( Math.pow(xc - xp, 2) +Math.pow(yc - yp, 2)); //radius
+    if (c==0) {
+      return 84
+    }
+    let a = (yp-yc)
+    let b = (xp-xc)
     let angle = Math.asin(a/c)
-    angle = angle + 2*(Math.PI / 3) // otocit o 120 stupnu
+    let a120 = 2*(Math.PI / 3)
+    if (b<0) {
+      angle = Math.PI - Math.asin(a/c)
+    }
+    angle = angle -  a120 // otocit o 120 stupnu
     let x = c*Math.cos(angle)+xc
-    let y =  -c*Math.sin(angle)+yc
+    let y = c*Math.sin(angle)+yc
     for (let z = 0; z < 169; z++) {
       if (Math.round(this.hexs[z].x) == Math.round(x) &&  Math.round(this.hexs[z].y)  == Math.round(y)) {
       return z
@@ -1126,7 +1134,6 @@ class board {
     }
     return -1
   }
-
   // move ---------------------------------------------
   moveValid() {
     if (
@@ -1293,7 +1300,7 @@ function Step_3_setelim_board_and_draw(idata) {
     SS.set()
     SS.write()
   }
-  if (B.gid_new > 0) {
+  if (B.gid_new >= 0) {
     B.hexs[B.gid_new].draw_mark("rect") //show cursor
     B.moveValid();
     }
@@ -1467,7 +1474,9 @@ function Click_Refresh() {
 function Click_Rotate() {
   SS.active = false;
   let slog = B.getSlog();
-  B.gid_new = B.get_gid_rotate();
+  if (B.gid_new != -1) {
+    B.gid_new = B.get_gid_rotate();
+  }
   B.view_player = (B.view_player + 1) % 3;
   F.fetchPOST(
     url + "/api/v1/game/info",
@@ -1487,6 +1496,9 @@ function getMouesPosition(e) {
     const bounds = canvas0.getBoundingClientRect();
     let x = pos.x;
     let y = pos.y;
+    if (B.gid_new == -1) {
+      B.gid_new = 84
+    }
     //if pieces window is open
     if (B.hexs[B.gid_new].promo_flag && SS.active) {
       //CP.elems[7].e.show_flag = false
