@@ -363,7 +363,7 @@ class iinfo {
       let y_corr=0 //correction
       for (let i = 0; i < 8; i++) {
         if (portrait && i>2) {
-          x_corr=canW/2+300
+          x_corr=canW/2
           y_corr=line_high*2
         }
         this.lines[i] = new llines(
@@ -521,7 +521,19 @@ class iinfos {
       this.panel[3] = new iinfo(3, dist_rl, canH - 50, "left", -1);
     }
     this.panel[3].lines[4].text = "# " + ID.toString();
-    this.panel[3].lines[3].text = "Move: " + B.move_number_org.toString() + "/" + B.move_number.toString();
+    let last_move = B.slog.substring((B.slog_pointer-1) * 4, B.slog_pointer * 4);
+    let a = last_move.substring(0,1)
+    if (a == 's' || a == 'S') {
+      last_move = ""
+    }
+    else {
+      last_move = last_move.substr(0,2)+"-"+last_move.substr(2,2)
+    }
+    let cursor_coor = ""
+    if (B.gid_new>0) {
+      cursor_coor = B.hexs[B.gid_new].sc
+    }
+    this.panel[3].lines[3].text = "Move: " + B.move_number_org.toString() + "/" + B.move_number.toString()+"  "+last_move//+"-"+cursor_coor
     if (idata.vote_results != null) {
       let verb = " offers ";
       let j = 0;
@@ -688,6 +700,12 @@ function  setx(a,b) {
   }
 class hex {
   constructor(a, b, id) {
+    //todo
+    this.a = a
+    this.b = b
+    //let t1  = "ABCDEFGHIJKLMNO"
+    //let t2  = "ABCDEFGHIJKLMNO"
+    //this.sc =  t2.charAt(a) + t1.charAt(b)
     this.x = setx(a,b);
     this.y = sety(b);
     this.id = id;
@@ -1465,7 +1483,7 @@ function Click_Refresh() {
   B.move_number_max = -1;
   B.move_number_org = -1;
   B.hist_changed = false;
-  B.gid_new = 0;
+  B.gid_new = -1;
   F.fetchGET(
     url + "/api/v1/manager/board?id=" + ID.toString(),
     Step_2_setplayers,
