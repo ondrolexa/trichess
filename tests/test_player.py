@@ -1,5 +1,5 @@
 from engine.pieces import Move, Pos
-from engine.player import Player
+from engine.player import STEP, Player
 
 
 class TestPlayer:
@@ -15,13 +15,13 @@ class TestPlayer:
 
     def test_step_direction_keys(self):
         for pid in range(3):
-            p = Player(pid)
             for step_code in ["FL", "FR", "SL", "DF", "DL", "DR"]:
-                forward = p.step(step_code)
-                reverse = p.step(step_code + "r")
-                assert (
-                    forward == -reverse
-                ), f"{pid} {step_code}: {forward} != -{reverse}"
+                dq, dr = STEP[pid][step_code]
+                rdq, rdr = STEP[pid][step_code + "r"]
+                assert (dq, dr) == (
+                    -rdq,
+                    -rdr,
+                ), f"{pid} {step_code}: ({dq},{dr}) != -({rdq},{rdr})"
 
     def test_pos_from_move(self):
         p = Player(0)

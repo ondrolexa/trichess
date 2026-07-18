@@ -1,0 +1,34 @@
+# Version control
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Dependency lockfiles/managers not used by the Docker build
+uv.lock
+
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Runtime data — bind-mounted at runtime, never baked into the image
+instance/
+
+# Tests and dev tooling
+tests/
+requirements-dev.txt
+
+# Editor / OS cruft
+.vscode/
+.idea/
+*.swp
+.DS_Store

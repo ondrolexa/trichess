@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
@@ -23,6 +24,9 @@ class User(db.Model):  # ty: ignore
     board = db.Column(db.String(16), default="ondro")
     pieces = db.Column(db.String(16), default="default")
     active = db.Column(db.Boolean, default=True)
+    is_bot = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.text("0")
+    )
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     last_login = db.Column(db.DateTime)
     rating = db.Column(db.Float, default=500.0)
@@ -145,13 +149,36 @@ def _seed_admin_user(target, connection, **kwargs):
     # Bound parameter, not string interpolation — the hash (e.g. "scrypt:32768:8:1$...")
     # contains ":"/"$" characters that break a raw-DDL string (SQLite reads ":32768"
     # as a bind-parameter marker).
+    # rating is set explicitly: User.rating's default=500.0 is a Python/ORM-side
+    # default, not a DB server_default, so a raw INSERT like this one leaves it
+    # NULL otherwise — breaks anywhere the template does `rating|round`.
     connection.execute(
         text(
-            "INSERT INTO user (id, username, password, theme, board, pieces) "
-            "VALUES (1, 'admin', :password, 'night', 'ondro', 'default')"
+            "INSERT INTO user (id, username, password, theme, board, pieces, rating) "
+            "VALUES (1, 'admin', :password, 'night', 'ondro', 'default', 500.0)"
         ),
         {"password": generate_password_hash(os.environ.get("ADMIN_PASSWORD", ""))},
     )
 
 
+def _seed_bot_users(target, connection, **kwargs):
+    # Two fixed bot accounts (not the admin user) so a game can have up to 2
+    # bot seats without 2 seats sharing one username — webapp/api.py's
+    # _seat_map() keys on username, so 2 seats with the same identity would
+    # be ambiguous. Random, unrecorded password + active=False: nobody can
+    # log in as these accounts even if the hash were somehow brute-forced.
+    for username in ("Bot 1", "Bot 2"):
+        connection.execute(
+            text(
+                "INSERT INTO user (username, password, active, is_bot, rating) "
+                "VALUES (:username, :password, 0, 1, 500.0)"
+            ),
+            {
+                "username": username,
+                "password": generate_password_hash(secrets.token_hex(32)),
+            },
+        )
+
+
 db.event.listen(User.__table__, "after_create", _seed_admin_user)
+db.event.listen(User.__table__, "after_create", _seed_bot_users)

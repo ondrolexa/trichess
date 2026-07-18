@@ -1,46 +1,30 @@
 import logging
-import smtplib
-from email.message import EmailMessage
 
 from flask import current_app, url_for
 
+from webapp.notifications import _send_email_job, notification_queue
 from webapp.token import generate_password_reset_token, generate_verification_token
 
 logger = logging.getLogger(__name__)
 
 
 def send_email(to, subject, body):
+    """Queue an email — never blocks the caller on the SMTP connection.
+
+    Returns whether it was queued, not whether it was actually delivered
+    (that now happens asynchronously in the worker; failures are logged
+    there, not surfaced back to the caller). The MAIL_SERVER-configured
+    check stays synchronous so callers like register() can still tell
+    "email isn't set up at all" apart from "queued, should arrive soon".
+    """
     server = current_app.config["MAIL_SERVER"]
     if not server:
         logger.warning(
             "MAIL_SERVER not configured — skipping email to %s: %s", to, subject
         )
         return False
-
-    port = current_app.config["MAIL_PORT"]
-    username = current_app.config["MAIL_USERNAME"]
-    password = current_app.config["MAIL_PASSWORD"]
-    use_tls = current_app.config["MAIL_USE_TLS"]
-    sender = current_app.config["MAIL_DEFAULT_SENDER"]
-
-    msg = EmailMessage()
-    msg["From"] = sender
-    msg["To"] = to
-    msg["Subject"] = subject
-    msg.set_content(body)
-
-    try:
-        with smtplib.SMTP(server, port, timeout=30) as smtp:
-            if use_tls:
-                smtp.starttls()
-            if username and password:
-                smtp.login(username, password)
-            smtp.send_message(msg)
-        logger.info("Verification email sent to %s", to)
-        return True
-    except Exception as e:
-        logger.error("Failed to send email to %s: %s", to, e)
-        return False
+    notification_queue.enqueue(_send_email_job, to, subject, body)
+    return True
 
 
 def send_verification_email(user):

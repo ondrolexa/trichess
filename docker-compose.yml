@@ -5,22 +5,93 @@ services:
     image: ondrolexa/trichess
     container_name: trichess
     env_file: ".env"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
     restart: unless-stopped
     user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     volumes:
       - '${PWD}/instance:/code/instance'
+    depends_on:
+      - redis
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.trichess.entrypoints=https"
-      - "traefik.http.routers.trichess.rule=Host(`trichess.mykuna.eu`)"
+      - "traefik.http.routers.trichess.rule=Host(`test-trichess.mykuna.eu`)"
       - "traefik.http.routers.trichess.tls=true"
       - "traefik.http.routers.trichess.tls.certresolver=http"
-      - "traefik.http.services.trichess.loadbalancer.server.port=80"
+      - "traefik.http.services.trichess.loadbalancer.server.port=8080"
       - "traefik.http.routers.trichess.service=trichess"
     networks:
       - frontend
+      - backend
+
+  trichess-worker:
+    build: .
+    image: ondrolexa/trichess
+    container_name: trichess-worker
+    # "notifications" listed first: rq drains queues in the order given, so
+    # a push/email job never sits behind an in-progress bot search (which
+    # can take up to ~30s) in the same worker.
+    # Hardcoded, not $REDIS_URL: Compose interpolates $VAR in `command:`
+    # against the *host's* shell environment (like ${PWD} above), not the
+    # container's own `environment:` block below — with no host-side
+    # REDIS_URL set, that silently resolved to an empty string ("Option
+    # --url requires an argument"). environment: already hardcodes the same
+    # literal, so there was no real single-source-of-truth win to begin with.
+    command: rq worker notifications bot --url redis://redis:6379/0
+    env_file: ".env"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONPATH=/code
+    restart: unless-stopped
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - '${PWD}/instance:/code/instance'
+    depends_on:
+      - redis
+    # No Traefik label and no HTTP server — this service only needs to
+    # reach redis, so it stays off the shared external "frontend" network.
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: trichess-redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The official image's entrypoint starts as root and calls setpriv to
+    # drop to its own unprivileged "redis" user before exec'ing the server —
+    # that needs CAP_SETUID/CAP_SETGID, which cap_drop: ALL above removes.
+    # Verified in isolation: without these 2 added back, the container
+    # crash-loops with "setpriv: setresuid failed: Operation not permitted".
+    cap_add:
+      - SETUID
+      - SETGID
+    # Backend-only: no password, no published port, so keeping it off the
+    # shared external "frontend" network (which Traefik and other unrelated
+    # compose stacks also attach to) is what actually keeps it unreachable
+    # from anything but trichess/trichess-worker.
+    networks:
+      - backend
 
 networks:
   frontend:
     name: reverse-proxy
     external: true
+  # Not `internal: true`: trichess-worker makes real outbound calls (ntfy.sh
+  # push notifications, SMTP) that would break if this network had no
+  # gateway. The isolation win here is from the shared external "frontend"
+  # network (other tenants' containers), not from the internet.
+  backend:
+    driver: bridge

@@ -1,31 +1,49 @@
 from engine.pieces import Bishop, King, Knight, Move, Pawn, Piece, Pos, Queen, Rook
 
 # Direction vectors indexed by player pid (0=bottom, 1=left, 2=right).
-# The "r" suffix on a direction code flips the vector sign.
+# Stored as (dq, dr) tuples. Reverse directions included as "FLr" etc.
 STEP = {
     0: {
-        "FL": 0 - 1j,
-        "FR": 1 - 1j,
-        "SL": -1 + 0j,
-        "DF": 1 - 2j,
-        "DL": -1 - 1j,
-        "DR": 2 - 1j,
+        "FL": (0, -1),
+        "FLr": (0, 1),
+        "FR": (1, -1),
+        "FRr": (-1, 1),
+        "SL": (-1, 0),
+        "SLr": (1, 0),
+        "DF": (1, -2),
+        "DFr": (-1, 2),
+        "DL": (-1, -1),
+        "DLr": (1, 1),
+        "DR": (2, -1),
+        "DRr": (-2, 1),
     },
     1: {
-        "FL": 1 + 0j,
-        "FR": 0 + 1j,
-        "SL": 1 - 1j,
-        "DF": 1 + 1j,
-        "DL": 2 - 1j,
-        "DR": -1 + 2j,
+        "FL": (1, 0),
+        "FLr": (-1, 0),
+        "FR": (0, 1),
+        "FRr": (0, -1),
+        "SL": (1, -1),
+        "SLr": (-1, 1),
+        "DF": (1, 1),
+        "DFr": (-1, -1),
+        "DL": (2, -1),
+        "DLr": (-2, 1),
+        "DR": (-1, 2),
+        "DRr": (1, -2),
     },
     2: {
-        "FL": -1 + 1j,
-        "FR": -1 + 0j,
-        "SL": 0 + 1j,
-        "DF": -2 + 1j,
-        "DL": -1 + 2j,
-        "DR": -1 - 1j,
+        "FL": (-1, 1),
+        "FLr": (1, -1),
+        "FR": (-1, 0),
+        "FRr": (1, 0),
+        "SL": (0, 1),
+        "SLr": (0, -1),
+        "DF": (-2, 1),
+        "DFr": (2, -1),
+        "DL": (-1, 2),
+        "DLr": (1, -2),
+        "DR": (-1, -1),
+        "DRr": (1, 1),
     },
 }
 
@@ -56,19 +74,15 @@ class Player:
     def __repr__(self) -> str:
         return f"[{self.name}]"
 
-    def step(self, step) -> complex:
-        """Convert a step code (eg "FL") to a complex direction vector.
-
-        A trailing "r" negates the vector (reverse direction).
-        """
-        if step.endswith("r"):
-            return -STEP[self.pid][step[:-1]]
-        else:
-            return STEP[self.pid][step]
-
     def pos_from_move(self, pos: Pos, move: Move) -> Pos:
         """Accumulate all step codes in a Move into a single position delta."""
-        return pos.from_deltas([self.step(step) for step in move.steps], kind=move.kind)
+        pid = self.pid
+        q, r = pos._q, pos._r
+        for step in move.steps:
+            dq, dr = STEP[pid][step]
+            q += dq
+            r += dr
+        return Pos(q, r, kind=move.kind)
 
     def pawn(self, **kwargs) -> Pawn:
         """Create Player's instance of pawn piece."""

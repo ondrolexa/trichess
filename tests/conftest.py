@@ -12,9 +12,50 @@ import os
 # dropping tables against the real instance/trichess.db.
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
 
+import fakeredis
 import pytest
+from rq import Queue
 
 from engine import Board, GameAPI, Player
+
+
+@pytest.fixture(autouse=True)
+def fake_rq_queues(monkeypatch):
+    """Swap every RQ queue for a fakeredis-backed one for every test, so
+    view/api tests that go through maybe_trigger_bot()/post_notification()/
+    send_email() never need a real Redis server. Tests that exercise the
+    bot's actual move/vote should call botplayer.run_bot_move() directly
+    rather than relying on a worker to drain the queue.
+
+    notification_queue is imported ("from webapp.notifications import
+    notification_queue") into both webapp.main and webapp.email, each
+    binding its own copy of the reference — patching
+    webapp.notifications.notification_queue alone wouldn't reach either of
+    them, since post_notification()/send_email() look the name up in their
+    own defining module's globals, not notifications.py's.
+
+    webapp.events._redis is patched too (a plain Redis client used for
+    pub/sub, not an RQ Queue) so GameBoard.post()'s publish_board_move()
+    call never dials a real Redis during tests. Unlike the queues above,
+    only one patch site is needed here — webapp.api imports the
+    publish_board_move *function*, which reads _redis from its own
+    (events.py) module globals at call time, not a copied reference.
+    """
+    from webapp import botplayer, email, events, main, notifications
+
+    fake_bot_queue = Queue("bot", connection=fakeredis.FakeStrictRedis())
+    monkeypatch.setattr(botplayer, "bot_queue", fake_bot_queue)
+
+    fake_notification_queue = Queue(
+        "notifications", connection=fakeredis.FakeStrictRedis()
+    )
+    monkeypatch.setattr(notifications, "notification_queue", fake_notification_queue)
+    monkeypatch.setattr(main, "notification_queue", fake_notification_queue)
+    monkeypatch.setattr(email, "notification_queue", fake_notification_queue)
+
+    monkeypatch.setattr(
+        events, "_redis", fakeredis.FakeStrictRedis(decode_responses=True)
+    )
 
 
 @pytest.fixture

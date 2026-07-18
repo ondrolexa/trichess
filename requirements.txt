@@ -11,4 +11,6 @@ flask-jwt-extended
 gunicorn
 python-dotenv
 pyyaml
+redis
 requests
+rq

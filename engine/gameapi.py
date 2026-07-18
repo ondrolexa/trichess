@@ -166,6 +166,15 @@ class GameAPI:
         self.board = Board(players=self.players)
         self.update_ui_mappings()
 
+    # gid<->Pos ordering is a pure function of view_pid — same 169 cells,
+    # same traversal order, every single time. Caching it (keyed by
+    # view_pid, shared across all GameAPI instances process-wide) skips
+    # rebuilding that nested-loop/bounds-check/Pos-construction traversal on
+    # every GameAPI.copy() — which a minimax search calls once per node.
+    # Only gid2hex actually needs rebuilding per instance, since it holds
+    # this specific board's Hex objects.
+    _GID_ORDER_CACHE: dict = {}
+
     def update_ui_mappings(self):
         """Build gid↔hex lookups for the current *view_pid*.
 
@@ -175,53 +184,60 @@ class GameAPI:
           view 2 — by q then r (reversed)
         Each maps the same 169 hex cells to a different gid ordering.
         """
+        order = GameAPI._GID_ORDER_CACHE.get(self.view_pid)
+        if order is None:
+            order = []
+            match self.view_pid:
+                case 0:
+                    gid = 0
+                    for r in range(-7, 8):
+                        for q in range(-7, 8):
+                            # check whether on board
+                            s = -q - r
+                            if -7 <= s <= 7:
+                                order.append((gid, Pos(q, r)))
+                                gid += 1
+                case 1:
+                    gid = 0
+                    for s in range(-7, 8):
+                        for r in range(-7, 8):
+                            # check whether on board
+                            q = -r - s
+                            if -7 <= q <= 7:
+                                order.append((gid, Pos(q, r)))
+                                gid += 1
+                case 2:
+                    gid = 0
+                    for q in range(-7, 8):
+                        for r in range(7, -8, -1):
+                            # check whether on board
+                            s = -q - r
+                            if -7 <= s <= 7:
+                                order.append((gid, Pos(q, r)))
+                                gid += 1
+            GameAPI._GID_ORDER_CACHE[self.view_pid] = order
+
+        board = self.board
         self.gid2hex = {}
         self.pos2gid = {}
-
-        match self.view_pid:
-            case 0:
-                gid = 0
-                for r in range(-7, 8):
-                    for q in range(-7, 8):
-                        # check whether on board
-                        s = -q - r
-                        if -7 <= s <= 7:
-                            pos = Pos(q, r)
-                            self.gid2hex[gid] = self.board[pos]
-                            self.pos2gid[pos] = gid
-                            gid += 1
-            case 1:
-                gid = 0
-                for s in range(-7, 8):
-                    for r in range(-7, 8):
-                        # check whether on board
-                        q = -r - s
-                        if -7 <= q <= 7:
-                            pos = Pos(q, r)
-                            self.gid2hex[gid] = self.board[pos]
-                            self.pos2gid[pos] = gid
-                            gid += 1
-            case 2:
-                gid = 0
-                for q in range(-7, 8):
-                    for r in range(7, -8, -1):
-                        # check whether on board
-                        s = -q - r
-                        if -7 <= s <= 7:
-                            pos = Pos(q, r)
-                            self.gid2hex[gid] = self.board[pos]
-                            self.pos2gid[pos] = gid
-                            gid += 1
+        for gid, pos in order:
+            self.gid2hex[gid] = board[pos]
+            self.pos2gid[pos] = gid
 
     def copy(self):
-        ga = GameAPI(
-            self.view_pid,
-            name0=self.players[0].name,
-            name1=self.players[1].name,
-            name2=self.players[2].name,
-        )
-
-        ga.replay_from_slog(self.slog)
+        """Fast shallow copy — snapshots board state instead of replaying slog."""
+        ga = GameAPI.__new__(GameAPI)
+        ga.slog = self.slog
+        ga.move_number = self.move_number
+        ga.voting = self.voting
+        ga.players = {}
+        for pid, p in self.players.items():
+            new_p = Player.__new__(Player)
+            new_p.__dict__.update(p.__dict__)
+            ga.players[pid] = new_p
+        ga.view_pid = self.view_pid
+        ga.board = self.board.copy(players=ga.players)
+        ga.update_ui_mappings()
         return ga
 
     @property

@@ -37,6 +37,9 @@
         {% if not_in %}
           <button type="submit" class="btn btn-success btn-sm px-3" name="seat" value="0">Join</button>
         {% endif %}
+        {% if game.owner_id == player_id %}
+          <button type="submit" class="btn btn-secondary btn-sm px-3" name="fill_bot" value="0">Bot</button>
+        {% endif %}
       {% else %}
         {{game.player_0.username}} ({{ game.player_0.rating|round|int }})
       {% endif %}
@@ -46,6 +49,9 @@
         {% if not_in %}
             <button type="submit" class="btn btn-success btn-sm px-3" name="seat" value="1">Join</button>
         {% endif %}
+        {% if game.owner_id == player_id %}
+          <button type="submit" class="btn btn-secondary btn-sm px-3" name="fill_bot" value="1">Bot</button>
+        {% endif %}
       {% else %}
         {{game.player_1.username}} ({{ game.player_1.rating|round|int }})
       {% endif %}
@@ -54,6 +60,9 @@
       {% if game.player_2 is none %}
         {% if not_in %}
           <button type="submit" class="btn btn-success btn-sm px-3" name="seat" value="2">Join</button>
+        {% endif %}
+        {% if game.owner_id == player_id %}
+          <button type="submit" class="btn btn-secondary btn-sm px-3" name="fill_bot" value="2">Bot</button>
         {% endif %}
       {% else %}
         {{game.player_2.username}} ({{ game.player_2.rating|round|int }})

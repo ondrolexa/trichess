@@ -1,4 +1,4 @@
-from engine.pieces import King, Pawn, Piece, Pos
+from engine.pieces import Bishop, King, Knight, Pawn, Piece, Pos, Queen, Rook
 from engine.player import Player
 
 # Promotion zone edges per player.
@@ -11,6 +11,35 @@ base1 = [Pos(i, -7 - i) for i in range(-7, 1)]
 base12 = [Pos(i, -7) for i in range(1, 7)]
 base2 = [Pos(7, i) for i in range(-7, 1)]
 base20 = [Pos(7 - i, i) for i in range(1, 7)]
+
+# Precomputed attack tables for fast is_attacked().
+# Straight directions (Rook slides): the 6 edge-adjacent hex directions.
+_STRAIGHT = ((-1, 0), (0, -1), (1, -1), (1, 0), (0, 1), (-1, 1))
+# Diagonal directions (Bishop slides): the 6 face-adjacent hex directions.
+_DIAGONAL = ((-1, -1), (1, -2), (2, -1), (1, 1), (-1, 2), (-2, 1))
+# King step offsets: union of straight + diagonal (12 total).
+_KING_STEPS = _STRAIGHT + _DIAGONAL
+# Knight attack offsets (same for all players).
+_KNIGHT_OFFSETS = (
+    (-3, 1),
+    (-3, 2),
+    (-2, -1),
+    (-2, 3),
+    (-1, -2),
+    (-1, 3),
+    (1, -3),
+    (1, 2),
+    (2, -3),
+    (2, 1),
+    (3, -2),
+    (3, -1),
+)
+# Pawn attack offsets per player: a pawn at pos+offset attacks pos.
+_PAWN_ATTACK = (
+    ((-2, 1), (-1, 2), (1, 1)),
+    ((-2, 1), (-1, -1), (1, -2)),
+    ((1, -2), (1, 1), (2, -1)),
+)
 
 
 class Hex:
@@ -27,6 +56,8 @@ class Hex:
 
     """
 
+    __slots__ = ("pos", "board", "piece")
+
     def __init__(self, pos, board):
         self.pos = pos
         self.board = board
@@ -37,7 +68,7 @@ class Hex:
 
     @property
     def has_piece(self) -> bool:
-        return True if self.piece is not None else False
+        return self.piece is not None
 
     @property
     def color(self) -> int:
@@ -58,18 +89,22 @@ class Board:
     """
 
     def __init__(self, **kwargs):
-        # board dict
-        self._board = {}
+        # board dict — keyed by (q, r) tuples for fast lookups
+        self._board: dict[tuple[int, int], Hex] = {}
         # setup players
         self.players = kwargs.get("players", {0: Player(0), 1: Player(1), 2: Player(2)})
+        # precompute enemy pids for each player
+        self._enemy_pids = {}
+        pids = list(self.players.keys())
+        for pid in pids:
+            self._enemy_pids[pid] = tuple(p for p in pids if p != pid)
         # generate all cells
         for r in range(-7, 8):
             for q in range(-7, 8):
-                # check whether on board
                 s = -q - r
                 if -7 <= s <= 7:
                     pos = Pos(q, r)
-                    self._board[pos] = Hex(pos, self)
+                    self._board[(q, r)] = Hex(pos, self)
         self.init_pieces()
         self.opposite = {
             0: base1 + base12 + base2,
@@ -82,16 +117,60 @@ class Board:
             self.move_piece(pos_from, pos_to, label)
 
     def __iter__(self):
-        for hex in self._board.values():
-            yield hex
+        return iter(self._board.values())
 
-    def __getitem__(self, pos: Pos) -> Hex | None:
-        """Look up hex by its axial coordinate Pos."""
-        return self._board.get(pos, None)
+    def __getitem__(self, pos) -> Hex:
+        """Look up hex by axial coordinate.  Accepts Pos or (q, r) tuple."""
+        if isinstance(pos, tuple):
+            return self._board[pos]
+        return self._board[(pos._q, pos._r)]
 
-    def __contains__(self, pos: Pos) -> bool:
-        """True when the axial coordinate is on the board."""
-        return pos in self._board
+    def get(self, q, r) -> Hex | None:
+        """Fast single-call hex lookup by raw coordinates."""
+        return self._board.get((q, r))
+
+    def __contains__(self, pos) -> bool:
+        """True when the axial coordinate is on the board.  Accepts Pos or tuple."""
+        if isinstance(pos, tuple):
+            return pos in self._board
+        return (pos._q, pos._r) in self._board
+
+    def _has_piece(self, key) -> bool:
+        """Check if a board cell at key (q,r tuple) has a piece."""
+        h = self._board.get(key)
+        return h is not None and h.piece is not None
+
+    def copy(self, players=None) -> "Board":
+        """Create a deep copy of the board state without replaying slog.
+
+        *players* lets the caller supply independent Player instances (e.g.
+        GameAPI.copy() makes fresh ones) — pieces are re-pointed to them so
+        identity checks like ``piece.player is players[pid]`` keep working
+        on the copy.  Defaults to sharing the source board's players dict.
+        """
+        b = Board.__new__(Board)
+        b.players = players if players is not None else self.players
+        b._enemy_pids = self._enemy_pids
+        # copy board cells
+        new_board = {}
+        for k, old_hex in self._board.items():
+            new_hex = Hex(old_hex.pos, b)
+            if old_hex.piece is not None:
+                # share immutable piece metadata; copy mutable state
+                p = old_hex.piece
+                new_piece = p.__class__.__new__(p.__class__)
+                new_piece.__dict__.update(p.__dict__)
+                new_piece.player = b.players[p.player.pid]
+                new_piece.hex = new_hex
+                new_hex.piece = new_piece
+                # update king reference for the owning player
+                if isinstance(p, King):
+                    b.players[p.player.pid]._king_piece = new_piece
+            new_board[k] = new_hex
+        b._board = new_board
+        b.opposite = self.opposite
+        b.eliminated = list(self.eliminated)
+        return b
 
     def init_pieces(self):
         """Clear the board and place all 51 pieces (17 per player) at starting positions."""
@@ -146,7 +225,9 @@ class Board:
         *create_piece_fn* is a Player factory method that receives
         the target Hex as ``hex=`` keyword arg.
         """
-        self._board[pos].piece = create_piece_fn(hex=self._board[pos])
+        self._board[(pos._q, pos._r)].piece = create_piece_fn(
+            hex=self._board[(pos._q, pos._r)]
+        )
 
     def move_piece(self, pos_from: Pos, pos_to: Pos, label: str):
         """Move piece, handling capture, promotion, and castling side effects.
@@ -155,17 +236,19 @@ class Board:
         opponent's base, the piece is promoted.  King moves that cross
         two steps trigger castling (the matching rook is also moved).
         """
-        thex = self._board[pos_to]
+        fk = (pos_from._q, pos_from._r)
+        tk = (pos_to._q, pos_to._r)
+        thex = self._board[tk]
         if thex.has_piece:
-            self.eliminated.append((self._board[pos_from].piece.player.pid, thex.piece))
-        if label and self.promotion(self._board[pos_from].piece, pos_to):
-            piece = self._board[pos_from].piece.player.promotion(label)
+            self.eliminated.append((self._board[fk].piece.player.pid, thex.piece))
+        if label and self.promotion(self._board[fk].piece, pos_to):
+            piece = self._board[fk].piece.player.promotion(label)
         else:
-            piece = self._board[pos_from].piece
+            piece = self._board[fk].piece
         piece.used = True
         piece.hex = thex
         thex.piece = piece
-        self._board[pos_from].piece = None
+        self._board[fk].piece = None
         # Check castling
         if isinstance(piece, King):
             if pos_from == Pos(-4, 7):
@@ -191,15 +274,20 @@ class Board:
         legality filtering — a move is legal only when it does not
         leave the moving player in check.
         """
-        piece = self._board[pos_from].piece
-        piece.hex = self._board[pos_to]
-        to_piece = self._board[pos_to].piece if self._board[pos_to].has_piece else None
-        self._board[pos_to].piece = piece
-        self._board[pos_from].piece = None
-        res, _, _ = self.in_chess(piece.player)
-        piece.hex = self._board[pos_from]
-        self._board[pos_from].piece = piece
-        self._board[pos_to].piece = to_piece
+        fk = (pos_from._q, pos_from._r)
+        tk = (pos_to._q, pos_to._r)
+        piece = self._board[fk].piece
+        to_hex = self._board[tk]
+        to_piece = to_hex.piece if to_hex.has_piece else None
+        to_hex.piece = piece
+        self._board[fk].piece = None
+        if isinstance(piece, King):
+            king_pos = pos_to
+        else:
+            king_pos = piece.player.king_piece.hex.pos
+        res = self._is_attacked(king_pos, piece.player)
+        self._board[fk].piece = piece
+        to_hex.piece = to_piece
         return not res
 
     def promotion(self, piece: Piece, pos: Pos) -> bool:
@@ -218,37 +306,95 @@ class Board:
             if hex.has_piece:
                 piece = hex.piece
                 if piece.player is not player:
-                    # King do not make chess on castling position
                     targets = self.possible_moves(piece, castling=False)
                     if pos in targets:
                         pieces.append(piece)
                         inchess = True
         return inchess, pos, pieces
 
+    def _is_attacked(self, pos: Pos, by_player: Player) -> bool:
+        """Fast check if *pos* is attacked by any piece of *by_player*'s opponents.
+
+        Uses reverse-direction scanning: from *pos*, scan outward along each
+        attack direction and check for threatening pieces.
+        """
+        q, r = pos._q, pos._r
+        board = self._board
+        enemy_pids = self._enemy_pids[by_player.pid]
+
+        # Straight rays (Rook / Queen).
+        for dq, dr in _STRAIGHT:
+            sq, sr = q + dq, r + dr
+            while -7 <= sq <= 7 and -7 <= sr <= 7 and -7 <= -sq - sr <= 7:
+                h = board.get((sq, sr))
+                if h is not None and h.piece is not None:
+                    if h.piece.player.pid in enemy_pids and isinstance(
+                        h.piece, (Rook, Queen)
+                    ):
+                        return True
+                    break
+                sq += dq
+                sr += dr
+
+        # Diagonal rays (Bishop / Queen).
+        for dq, dr in _DIAGONAL:
+            sq, sr = q + dq, r + dr
+            while -7 <= sq <= 7 and -7 <= sr <= 7 and -7 <= -sq - sr <= 7:
+                h = board.get((sq, sr))
+                if h is not None and h.piece is not None:
+                    if h.piece.player.pid in enemy_pids and isinstance(
+                        h.piece, (Bishop, Queen)
+                    ):
+                        return True
+                    break
+                sq += dq
+                sr += dr
+
+        # King steps.
+        for dq, dr in _KING_STEPS:
+            h = board.get((q + dq, r + dr))
+            if h is not None and h.piece is not None:
+                if h.piece.player.pid in enemy_pids and isinstance(h.piece, King):
+                    return True
+
+        # Knight offsets.
+        for dq, dr in _KNIGHT_OFFSETS:
+            h = board.get((q + dq, r + dr))
+            if h is not None and h.piece is not None:
+                if h.piece.player.pid in enemy_pids and isinstance(h.piece, Knight):
+                    return True
+
+        # Pawn attacks.
+        for pid in enemy_pids:
+            for dq, dr in _PAWN_ATTACK[pid]:
+                h = board.get((q + dq, r + dr))
+                if h is not None and h.piece is not None:
+                    if h.piece.player.pid == pid and isinstance(h.piece, Pawn):
+                        return True
+
+        return False
+
     def possible_moves(self, piece: Piece, castling: bool = True) -> list[Pos]:
         """Filter candidate positions by board occupancy and piece ownership."""
         all = []
         candidates = piece.pos_candidates(castling)
         if candidates is not None:
+            _board = self._board
             for dest in candidates:
-                if dest in self._board:
-                    match dest.kind:
-                        case "s":
-                            if self._board[dest].has_piece:
-                                if self._board[dest].piece.player is not piece.player:
-                                    all.append(dest)
-                            else:
-                                all.append(dest)
-                        case "a":
-                            if self._board[dest].has_piece:
-                                if self._board[dest].piece.player is not piece.player:
-                                    all.append(dest)
-                        case "n":
-                            if self._board[dest].has_piece:
-                                if self._board[dest].piece.player is not piece.player:
-                                    all.append(dest)
-                            else:
-                                all.append(dest)
-                        case _:
+                dk = (dest._q, dest._r)
+                h = _board.get(dk)
+                if h is None:
+                    continue
+                match dest.kind:
+                    case "s":
+                        if not h.has_piece or h.piece.player is not piece.player:
                             all.append(dest)
+                    case "a":
+                        if h.has_piece and h.piece.player is not piece.player:
+                            all.append(dest)
+                    case "n":
+                        if not h.has_piece or h.piece.player is not piece.player:
+                            all.append(dest)
+                    case _:
+                        all.append(dest)
         return all

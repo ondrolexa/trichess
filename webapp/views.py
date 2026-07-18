@@ -32,6 +32,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from engine import get_game
 from webapp.api import blueprint as api
 from webapp.api import get_user_rating_history
+from webapp.botplayer import maybe_trigger_bot
 from webapp.email import send_password_reset_email, send_verification_email
 from webapp.forms import (
     ForgotPasswordForm,
@@ -171,9 +172,11 @@ def archive():
 @app.route("/rating")
 @login_required
 def rating():
-    users = User.query.order_by(  # .filter(User.last_login is not None)
-        User.rating.desc()
-    ).all()
+    users = (
+        User.query.filter_by(is_bot=False)
+        .order_by(User.rating.desc())  # .filter(User.last_login is not None)
+        .all()
+    )
     ratings = []
     pos = 1
     for user in users:
@@ -221,28 +224,62 @@ def available_games():
         if board_id is not None:
             board = TriBoard.query.filter_by(id=board_id).first()
             seat = request.form.get("seat")
+            fill_bot = request.form.get("fill_bot")
             if board is None:
                 flash("Game not found", "error")
                 return redirect(url_for("available_games"))
-            match seat:
-                case "0":
-                    if board.player_0_id is not None:
-                        flash("Seat already taken", "error")
-                        return redirect(url_for("available_games"))
-                    board.player_0_id = g.user.id
-                    board.player_0_accepted = True
-                case "1":
-                    if board.player_1_id is not None:
-                        flash("Seat already taken", "error")
-                        return redirect(url_for("available_games"))
-                    board.player_1_id = g.user.id
-                    board.player_1_accepted = True
-                case "2":
-                    if board.player_2_id is not None:
-                        flash("Seat already taken", "error")
-                        return redirect(url_for("available_games"))
-                    board.player_2_id = g.user.id
-                    board.player_2_accepted = True
+            if fill_bot is not None:
+                if board.owner_id != g.user.id:
+                    flash("Only the game owner can add a bot", "error")
+                    return redirect(url_for("available_games"))
+                taken = {board.player_0_id, board.player_1_id, board.player_2_id}
+                bot = (
+                    User.query.filter_by(is_bot=True)
+                    .filter(User.id.notin_({i for i in taken if i is not None}))
+                    .first()
+                )
+                if bot is None:
+                    flash("No bot account available", "error")
+                    return redirect(url_for("available_games"))
+                match fill_bot:
+                    case "0":
+                        if board.player_0_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available_games"))
+                        board.player_0_id = bot.id
+                        board.player_0_accepted = True
+                    case "1":
+                        if board.player_1_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available_games"))
+                        board.player_1_id = bot.id
+                        board.player_1_accepted = True
+                    case "2":
+                        if board.player_2_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available_games"))
+                        board.player_2_id = bot.id
+                        board.player_2_accepted = True
+            else:
+                match seat:
+                    case "0":
+                        if board.player_0_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available_games"))
+                        board.player_0_id = g.user.id
+                        board.player_0_accepted = True
+                    case "1":
+                        if board.player_1_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available_games"))
+                        board.player_1_id = g.user.id
+                        board.player_1_accepted = True
+                    case "2":
+                        if board.player_2_id is not None:
+                            flash("Seat already taken", "error")
+                            return redirect(url_for("available_games"))
+                        board.player_2_id = g.user.id
+                        board.player_2_accepted = True
             if (
                 (board.player_0_id is not None)
                 and (board.player_1_id is not None)
@@ -259,13 +296,16 @@ def available_games():
                     },
                 )
                 # send notification to first player
-                post_notification(
-                    board.player_0.username,
-                    f"The game {board.id} just started, it's your turn",
-                    "Game started",
-                    board.id,
-                )
+                if not board.player_0.is_bot:
+                    post_notification(
+                        board.player_0.username,
+                        f"The game {board.id} just started, it's your turn",
+                        "Game started",
+                        board.id,
+                    )
             db.session.commit()
+            if board.status == 1:
+                maybe_trigger_bot(board.id)
             return redirect(url_for("available_games"))
 
         form = NewGameForm()
@@ -437,7 +477,7 @@ def password():
 @app.route("/help")
 @login_required
 def help():
-    return render_template("rules.html")
+    return render_template("help.html")
 
 
 # === Admin section ===

@@ -1,5 +1,5 @@
 class Pos:
-    """A class to represent axial coordinates on trichess board.
+    """Lightweight axial coordinate.  Stores q, r as plain ints.
 
     Args:
         q (int): first coordinate
@@ -7,49 +7,52 @@ class Pos:
         kind (str): Attribute used by piece move to classify positions
 
     Attributes:
-        value (complex): A complex number representing position
-        kind (str): Attribute used by piece move to classify positions
-        code (str): Position encoded as two alphabet characters
+        value (complex): Complex number representation (computed on demand).
+        kind (str): Attribute used by piece move to classify positions.
+        code (str): Position encoded as two ASCII chars for slog encoding.
         q (int): first coordinate
         r (int): second coordinate
 
     """
 
-    def __init__(self, q, r, kind="s"):
-        self.value = complex(q, r)
-        self.kind = kind
+    __slots__ = ("_q", "_r", "kind", "_hash")
 
-    def __eq__(self, another):
-        return hasattr(another, "value") and self.value == another.value
+    def __init__(self, q, r, kind="s"):
+        self._q = int(q)
+        self._r = int(r)
+        self.kind = kind
+        self._hash = hash((self._q, self._r))
+
+    def __eq__(self, other):
+        if isinstance(other, Pos):
+            return self._q == other._q and self._r == other._r
+        if isinstance(other, tuple):
+            return self._q == other[0] and self._r == other[1]
+        return NotImplemented
 
     def __hash__(self):
-        return hash(self.code)
+        return self._hash
 
     def __repr__(self) -> str:
-        return f"Pos({self.q},{self.r})"
+        return f"Pos({self._q},{self._r})"
 
     @property
     def code(self) -> str:
         """Encode axial (q, r) as two ASCII chars offset by 72 for slog encoding."""
-        return chr(72 + self.q) + chr(72 + self.r)
+        return chr(72 + self._q) + chr(72 + self._r)
 
     @property
     def promcode(self) -> str:
         """Encode (q, r) shifted by +32 (offset 104) for promotion notation."""
-        return chr(104 + self.q) + chr(104 + self.r)
+        return chr(104 + self._q) + chr(104 + self._r)
 
     @property
     def q(self) -> int:
-        return int(self.value.real)
+        return self._q
 
     @property
     def r(self) -> int:
-        return int(self.value.imag)
-
-    def from_deltas(self, deltas: list, kind="s"):
-        """Return new position from current one + list of complex deltas."""
-        res = self.value + sum(deltas)
-        return Pos(res.real, res.imag, kind=kind)
+        return self._r
 
 
 class Move:
@@ -123,89 +126,74 @@ class Piece:
         """
         if self.hex is not None:
             res = []
+            player = self.player
+            pos = self.pos
+            board = self.hex.board
+            _board = board._board
+            _has = board._has_piece
             for move in self._moves:
                 match move.kind:
                     case "s":
-                        res.append(self.player.pos_from_move(self.pos, move))
+                        res.append(player.pos_from_move(pos, move))
                     case "f":
-                        pos = self.player.pos_from_move(self.pos, move)
-                        if pos in self.hex.board:
-                            if not self.hex.board[pos].has_piece:
-                                res.append(pos)
+                        dest = player.pos_from_move(pos, move)
+                        dk = (dest._q, dest._r)
+                        if dk in _board and not _has(dk):
+                            res.append(dest)
                     case "a":
-                        pos = self.player.pos_from_move(self.pos, move)
-                        if pos in self.hex.board:
-                            if self.hex.board[pos].has_piece:
-                                res.append(pos)
+                        dest = player.pos_from_move(pos, move)
+                        dk = (dest._q, dest._r)
+                        if dk in _board and _has(dk):
+                            res.append(dest)
+                    case "n":
+                        cur = pos
+                        for _ in range(14):
+                            dest = player.pos_from_move(cur, move)
+                            dk = (dest._q, dest._r)
+                            if dk not in _board:
+                                break
+                            res.append(dest)
+                            if _has(dk):
+                                break
+                            cur = dest
                     case "d":
                         partial_move = Move(move.steps[0])
-                        pos = self.player.pos_from_move(self.pos, partial_move)
-                        if pos in self.hex.board:
-                            if not self.hex.board[pos].has_piece:
-                                pos = self.player.pos_from_move(self.pos, move)
-                                if pos in self.hex.board:
-                                    if not self.hex.board[pos].has_piece:
-                                        res.append(pos)
-                    case "n":
-                        pos = self.pos
-                        for i in range(1, 15):
-                            pos = self.player.pos_from_move(pos, move)
-                            if pos in self.hex.board:
-                                if self.hex.board[pos].has_piece:
-                                    res.append(pos)
-                                    break
-                                res.append(pos)
-                            else:
-                                break
+                        pos1 = player.pos_from_move(pos, partial_move)
+                        dk1 = (pos1._q, pos1._r)
+                        if dk1 in _board and not _has(dk1):
+                            pos2 = player.pos_from_move(pos, move)
+                            dk2 = (pos2._q, pos2._r)
+                            if dk2 in _board and not _has(dk2):
+                                res.append(pos2)
                 if castling and move.kind == "c":
-                    inchess, _, _ = self.hex.board.pos_in_chess(self.player, self.pos)
+                    inchess, _, _ = board.pos_in_chess(player, pos)
                     if not inchess:
-                        pos = self.player.pos_from_move(self.pos, move)
+                        dest = player.pos_from_move(pos, move)
+                        dk = (dest._q, dest._r)
                         overmove = Move(move.steps[0])
-                        overpos = self.player.pos_from_move(self.pos, overmove)
-                        if (
-                            pos in self.hex.board
-                            and not self.hex.board[self.pos].piece.used
-                        ):
-                            if not self.hex.board[overpos].has_piece:
-                                if not self.hex.board[pos].has_piece:
-                                    inchess, _, _ = self.hex.board.pos_in_chess(
-                                        self.player, overpos
-                                    )
-                                    if not inchess:
-                                        if move.steps[0] == "SL":
-                                            rpos = self.player.pos_from_move(
-                                                pos, overmove
-                                            )
-                                            if rpos in self.hex.board:
-                                                if self.hex.board[rpos].has_piece:
-                                                    rp = self.hex.board[rpos].piece
-                                                    if (
-                                                        isinstance(rp, Rook)
-                                                        and not rp.used
-                                                    ):
-                                                        res.append(pos)
-                                        else:
-                                            fpos = self.player.pos_from_move(
-                                                pos, overmove
-                                            )
-                                            if fpos in self.hex.board:
-                                                if not self.hex.board[fpos].has_piece:
-                                                    rpos = self.player.pos_from_move(
-                                                        fpos, overmove
-                                                    )
-                                                    if rpos in self.hex.board:
-                                                        if self.hex.board[
-                                                            rpos
-                                                        ].has_piece:
-                                                            rp = self.hex.board[
-                                                                rpos
-                                                            ].piece
-                                                            if (
-                                                                isinstance(rp, Rook)
-                                                                and not rp.used
-                                                            ):
-                                                                res.append(pos)
+                        overpos = player.pos_from_move(pos, overmove)
+                        ok = (overpos._q, overpos._r)
+                        if dk in _board and not self.hex.piece.used:
+                            if not _has(ok) and not _has(dk):
+                                inchess2, _, _ = board.pos_in_chess(player, overpos)
+                                if not inchess2:
+                                    if move.steps[0] == "SL":
+                                        rpos = player.pos_from_move(dest, overmove)
+                                        rk = (rpos._q, rpos._r)
+                                        if rk in _board and _has(rk):
+                                            rp = _board[rk].piece
+                                            if isinstance(rp, Rook) and not rp.used:
+                                                res.append(dest)
+                                    else:
+                                        fpos = player.pos_from_move(dest, overmove)
+                                        fk = (fpos._q, fpos._r)
+                                        if fk in _board and not _has(fk):
+                                            rpos = player.pos_from_move(fpos, overmove)
+                                            rk = (rpos._q, rpos._r)
+                                            if rk in _board and _has(rk):
+                                                rp = _board[rk].piece
+                                                if isinstance(rp, Rook) and not rp.used:
+                                                    res.append(dest)
             return res
 
 

@@ -11,8 +11,11 @@ flask-jwt-extended
 gunicorn
 python-dotenv
 pyyaml
+redis
 requests
+rq
 pytest
 black
 ruff
 isort
+fakeredis

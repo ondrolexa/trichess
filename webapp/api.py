@@ -1,14 +1,17 @@
 import logging
+import os
 from collections import defaultdict
 from datetime import datetime
 
-from flask import Blueprint
+from flask import Blueprint, Response, abort, request, stream_with_context
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import aliased
 
 from engine import get_game
+from webapp.botplayer import maybe_trigger_bot
+from webapp.events import publish_board_move, subscribe_board_events
 from webapp.main import GAME, db, post_notification
 from webapp.models import Score, TriBoard, User
 
@@ -27,6 +30,15 @@ authorizations = {
 K = 9.0
 L = 400.0
 starting_rating = 500.0
+
+# A single human playing against 2 bots is solo practice — live "your
+# turn"/"game over" pushes for it are suppressed by default (see
+# GameBoard.post()'s notify_players). resend_notification() (webapp/main.py)
+# deliberately never consults this — a solo player who walked away should
+# still get the 24h-stale reminder regardless.
+SINGLE_PLAYER_NOTIFICATIONS = (
+    os.environ.get("SINGLE_PLAYER_NOTIFICATIONS", "false").lower() == "true"
+)
 
 
 def _parse_ts(raw):
@@ -105,6 +117,12 @@ def get_rating_history():
     # history stores (timestamp, rating) snapshots after each game
     history = defaultdict(list)
 
+    # Games with a bot seat don't create Score rows (see GameBoard.post()'s
+    # board_has_bot guard) — excluding them here too, not just via missing
+    # Score rows, matters: an included-but-scoreless board would COALESCE to
+    # "everyone scored 0", which the Elo update reads as a real (and wrong)
+    # result rather than "this game doesn't count".
+    bot_ids = select(User.id).where(User.is_bot)
     stmt = (
         select(
             TriBoard.modified_at,
@@ -124,7 +142,12 @@ def get_rating_history():
         .outerjoin(
             S2, and_(TriBoard.id == S2.board_id, TriBoard.player_2_id == S2.player_id)
         )
-        .where(TriBoard.status == 2)
+        .where(
+            TriBoard.status == 2,
+            TriBoard.player_0_id.notin_(bot_ids),
+            TriBoard.player_1_id.notin_(bot_ids),
+            TriBoard.player_2_id.notin_(bot_ids),
+        )
         .order_by(TriBoard.modified_at)
     )
     games = db.session.execute(stmt).all()
@@ -609,6 +632,7 @@ board_response = api.model(
         "slog": fields.String,
         "view_pid": fields.Integer,
         "move_number": fields.Integer,
+        "gid2code": fields.List(fields.String),
     },
 )
 
@@ -658,11 +682,11 @@ class GameBoard(Resource):
                 res["slog"] = tb.slog
                 res["view_pid"] = pid[username]
                 try:
-                    if tb.slog:
-                        ga = get_game(pid[username], tb.slog)
-                        res["move_number"] = ga.move_number
-                    else:
-                        res["move_number"] = 0
+                    ga = get_game(pid[username], tb.slog or "")
+                    res["move_number"] = ga.move_number
+                    res["gid2code"] = [
+                        ga.gid2hex[gid].pos.code for gid in range(len(ga.gid2hex))
+                    ]
                 except Exception as err:
                     logger.error(f"[GET /board] slog parsing error: {err}")
                     managerapi.abort(406, message="slog parsing error")
@@ -712,6 +736,14 @@ class GameBoard(Resource):
                         1: tb.player_1,
                         2: tb.player_2,
                     }
+                    # Games with a bot seat are casual: no Score rows, no
+                    # rating impact, no pointless notifications to a bot's
+                    # own (unmonitored) username.
+                    board_has_bot = any(p.is_bot for p in players.values())
+                    single_player_vs_bots = sum(p.is_bot for p in players.values()) == 2
+                    notify_players = (
+                        not single_player_vs_bots or SINGLE_PLAYER_NOTIFICATIONS
+                    )
                     poster = ga1.on_move == pid[username]
                     voting = ga1.voting.active() or ga2.voting.active()
                     oneadded = ga2.move_number - ga1.move_number == 1
@@ -728,21 +760,22 @@ class GameBoard(Resource):
                             if ga2.draw():
                                 scores = compute_outcome_scores(ga2)
                                 for uid, value in scores.items():
-                                    new_score = Score(
-                                        player_id=players[uid].id,
-                                        board_id=tb.id,
-                                        score=value,
-                                        tag="D",
-                                        onmove=uid == ga2.on_move,
-                                    )
-                                    db.session.add(new_score)
-                                    # notify
-                                    post_notification(
-                                        players[uid].username,
-                                        f"Draw agreed in game {state.id}",
-                                        "Game over",
-                                        state.id,
-                                    )
+                                    if not board_has_bot:
+                                        new_score = Score(
+                                            player_id=players[uid].id,
+                                            board_id=tb.id,
+                                            score=value,
+                                            tag="D",
+                                            onmove=uid == ga2.on_move,
+                                        )
+                                        db.session.add(new_score)
+                                    if not players[uid].is_bot and notify_players:
+                                        post_notification(
+                                            players[uid].username,
+                                            f"Draw agreed in game {state.id}",
+                                            "Game over",
+                                            state.id,
+                                        )
                                 logger.log(
                                     GAME,
                                     "Game finished — tag D (draw)",
@@ -755,29 +788,32 @@ class GameBoard(Resource):
                                 resigned = ga2.voting.results(kind="resign")
                                 ruid = set([0, 1, 2]).difference(resigned).pop()
                                 scores = compute_outcome_scores(ga2)
-                                for uid, value in scores.items():
-                                    new_score = Score(
-                                        player_id=players[uid].id,
-                                        board_id=tb.id,
-                                        score=value,
-                                        tag="R",
-                                        onmove=uid == ga2.on_move,
-                                    )
-                                    db.session.add(new_score)
+                                if not board_has_bot:
+                                    for uid, value in scores.items():
+                                        new_score = Score(
+                                            player_id=players[uid].id,
+                                            board_id=tb.id,
+                                            score=value,
+                                            tag="R",
+                                            onmove=uid == ga2.on_move,
+                                        )
+                                        db.session.add(new_score)
                                 # notify
-                                post_notification(
-                                    players[ruid].username,
-                                    f"You win in game {state.id} by resignation",
-                                    "Game over",
-                                    state.id,
-                                )
-                                for uid in resigned:
+                                if not players[ruid].is_bot and notify_players:
                                     post_notification(
-                                        players[uid].username,
-                                        f"You lost in game {state.id} by resignation",
+                                        players[ruid].username,
+                                        f"You win in game {state.id} by resignation",
                                         "Game over",
                                         state.id,
                                     )
+                                for uid in resigned:
+                                    if not players[uid].is_bot and notify_players:
+                                        post_notification(
+                                            players[uid].username,
+                                            f"You lost in game {state.id} by resignation",
+                                            "Game over",
+                                            state.id,
+                                        )
                                 logger.log(
                                     GAME,
                                     "Game finished — tag R (resignation)",
@@ -789,14 +825,17 @@ class GameBoard(Resource):
                             elif in_chess:
                                 scores = compute_outcome_scores(ga2)
                                 for uid, value in scores.items():
-                                    new_score = Score(
-                                        player_id=players[uid].id,
-                                        board_id=tb.id,
-                                        score=value,
-                                        tag="N",
-                                        onmove=uid == ga2.on_move,
-                                    )
-                                    db.session.add(new_score)
+                                    if not board_has_bot:
+                                        new_score = Score(
+                                            player_id=players[uid].id,
+                                            board_id=tb.id,
+                                            score=value,
+                                            tag="N",
+                                            onmove=uid == ga2.on_move,
+                                        )
+                                        db.session.add(new_score)
+                                    if players[uid].is_bot or not notify_players:
+                                        continue
                                     if uid == ga2.on_move:
                                         post_notification(
                                             players[uid].username,
@@ -822,20 +861,22 @@ class GameBoard(Resource):
                             else:
                                 scores = compute_outcome_scores(ga2)
                                 for uid, value in scores.items():
-                                    new_score = Score(
-                                        player_id=players[uid].id,
-                                        board_id=tb.id,
-                                        score=value,
-                                        tag="S",
-                                        onmove=uid == ga2.on_move,
-                                    )
-                                    db.session.add(new_score)
-                                    post_notification(
-                                        players[uid].username,
-                                        f"The game {state.id} ended in a stalemate",
-                                        "Game over",
-                                        state.id,
-                                    )
+                                    if not board_has_bot:
+                                        new_score = Score(
+                                            player_id=players[uid].id,
+                                            board_id=tb.id,
+                                            score=value,
+                                            tag="S",
+                                            onmove=uid == ga2.on_move,
+                                        )
+                                        db.session.add(new_score)
+                                    if not players[uid].is_bot and notify_players:
+                                        post_notification(
+                                            players[uid].username,
+                                            f"The game {state.id} ended in a stalemate",
+                                            "Game over",
+                                            state.id,
+                                        )
                                 logger.log(
                                     GAME,
                                     "Game finished — tag S (stalemate)",
@@ -844,15 +885,17 @@ class GameBoard(Resource):
                                         "board_id": tb.id,
                                     },
                                 )
-                            update_rating_db()
+                            if not board_has_bot:
+                                update_rating_db()
                         else:
                             # notify next player
-                            post_notification(
-                                players[ga2.on_move].username,
-                                f"It's your turn in game {state.id}",
-                                "Your turn",
-                                state.id,
-                            )
+                            if not players[ga2.on_move].is_bot and notify_players:
+                                post_notification(
+                                    players[ga2.on_move].username,
+                                    f"It's your turn in game {state.id}",
+                                    "Your turn",
+                                    state.id,
+                                )
                         logger.log(
                             GAME,
                             "Move made",
@@ -862,6 +905,9 @@ class GameBoard(Resource):
                             },
                         )
                         db.session.commit()
+                        publish_board_move(tb.id, len(ga2.slog))
+                        if tb.status == 1:
+                            maybe_trigger_bot(tb.id)
                     else:
                         managerapi.abort(
                             409, message="Posted slog is in conflict with server one"
@@ -875,6 +921,54 @@ class GameBoard(Resource):
                     managerapi.abort(417, message="An unexpected error occurred")
             else:
                 managerapi.abort(404, message="Board not found")
+
+
+@blueprint.route("/manager/board/events")
+@jwt_required(locations=["query_string"])
+def board_events():
+    """SSE stream: one ping per move/vote persisted on this board.
+
+    Auth via query-string JWT (locations=["query_string"], this route only
+    — the global JWT_TOKEN_LOCATION config is untouched, every other
+    endpoint stays header-only) because the browser's native EventSource
+    API can't set custom headers; ondro.js strips the "Bearer " prefix off
+    the page's normal JWT and appends it as ?jwt=<token>.
+
+    A raw Flask route rather than a Flask-RESTX Resource, since RESTX's
+    response marshaling doesn't fit a streaming generator — falls through
+    to Flask's normal error handling untouched by RESTX.
+
+    Same seat-membership authorization as GameBoard.get() — status 1
+    (active) or 2 (archived/just-finished, so a client already on the page
+    when the game ends still gets the final push) boards only, and only
+    for a user actually seated on it.
+    """
+    id = request.args.get("id", type=int)
+    if id is None:
+        abort(400)
+    username = get_jwt_identity()
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        abort(401)
+    user_in = TriBoard.for_player(user.id)
+    active_or_archive = db.or_(TriBoard.status == 1, TriBoard.status == 2)
+    tb = (
+        TriBoard.query.filter_by(id=id)
+        .filter(active_or_archive)
+        .filter(user_in)
+        .first()
+    )
+    if tb is None:
+        abort(404)
+
+    def gen():
+        yield ": connected\n\n"
+        yield from subscribe_board_events(id)
+
+    response = Response(stream_with_context(gen()), mimetype="text/event-stream")
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"  # Traefik: disable proxy buffering
+    return response
 
 
 board_view_fields = api.model(

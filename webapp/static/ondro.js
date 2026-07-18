@@ -10,6 +10,10 @@ const AppState = {
   // Coordinate → GID lookup (populated at runtime)
   pos2gid: {},
 
+  // GID → slog 2-char coordinate code (populated from server response)
+  gid2code: [],
+  click_code: null,
+
   // Player / seat mappings (populated from server response)
   seat2pid: {},
   seat2name: {},
@@ -40,6 +44,7 @@ const AppState = {
 
   // Move label
   movelabel_text: "",
+  move_number: 0,
 
   // Move-selection
   movestage: -1,
@@ -276,7 +281,7 @@ const movelabel = new Konva.Shape({
   sceneFunc: function (context, shape) {
     context.font = theme["canvas"]["font-family"];
     context.fillStyle = theme["canvas"]["info"];
-    context.textAlign = "center";
+    context.textAlign = "left";
     const lines = AppState.movelabel_text.split("\n");
     for (let i = 0; i < lines.length; i++)
       context.fillText(lines[i], 0, i * 10);
@@ -595,7 +600,7 @@ function doOnOrientationChange() {
       AppState.anchor0el = { x: 11.2, y: 6.9 };
       AppState.anchor1 = { x: -11.2, y: -6.9 };
       AppState.anchor2 = { x: 11.2, y: -6.9 };
-      AppState.anchorMove = { x: -7.7, y: 4 };
+      AppState.anchorMove = { x: -9.7, y: 4 };
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
@@ -611,7 +616,7 @@ function doOnOrientationChange() {
       AppState.anchor0el = { x: 8.8, y: 9.5 };
       AppState.anchor1 = { x: -8.8, y: -9.5 };
       AppState.anchor2 = { x: 8.8, y: -9.5 };
-      AppState.anchorMove = { x: -6.4, y: 5.5 };
+      AppState.anchorMove = { x: -7.3, y: 5.5 };
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
@@ -626,7 +631,7 @@ function doOnOrientationChange() {
       AppState.anchor0el = { x: 11.2, y: 6.9 };
       AppState.anchor1 = { x: -11.2, y: -6.9 };
       AppState.anchor2 = { x: 11.2, y: -6.9 };
-      AppState.anchorMove = { x: -7.7, y: 4 };
+      AppState.anchorMove = { x: -9.7, y: 4 };
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
@@ -642,7 +647,7 @@ function doOnOrientationChange() {
       AppState.anchor0el = { x: 8.8, y: 9.5 };
       AppState.anchor1 = { x: -8.8, y: -9.5 };
       AppState.anchor2 = { x: 8.8, y: -9.5 };
-      AppState.anchorMove = { x: -6, y: 7 };
+      AppState.anchorMove = { x: -7.3, y: 7 };
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
@@ -681,8 +686,8 @@ function applyInitialLayout() {
   AppState.anchor1 = isPortrait ? { x: -7.35, y: -8.4 } : { x: -11.2, y: -7.6 };
   AppState.anchor2 = isPortrait ? { x: 7.35, y: -8.4 } : { x: 11.2, y: -7.6 };
   AppState.anchorMove = isPortrait
-    ? { x: -6.4, y: 5.5 }
-    : { x: -7.7, y: 4 };
+    ? { x: -5.85, y: 5.5 }
+    : { x: -9.7, y: 4 };
   fitStageIntoDiv();
   applyAnchors();
 }
@@ -787,6 +792,8 @@ function createHexLabel(gid, xy, color, strokewidth, data) {
 
 function manageMove(gid) {
   if (AppState.ready) {
+    AppState.click_code = AppState.gid2code[gid];
+    updateMoveLabel();
     AppState.current = gid;
     if (AppState.movestage == -1) {
       setCoordHints(gid);
@@ -948,7 +955,13 @@ function updateStats(
   p2el1.fill(theme["pieces"]["color"][AppState.seat2pid[1]]);
 
   slogtext.textContent = AppState.slog;
-  AppState.movelabel_text = `Move\n${move_number}/${AppState.game_moves}`;
+  AppState.move_number = move_number;
+  updateMoveLabel();
+}
+
+function updateMoveLabel() {
+  const coord = AppState.click_code ?? "--";
+  AppState.movelabel_text = `C: ${coord}\nM: ${AppState.move_number}/${AppState.game_moves}`;
 }
 
 function setCoordHints(gid) {
@@ -1352,6 +1365,7 @@ function boardInfo() {
       AppState.server_slog = data.slog;
       AppState.game_slog = data.slog;
       AppState.game_moves = data.move_number;
+      AppState.gid2code = data.gid2code;
       gameInfo(true, true);
       // Create board mappings
       let gid = 0;
@@ -1531,3 +1545,53 @@ window.addEventListener("orientationchange", doOnOrientationChange);
 // ready to go
 
 boardInfo();
+
+// Live updates: an SSE ping means a move/vote was persisted on this board
+// (by another player or the bot) — never trust the pushed payload, always
+// refetch full state through the existing authenticated GET. Use
+// boardReset(), not boardInfo() directly: boardInfo() only creates and
+// adds new per-gid Konva shapes, it never destroys the previous ones, so
+// calling it a 2nd time on an already-drawn board leaves the old piece
+// shapes on the layer alongside the new ones (the moved piece then
+// visibly appears on both its old and new hex). boardReset() destroys the
+// stale shapes first, exactly like every other post-initial-load refresh
+// (boardSubmit(), forwardMove(), etc.) already does.
+const rawToken = access_token.replace(/^Bearer\s+/, "");
+const boardEvents = new EventSource(
+  `${API_URL}/api/v1/manager/board/events?id=${id}&jwt=${encodeURIComponent(rawToken)}`,
+);
+boardEvents.onmessage = (event) => {
+  // slog_length (chars, 4 per persisted move/vote) is a monotonically
+  // increasing counter — if it's no bigger than what boardInfo() already
+  // confirmed synced, this ping is just the echo of this same tab's own
+  // just-submitted move/vote (boardSubmit()/voteDraw()/voteResign() already
+  // refreshed locally on success), or a stale duplicate. Skip the redundant
+  // reset. Never trust the payload beyond this length comparison — actual
+  // rendering always comes from a fresh authenticated refetch below.
+  const payload = JSON.parse(event.data);
+  if (payload.slog_length <= AppState.server_slog.length) {
+    return;
+  }
+  // If the local player currently has an uncommitted candidate move/vote
+  // staged (click-to-select, or backMove/forwardMove local navigation),
+  // drop this ping rather than wiping their in-progress UI state out from
+  // under them — self-corrects on the next event, or whenever they
+  // themselves submit/reset (which refreshes the board anyway).
+  if (AppState.slog === AppState.server_slog) {
+    boardReset();
+  }
+};
+boardEvents.onerror = () => {
+  // EventSource retries automatically on transient network blips, but
+  // browsers never expose the failed request's HTTP status on an 'error'
+  // event, so an expired JWT looks identical to a blip from here — it
+  // would otherwise retry forever. Confirm with a real header-authenticated
+  // request (the same GET boardInfo() already uses) before acting: only a
+  // genuine 401/422 means the token is dead, not a network hiccup.
+  apiFetchGet("/api/v1/manager/board?id=" + id.toString()).then((response) => {
+    if (response.status === 401 || response.status === 422) {
+      boardEvents.close();
+      window.location.href = "/login";
+    }
+  });
+};

@@ -1,3 +1,4 @@
+from engine import get_game
 from engine.board import Board
 from engine.pieces import Pos
 
@@ -141,6 +142,40 @@ class TestChess:
         # king at (-4,7) can move to (-4,6) if safe
         assert b.test_move_piece(Pos(-4, 7), Pos(-4, 6))
         # not testing other positions since need specific threat setup
+
+
+class TestAttackDetectionConsistency:
+    """Cross-check the fast Board._is_attacked() ray-scanner against the
+    original Board.pos_in_chess() piece-iteration implementation, on the
+    one invariant both of _is_attacked()'s real callers rely on: it is only
+    ever invoked with `pos` equal to `by_player`'s OWN king square (never an
+    arbitrary square, and never a square occupied by an enemy piece) — see
+    Board.test_move_piece() and eval.py's king-safety term. _is_attacked()'s
+    ray-scan does not account for a friendly-to-the-attacker piece sitting
+    on `pos` blocking that attacker's path, so testing it against arbitrary
+    squares (including enemy-occupied ones) produces false positives that
+    don't reflect real usage — this test intentionally stays within the
+    documented contract instead.
+    """
+
+    def _assert_king_squares_agree(self, board):
+        for pid in range(3):
+            player = board.players[pid]
+            pos = player.king_piece.hex.pos
+            expected = board.pos_in_chess(player, pos)[0]
+            actual = board._is_attacked(pos, player)
+            assert actual == expected, (
+                f"pid={pid} king pos={pos.code}: "
+                f"_is_attacked={actual} pos_in_chess={expected}"
+            )
+
+    def test_fresh_board(self):
+        self._assert_king_squares_agree(Board())
+
+    def test_after_moves(self, slog1, slog2, slog3, slog4):
+        for slog in (slog1, slog2, slog3, slog4):
+            ga = get_game(0, slog)
+            self._assert_king_squares_agree(ga.board)
 
 
 class TestPromotion:

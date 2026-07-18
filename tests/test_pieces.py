@@ -29,17 +29,6 @@ class TestPos:
                     decoded_r = ord(p.code[1]) - 72
                     assert (decoded_q, decoded_r) == (q, r)
 
-    def test_from_deltas(self):
-        p = Pos(3, -5)
-        result = p.from_deltas([1 + 0j, 0 - 1j])
-        assert result == Pos(4, -6)
-        assert result.kind == "s"
-
-    def test_from_deltas_custom_kind(self):
-        p = Pos(0, 0)
-        result = p.from_deltas([1j], kind="a")
-        assert result.kind == "a"
-
 
 class TestMove:
     def test_single_step(self):
