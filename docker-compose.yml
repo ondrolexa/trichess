@@ -17,16 +17,9 @@ services:
       - '${PWD}/instance:/code/instance'
     depends_on:
       - redis
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.trichess.entrypoints=https"
-      - "traefik.http.routers.trichess.rule=Host(`test-trichess.mykuna.eu`)"
-      - "traefik.http.routers.trichess.tls=true"
-      - "traefik.http.routers.trichess.tls.certresolver=http"
-      - "traefik.http.services.trichess.loadbalancer.server.port=8080"
-      - "traefik.http.routers.trichess.service=trichess"
+    ports:
+      - "8080:8080"
     networks:
-      - frontend
       - backend
 
   trichess-worker:
@@ -86,12 +79,5 @@ services:
       - backend
 
 networks:
-  frontend:
-    name: reverse-proxy
-    external: true
-  # Not `internal: true`: trichess-worker makes real outbound calls (ntfy.sh
-  # push notifications, SMTP) that would break if this network had no
-  # gateway. The isolation win here is from the shared external "frontend"
-  # network (other tenants' containers), not from the internet.
   backend:
     driver: bridge
