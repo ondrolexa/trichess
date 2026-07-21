@@ -1,6 +1,6 @@
 import os
 
-bind = f"0.0.0.0:{os.environ.get('PORT', 80)}"
+bind = f"0.0.0.0:{os.environ.get('PORT', 8080)}"
 workers = int(os.environ.get("GUNICORN_WORKERS", 4))
 # sync (gunicorn's default when worker_class is unset) handles exactly 1
 # request per worker for its entire duration — `threads` below would be

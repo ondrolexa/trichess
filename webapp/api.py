@@ -609,6 +609,9 @@ managerapi = api.namespace(
 
 BoardParser = reqparse.RequestParser()
 BoardParser.add_argument(name="id", type=int, required=True, nullable=False)
+BoardParser.add_argument(
+    name="view_pid", type=int, required=False, nullable=True, choices=(0, 1, 2)
+)
 
 UpdateBoardParser = reqparse.RequestParser()
 UpdateBoardParser.add_argument(name="id", type=int, required=True, nullable=False)
@@ -641,7 +644,10 @@ board_response = api.model(
 class GameBoard(Resource):
     @managerapi.doc(
         description="Get trichess board",
-        params={"id": "Board ID"},
+        params={
+            "id": "Board ID",
+            "view_pid": "Optional 0/1/2 perspective override for gid2code only",
+        },
         security="jsonWebToken",
         responses={
             404: "Board not found",
@@ -653,7 +659,9 @@ class GameBoard(Resource):
     @managerapi.response(200, "Success", board_response)
     @managerapi.expect(BoardParser)
     def get(self):
-        id = BoardParser.parse_args()["id"]
+        args = BoardParser.parse_args()
+        id = args["id"]
+        view_pid_override = args.get("view_pid")
         res = {}
         username = get_jwt_identity()
         try:
@@ -684,8 +692,18 @@ class GameBoard(Resource):
                 try:
                     ga = get_game(pid[username], tb.slog or "")
                     res["move_number"] = ga.move_number
+                    code_pid = (
+                        pid[username]
+                        if view_pid_override is None
+                        else view_pid_override
+                    )
+                    gid2hex = (
+                        ga.gid2hex
+                        if code_pid == pid[username]
+                        else get_game(code_pid, tb.slog or "").gid2hex
+                    )
                     res["gid2code"] = [
-                        ga.gid2hex[gid].pos.code for gid in range(len(ga.gid2hex))
+                        gid2hex[gid].pos.code for gid in range(len(gid2hex))
                     ]
                 except Exception as err:
                     logger.error(f"[GET /board] slog parsing error: {err}")

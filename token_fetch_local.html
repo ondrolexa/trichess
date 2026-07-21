@@ -131,7 +131,7 @@ function getToken() {
   const rt = document.getElementById("refresh-token");
   var username = document.getElementById("username").value;
   var password = document.getElementById("password").value;
-  const url = 'http://127.0.0.1:8000/token';
+  const url = 'http://127.0.0.1:8080/token';
   const data = {username: username, password: password};
   const jsonData = JSON.stringify(data);
   const headers = new Headers();
