@@ -263,12 +263,14 @@ class llines {
     this.strokeLine = istrokeLine;
     this.strokeColor = istrokeColor;
     this.text_width = 0;
+    this.text_height = 0;
   }
   set_text(itext) {
     ctx0.save();
-    this.text = itext;
-    ctx0.font = this.font;
+    ctx0.font = this.font
     this.text_width = ctx0.measureText(this.text).width;
+    this.text_height = parseInt(ctx0.font.match(/\d+/), 10);
+    this.text = itext;
     ctx0.restore();
   }
   write() {
@@ -323,6 +325,15 @@ class llines {
       }
     }
   }
+  clear() {//todo finalize clear elimitnted and remove old clear 
+    ctx0.closePath()
+    ctx0.save();
+    ctx0.style = "green"
+    ctx0.clearRect(this.pos_x,this.pos_y + (this.text_height/8) ,this.text_width,-this.text_height)
+    ctx0.closePath()
+    //ctx0.fill()
+    ctx0.restore();
+  }
 }
 // iinfo  ////////////////////////////////////////////////
 class iinfo {
@@ -333,10 +344,17 @@ class iinfo {
     this.y = ipos_y;
     this.align = ialign; // todo +1/-1
     this.vert = ivert;
+    this.lines = [];
+  }
+  set(iinfo_id, ipos_x, ipos_y, ialign, ivert) {
+    this.info_id = iinfo_id;
+    this.x = ipos_x;
+    this.y = ipos_y;
+    this.align = ialign; // todo +1/-1
+    this.vert = ivert;
     var line_len = 260;
     var line_high = 1.5 * r;
-    this.text = [];
-    this.lines = [];
+    //set lines
     line_len = line_len - 30;
     var inf_ofs = 0;
     const dist_top = 30; // top and bottom distance
@@ -364,7 +382,7 @@ class iinfo {
       for (let i = 0; i < 8; i++) {
         if (portrait && i>2) {
           x_corr=canW/2
-          y_corr=line_high*2
+          y_corr=line_high*3
         }
         this.lines[i] = new llines(
           '',
@@ -480,6 +498,7 @@ class iinfo {
   write() {
     //this.clear()
     for (let i = 0; i < 2; i++) {
+      //this.lines[i].clear()
       this.lines[i].write();
     }
     let row_cnt = 7
@@ -490,7 +509,8 @@ class iinfo {
       if (this.info_id != 3) {
         this.lines[i].draw();
       } else { // info panel 3 power lines...
-         this.lines[i].write();
+        this.lines[i].clear()
+        this.lines[i].write();
       }
     }
   }
@@ -499,14 +519,10 @@ class iinfos {
   constructor() {
     var a = theme["canvas"]["font-family"];
     var dist_rl = 150;
-    this.panel = [];
     this.players = [];
     this.index = [];
-  }
-  set(idata) {
-    this.index = rotateArray([0, 1, 2], B.view_player); //todo
-
-    if (portrait) {
+    this.panel = [];
+    if (portrait) { //todo 
       var dist_rl = 30;
       this.panel[0] = new iinfo(0, canW/2 , 2270 , "center", 1);
       this.panel[1] = new iinfo(1, 0, 2270, "left", 1);
@@ -520,7 +536,25 @@ class iinfos {
       this.panel[2] = new iinfo(2, canW - dist_rl, 0, "right", 1);
       this.panel[3] = new iinfo(3, dist_rl, canH - 50, "left", -1);
     }
-    this.panel[3].lines[4].text = "# " + ID.toString();
+
+  }
+  set(idata) {
+    this.index = rotateArray([0, 1, 2], B.view_player); //todo
+    if (portrait) {
+      var dist_rl = 30;
+      this.panel[0].set(0, canW/2 , 2270 , "center", 1);
+      this.panel[1].set(1, 0, 2270, "left", 1);
+      this.panel[2].set(2, canW, 2270, "right", 1);
+      this.panel[3].set(3, 0, 320, "left", -1);
+    }
+    else {
+      var dist_rl = 80;
+      this.panel[0].set(0, canW - dist_rl, canH - 50, "right", -1);
+      this.panel[1].set(1, dist_rl, 0, "left", 1);
+      this.panel[2].set(2, canW - dist_rl, 0, "right", 1);
+      this.panel[3].set(3, dist_rl, canH - 50, "left", -1);
+    }
+    this.panel[3].lines[5].set_text("# " + ID.toString());
     let last_move = B.slog.substring((B.slog_pointer-1) * 4, B.slog_pointer * 4);
     let a = last_move.substring(0,1)
     if (a == 's' || a == 'S') {
@@ -533,7 +567,10 @@ class iinfos {
     if (B.gid_new>0) {
       cursor_coor = B.hexs[B.gid_new].sc
     }
-    this.panel[3].lines[3].text = "Move: " + B.move_number_org.toString() + "/" + B.move_number.toString()+"  "+last_move//+"-"+cursor_coor
+    this.panel[3].lines[4].set_text("Move: " + B.move_number_org.toString() + "/" + B.move_number.toString()+"  "+last_move)//+"-"+cursor_coor
+    if (B.gid_new>0){
+      this.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
+    }
     if (idata.vote_results != null) {
       let verb = " offers ";
       let j = 0;
@@ -556,8 +593,8 @@ class iinfos {
           }
       }
     } else {
-      for (let i = 0; i < 3; i++) {
-        this.panel[3].lines[i].text = ""
+      for (let i = 0; i < 3; i++) { //todo remove
+        //this.panel[3].lines[i].text = ""
       }
       // power lines
       this.power_lines(idata);
@@ -628,7 +665,7 @@ class iinfos {
         );
       }
       //this.panel[3].lines[2].pos_y = y - 20
-      this.panel[3].lines[2].text = "Power:";
+      this.panel[3].lines[2].set_text("Power:");
     }
   }
   elim_lines(idata) {
@@ -686,7 +723,7 @@ class iinfos {
     }
   }
   getVoteHist() {
-    const msg = this.panel[3].lines.map(({ text }) => text);
+    const msg = this.panel[3].lines.map(({ text }) => text); //todo use set_text
     const msg1 = msg.reverse().slice(3, 7);
     return msg1.join("<br>");
   }
@@ -708,7 +745,8 @@ class hex {
     //this.sc =  t2.charAt(a) + t1.charAt(b)
     this.x = setx(a,b);
     this.y = sety(b);
-    this.id = id;
+    this.code = "";
+    this.id = id; //todo - to asi nepotrebujem...
     this.piece = { piece: "", player_id: -1 };
     this.hex_color = theme["board"]["hex_color"][(2 * a + b) % 3];
     this.lumi = undefined; // R,G,B, luminiscence todo
@@ -733,8 +771,10 @@ class hex {
   draw() {
     ctx0.save();
     ctx0.beginPath();
-    //ctx0.lineWidth = 3;
-    //ctx0.strokeStyle = "#ff9b09"//theme["board"]["valid_move"];
+    if (theme["board"]["hex_border"] == "#000000") {
+      ctx0.lineWidth = r/10;
+      ctx0.strokeStyle = "#000000";
+    }
     for (let i = 0; i < 6; i++) {
       //draw hex tile
       ctx0.lineTo(
@@ -750,9 +790,11 @@ class hex {
     } else {
       ctx0.fillStyle = this.hex_color;
     }
-    //ctx0.stroke()
-    ctx0.fill();
     ctx0.closePath();
+    ctx0.fill();
+     if (theme["board"]["hex_border"] == "#000000") {
+       ctx0.stroke()
+    }
     ctx0.restore();
   }
   draw_piece2(i_lineWidth = 1, i_lineColor = "#000000") {
@@ -848,8 +890,8 @@ class hex {
     } else {
       const a = 0;
     }
-    ctx0.closePath();
     ctx0.stroke();
+    ctx0.closePath();
     ctx0.restore();
   }
 }
@@ -876,7 +918,7 @@ class board {
     this.vote_needed = false;
     this.vote_results_kind = "x";
   }
-  set_border(){
+  set_border(){ //todo review
      this.border[0] = {
       b1: this.hexs[0].x,
       b2: this.hexs[0].y,
@@ -1027,7 +1069,12 @@ class board {
     }
     this.bishop_elim_color();
   }
-  draw_border() {
+  set_code(idata) {
+    for (let i = 0; i < 169; i++) {
+      this.hexs[i].code = idata.gid2code[i]
+    }
+  }
+  draw_border() {// todo asi vyhodit
     ctx0.save();
     ctx0.beginPath();
 
@@ -1081,7 +1128,6 @@ class board {
       }
     }
   }
-
   draw_pieces() {
     // mark last move
     if (this.last_move_from != -1) {
@@ -1154,6 +1200,11 @@ class board {
   }
   // move ---------------------------------------------
   moveValid() {
+    if (B.gid_new>0){
+      II.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
+      II.panel[3].lines[3].clear()
+      II.panel[3].lines[3].write()
+    }
     if (
       !(
         this.hexs[this.gid_new].piece.piece != undefined &&
@@ -1270,19 +1321,30 @@ function Step_valid_moves(idata) {
   SemaforWait = false; //todo
   modal_wt.hide();
 }
-function Step_1_settoken(idata) {
+function Step_1_settoken() {
   F.headers.Authorization = TOKEN;
   F.fetchGET(
     url + "/api/v1/manager/board?id=" + ID.toString(),
     Step_2_setplayers,
   );
 }
+function Step_12_setcode(idata) {  // The function is using by Click_Rotate()
+  B.set_code(idata)
+  SemaforWait = false; //todo
+  modal_wt.hide();
+  F.fetchPOST(
+    url + "/api/v1/game/info",
+    { slog: B.slog, view_pid: B.view_player },
+    Step_3_setelim_board_and_draw,
+  );
+}
 function Step_2_setplayers(idata) {
   II.players = [idata.player_0, idata.player_1, idata.player_2];
-  B.view_player = idata.view_pid % 3;
-  B.view_player_org = idata.view_pid % 3;
+  B.view_player = idata.view_pid;
+  B.view_player_org = idata.view_pid;
   B.slog = idata.slog;
   B.slog_pointer = idata.slog.length / 4;
+  B.set_code(idata)
   F.fetchPOST(
     url + "/api/v1/game/info",
     { slog: B.slog, view_pid: B.view_player },
@@ -1485,7 +1547,7 @@ function Click_Refresh() {
   B.hist_changed = false;
   B.gid_new = -1;
   F.fetchGET(
-    url + "/api/v1/manager/board?id=" + ID.toString(),
+    url + "/api/v1/manager/board?id=" + ID.toString()+"&view_pid="+B.view_player.toString(),
     Step_2_setplayers,
   );
 }
@@ -1496,10 +1558,9 @@ function Click_Rotate() {
     B.gid_new = B.get_gid_rotate();
   }
   B.view_player = (B.view_player + 1) % 3;
-  F.fetchPOST(
-    url + "/api/v1/game/info",
-    { slog: slog, view_pid: B.view_player },
-    Step_3_setelim_board_and_draw,
+  F.fetchGET(
+    url + "/api/v1/manager/board?id=" + ID.toString()+"&view_pid="+B.view_player.toString(),
+    Step_12_setcode
   );
 }
 function Click_Board(event) {
@@ -1597,11 +1658,11 @@ function resizee_refresh () {
 }
 
 // Main ////////////////////////////////////////////////////////////////////////////////
+resizee_init ()
 var B = new board();
 var F = new fetchData();
 var II = new iinfos();
 var SS = new ssel();
-resizee_init ()
 B.init();
 B.draw_tile();
 Step_1_settoken();
