@@ -62,7 +62,7 @@ function draw_piece_common(
   i_vs = 0,
   i_vp = piece_size,
 ) {
-  if (i_piece != undefined || i_piece != "") {
+  if (i_piece != undefined || i_piece !== "") {
     var path = new Path2D(pieces_paths["pieces"][i_piece]);
     ctx0.save();
     ctx0.lineWidth = i_lineWidth;
@@ -84,6 +84,10 @@ class fetchData {
       Authorization: "",
     };
   }
+  semaforwait_green() {
+    SemaforWait = false;
+    modal_wt.hide();
+  }
   fetchPOST(iurl, ijson, icallback) {
     const jsonData = JSON.stringify(ijson);
     const z = this.headers;
@@ -95,7 +99,7 @@ class fetchData {
       .then((response) => {
         wait_msg(true);
         if (!response.ok) {
-          if (response.status == 401) {
+          if (response.status === 401) {
             window.alert("Token expired. Reload the page.");
             location.reload();
             return;
@@ -106,14 +110,12 @@ class fetchData {
         return response.json();
       })
       .then((data) => {
-        SemaforWait = false; //todo
-        modal_wt.hide();
+        this.semaforwait_green();
         icallback(data);
       })
       .catch((error) => {
         //wait_msg(false )
-        SemaforWait = false; //todo
-        modal_wt.hide();
+        this.semaforwait_green();
         debug("Error:" + error + " url:" + iurl);
       });
   }
@@ -125,7 +127,7 @@ class fetchData {
       .then((response) => {
         wait_msg(true);
         if (!response.ok) {
-          if (response.status == 401) {
+          if (response.status === 401) {
             window.alert("Token expired. Reload the page");
             location.reload();
             return;
@@ -136,12 +138,12 @@ class fetchData {
         return response.json();
       })
       .then((data) => {
+        this.semaforwait_green();
         icallback(data);
       })
       .catch((error) => {
         //wait_msg(false)
-        SemaforWait = false; //todo
-        modal_wt.hide();
+        this.semaforwait_green();
         debug("Error:" + error + " url:" + iurl);
       });
   }
@@ -294,7 +296,7 @@ class llines {
   draw() {
     // text zisti pocet znakov
     if (!(this.text == "" || this.text == undefined)) {
-      var offset = piece_size * 6;
+      let offset = piece_size * 6;
       var dist = piece_size * 9;
       var align = 1;
       var strokeColor = this.strokeColor;
@@ -358,8 +360,7 @@ class iinfo {
     line_len = line_len - 30;
     var inf_ofs = 0;
     const dist_top = 30; // top and bottom distance
-    var nam_ofs =
-      (Number(mame_size.substring(0, mame_size.length - 2)) + dist_top) * ivert;
+    var nam_ofs = (Number(mame_size.substring(0, mame_size.length - 2)) + dist_top) * ivert;
     if (ivert == -1) {
       nam_ofs = dist_top * ivert;
     }
@@ -522,38 +523,35 @@ class iinfos {
     this.players = [];
     this.index = [];
     this.panel = [];
-    if (portrait) { //todo 
-      var dist_rl = 30;
-      this.panel[0] = new iinfo(0, canW/2 , 2270 , "center", 1);
-      this.panel[1] = new iinfo(1, 0, 2270, "left", 1);
-      this.panel[2] = new iinfo(2, canW, 2270, "right", 1);
-      this.panel[3] = new iinfo(3, 0, 320, "left", -1);
+    for (let i = 0; i < 4; i++) {
+      this.panel[i] = new iinfo(0, 0, 0, "", 0);
+    }
+    this.set_oriantation();
+  }
+  set_oriantation() {
+    if (portrait) {
+      this.set_portrait();
     }
     else {
-      var dist_rl = 80;
-      this.panel[0] = new iinfo(0, canW - dist_rl, canH - 50, "right", -1);
-      this.panel[1] = new iinfo(1, dist_rl, 0, "left", 1);
-      this.panel[2] = new iinfo(2, canW - dist_rl, 0, "right", 1);
-      this.panel[3] = new iinfo(3, dist_rl, canH - 50, "left", -1);
+      this.set_landscape();
     }
-
   }
-  set(idata) {
-    this.index = rotateArray([0, 1, 2], B.view_player); //todo
-    if (portrait) {
-      var dist_rl = 30;
+  set_portrait() {
       this.panel[0].set(0, canW/2 , 2270 , "center", 1);
       this.panel[1].set(1, 0, 2270, "left", 1);
       this.panel[2].set(2, canW, 2270, "right", 1);
       this.panel[3].set(3, 0, 320, "left", -1);
-    }
-    else {
+  }
+  set_landscape() {
       var dist_rl = 80;
       this.panel[0].set(0, canW - dist_rl, canH - 50, "right", -1);
       this.panel[1].set(1, dist_rl, 0, "left", 1);
       this.panel[2].set(2, canW - dist_rl, 0, "right", 1);
       this.panel[3].set(3, dist_rl, canH - 50, "left", -1);
-    }
+  }
+  set(idata) {
+    this.index = rotateArray([0, 1, 2], B.view_player); //todo
+    this.set_oriantation();
     this.panel[3].lines[5].set_text("# " + ID.toString());
     let last_move = B.slog.substring((B.slog_pointer-1) * 4, B.slog_pointer * 4);
     let a = last_move.substring(0,1)
@@ -571,7 +569,7 @@ class iinfos {
     if (B.gid_new>0){
       this.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
     }
-    if (idata.vote_results != null) {
+    if (idata.vote_results != null) { //vote history
       let verb = " offers ";
       let j = 0;
       let vc = 0; // vote count
@@ -593,9 +591,6 @@ class iinfos {
           }
       }
     } else {
-      for (let i = 0; i < 3; i++) { //todo remove
-        //this.panel[3].lines[i].text = ""
-      }
       // power lines
       this.power_lines(idata);
     }
@@ -677,7 +672,7 @@ class iinfos {
         al = 1;
       } else {
         al = -1;
-      } //todo
+      }
       let ind = rotateArray([0, 1, 2], i + B.view_player); //todo
       let e1 = idata.eliminations[ind[0]][ind[1]];
       let e2 = idata.eliminations[ind[0]][ind[2]];
@@ -723,7 +718,7 @@ class iinfos {
     }
   }
   getVoteHist() {
-    const msg = this.panel[3].lines.map(({ text }) => text); //todo use set_text
+    const msg = this.panel[3].lines.map(({ text }) => text);
     const msg1 = msg.reverse().slice(3, 7);
     return msg1.join("<br>");
   }
@@ -737,12 +732,8 @@ function  setx(a,b) {
   }
 class hex {
   constructor(a, b, id) {
-    //todo
     this.a = a
     this.b = b
-    //let t1  = "ABCDEFGHIJKLMNO"
-    //let t2  = "ABCDEFGHIJKLMNO"
-    //this.sc =  t2.charAt(a) + t1.charAt(b)
     this.x = setx(a,b);
     this.y = sety(b);
     this.code = "";
@@ -750,7 +741,7 @@ class hex {
     this.piece = { piece: "", player_id: -1 };
     this.hex_color = theme["board"]["hex_color"][(2 * a + b) % 3];
     this.lumi = undefined; // R,G,B, luminiscence todo
-    this.show_flag = true; // true means to redraw the hex
+    this.show_flag = true; // true means to redraw the hex todo revizia ci to pouzouzivam.
     this.valid_flag = false;
     this.promo_flag = false;
   }
@@ -1318,8 +1309,7 @@ function Step_valid_moves(idata) {
     B.hexs[obj.tgid].chang_flag = true;
     B.hexs[obj.tgid].promo_flag = obj.promotion;
   }
-  SemaforWait = false; //todo
-  modal_wt.hide();
+  F.semaforwait_green();
 }
 function Step_1_settoken() {
   F.headers.Authorization = TOKEN;
@@ -1329,9 +1319,8 @@ function Step_1_settoken() {
   );
 }
 function Step_12_setcode(idata) {  // The function is using by Click_Rotate()
+  F.semaforwait_green();
   B.set_code(idata)
-  SemaforWait = false; //todo
-  modal_wt.hide();
   F.fetchPOST(
     url + "/api/v1/game/info",
     { slog: B.slog, view_pid: B.view_player },
@@ -1416,8 +1405,7 @@ function Step_3_setelim_board_and_draw(idata) {
       "<td>" + II.players[1] + "</td> <td>" + idata.score[1] + "</td>";
     rp2.innerHTML =
       "<td>" + II.players[2] + "</td> <td>" + idata.score[2] + "</td>";
-    SemaforWait = false; //todo
-    modal_wt.hide();
+    F.semaforwait_green();
     modal_go.show();
   }
   //setTimeout(function (){
@@ -1499,24 +1487,18 @@ function Click_Resign() {
 }
 function Click_Backward() {
   SS.active = false;
-  //todo
   B.slog_pointer = B.slog_pointer - 1;
-  let slog = B.slog.substr(0, B.slog_pointer * 4);
-  //let slog = SlogBack(B.slog)
   F.fetchPOST(
     url + "/api/v1/game/info",
-    { slog: slog, view_pid: B.view_player },
+    { slog: B.slog.substr(0, B.slog_pointer * 4), view_pid: B.view_player },
     Step_3_setelim_board_and_draw,
   );
 }
 function Click_Forward() {
   SS.active = false;
-  //todo
-  B.slog_pointer = B.slog_pointer + 1;
-  let slog = B.slog.substr(0, B.slog_pointer * 4);
   F.fetchPOST(
     url + "/api/v1/game/info",
-    { slog: slog, view_pid: B.view_player },
+    { slog: B.slog_pointer = B.slog_pointer + 1, view_pid: B.view_player },
     Step_3_setelim_board_and_draw,
   );
 }
@@ -1530,8 +1512,7 @@ function Click_OK() {
       url + "/api/v1/manager/board",
       { id: ID, slog: B.getSlog() },
       function () {
-        SemaforWait = false;
-        modal_wt.hide();
+        F.semaforwait_green()
       },
     );
   }
