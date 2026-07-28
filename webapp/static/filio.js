@@ -99,11 +99,12 @@ class fetchData {
       .then((response) => {
         wait_msg(true);
         if (!response.ok) {
-          if (response.status === 401) {
-            window.alert("Token expired. Reload the page.");
+          if (response.status === 401 || response.status === 422) {
+            window.alert("Token expired!");
             location.reload();
-            return;
-          } else {
+          return;
+          }
+          else {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
         }
@@ -114,9 +115,10 @@ class fetchData {
         icallback(data);
       })
       .catch((error) => {
-        //wait_msg(false )
         this.semaforwait_green();
-        debug("Error:" + error + " url:" + iurl);
+        if (!(response.status === 401 || response.status === 422)) {
+          debug("fetchPOST:" + error + " url:" + iurl);
+        }
       });
   }
   fetchGET(iurl, icallback) {
@@ -127,8 +129,8 @@ class fetchData {
       .then((response) => {
         wait_msg(true);
         if (!response.ok) {
-          if (response.status === 401) {
-            window.alert("Token expired. Reload the page");
+          if (response.status === 401 || response.status === 422) {
+            window.alert("Token expired!");
             location.reload();
             return;
           } else {
@@ -144,7 +146,9 @@ class fetchData {
       .catch((error) => {
         //wait_msg(false)
         this.semaforwait_green();
-        debug("Error:" + error + " url:" + iurl);
+        if (!(response.status === 401 || response.status === 422)) {
+          debug("fetchGET:" + error + " url:" + iurl);
+        }
       });
   }
 }
@@ -340,11 +344,10 @@ class llines {
 // iinfo  ////////////////////////////////////////////////
 class iinfo {
   constructor(iinfo_id, ipos_x, ipos_y, ialign, ivert) {
-    // todo revizia attr. a upratat
     this.info_id = iinfo_id;
     this.x = ipos_x;
     this.y = ipos_y;
-    this.align = ialign; // todo +1/-1
+    this.align = ialign;
     this.vert = ivert;
     this.lines = [];
   }
@@ -352,7 +355,7 @@ class iinfo {
     this.info_id = iinfo_id;
     this.x = ipos_x;
     this.y = ipos_y;
-    this.align = ialign; // todo +1/-1
+    this.align = ialign;
     this.vert = ivert;
     var line_len = 260;
     var line_high = 1.5 * r;
@@ -375,7 +378,7 @@ class iinfo {
           ivert +
         dist_top * ivert;
     }
-    // info block
+    // info panel
     if (iinfo_id == 3) {
       //todo
       let x_corr=0 //correction
@@ -396,7 +399,7 @@ class iinfo {
         );
       }
     }
-    // player info
+    // players info
     else {
       // player name
       this.lines[0] = new llines(
@@ -1652,8 +1655,20 @@ window.addEventListener('orientationchange', function() {
     // After orientationchange, add a one-time resize event
     var afterOrientationChange = function() {
         resizee_refresh()
-        window.removeEventListener('resize', afterOrientationChange);
+        window.removeEventListener('resize', afterOrientationChange); //todo review
     };
     window.addEventListener('resize', afterOrientationChange);
 });
 
+const boardEvents = new EventSource(
+  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
+);
+boardEvents.onmessage = (event) => {
+  const payload = JSON.parse(event.data);
+  if (payload.slog_length <= B.slog.length) {
+    return;
+  }
+  else {
+    Click_Refresh();
+  }
+};
