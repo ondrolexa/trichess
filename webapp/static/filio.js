@@ -1499,9 +1499,10 @@ function Click_Backward() {
 }
 function Click_Forward() {
   SS.active = false;
+  B.slog_pointer = B.slog_pointer + 1;
   F.fetchPOST(
     url + "/api/v1/game/info",
-    { slog: B.slog_pointer = B.slog_pointer + 1, view_pid: B.view_player },
+    { slog: B.slog.substr(0, B.slog_pointer * 4), view_pid: B.view_player },
     Step_3_setelim_board_and_draw,
   );
 }
