@@ -38,7 +38,7 @@ function wait_msg(yes) {
         tx.style.color = theme["canvas"]["info"];
         modal_wt.show();
       }
-    }, 800);
+    }, 500);
   }
 }
 function debug(itext) {
@@ -87,7 +87,7 @@ class fetchData {
   semaforwait_green() {
     SemaforWait = false;
     modal_wt.hide();
-  }
+  };
   fetchPOST(iurl, ijson, icallback) {
     const jsonData = JSON.stringify(ijson);
     const z = this.headers;
@@ -160,8 +160,9 @@ class ssel {
     this.sely = 0;
     this.ps = 0
     this.line = [];
-    this.line[0] = new llines(
-        "Select piece:",
+    this.line[0] = new llines();
+    this.line[0].set_text("Select piece:");
+    this.line[0].set(
         2160,
         1040,
         "center",
@@ -169,8 +170,9 @@ class ssel {
         info_size + " " + theme["pieces"]["font-family"],
         theme["canvas"]["info"],
     );
-    this.line[1] = new llines(
-        "QRBN",
+    this.line[1] = new llines();
+    this.line[0].set_piece("QRBN");
+    this.line[1].set(
         2463,
         1170,
         "right",
@@ -248,7 +250,22 @@ class ssel {
 // llines ////////////////////////////////////////////////
 class llines {
   constructor(
-    itext,
+  ) {
+    this.player_id = -1; //todo ?
+    this.text = "";
+    this.pos_x = 0;
+    this.pos_y = 0;
+    this.align = "";
+    this.length = 0; //todo ?
+    this.font = "";
+    this.color = "";
+    this.strokeLine = 0;
+    this.strokeColor = "";
+    this.text_width = 0;
+    this.text_width_old = 0;
+    this.text_height = 0;
+  }
+  set(
     ipos_x,
     ipos_y,
     ialign,
@@ -258,8 +275,7 @@ class llines {
     istrokeLine,
     istrokeColor,
   ) {
-    this.player_id = -1;
-    this.text = itext;
+    //this.player_id = -1;
     this.pos_x = ipos_x;
     this.pos_y = ipos_y;
     this.align = ialign;
@@ -268,17 +284,26 @@ class llines {
     this.color = icolor;
     this.strokeLine = istrokeLine;
     this.strokeColor = istrokeColor;
-    this.text_width = 0;
-    this.text_height = 0;
   }
   set_text(itext) {
     ctx0.save();
     ctx0.font = this.font
-    this.text_width = ctx0.measureText(this.text).width;
+    this.text_width_old = this.text_width
+    this.text_width = ctx0.measureText(itext).width;
     this.text_height = parseInt(ctx0.font.match(/\d+/), 10);
     this.text = itext;
     ctx0.restore();
   }
+  set_piece(itext) {
+    ctx0.save();
+    ctx0.font = this.font
+    this.text_width_old = this.text_width
+    this.text_width = itext.length;
+    this.text_height = parseInt(ctx0.font.match(/\d+/), 10);
+    this.text = itext;
+    ctx0.restore();
+  }
+
   write() {
     ctx0.save();
     ctx0.beginPath();
@@ -331,14 +356,43 @@ class llines {
       }
     }
   }
-  clear() {//todo finalize clear elimitnted and remove old clear 
-    ctx0.closePath()
-    ctx0.save();
-    ctx0.style = "green"
-    ctx0.clearRect(this.pos_x,this.pos_y + (this.text_height/8) ,this.text_width,-this.text_height)
-    ctx0.closePath()
+  clear_text() {//todo finalize clear elimitnted and remove old clear
+    let corr = this.text_height/3;
+    //ctx0.closePath()
+    //ctx0.save();
+    //ctx0.fillStyle = "red"
+    if (this.align === 'left') {
+      ctx0.clearRect(this.pos_x,this.pos_y + corr ,this.text_width_old,-this.text_height - corr);
+    }
+    if (this.align === 'center') {
+      ctx0.clearRect(this.pos_x-this.text_width_old/2  ,this.pos_y + corr, this.text_width_old,-this.text_height - corr);
+    }
+    if (this.align === 'right') {
+      ctx0.clearRect(this.pos_x,this.pos_y + corr ,-this.text_width_old,-this.text_height - corr);
+    }
     //ctx0.fill()
-    ctx0.restore();
+    //ctx0.closePath()
+    //ctx0.restore();
+  }
+  clear_piece() {//todo finalize clear elimitnted and remove old clear
+    let offset = piece_size ;
+    //ctx0.save();
+    //ctx0.fillStyle = "blue"
+    let p = piece_size * 9.6
+    if (this.text_width_old !== 0) {
+      if (this.align === 'left') {
+        ctx0.clearRect(this.pos_x+offset,this.pos_y+p/2, p * this.text_width_old, -p)
+      }
+      if (this.align === 'center') {
+        ctx0.clearRect(this.pos_x-(p * this.text_width_old/2),this.pos_y+p/2, p * this.text_width_old, -p)
+      }
+      if (this.align === 'right') {
+        ctx0.clearRect(this.pos_x-offset,this.pos_y+p/2, -p * this.text_width_old, -p)
+      }
+    }
+    //ctx0.fill()
+    //ctx0.closePath()
+    //ctx0.restore();
   }
 }
 // iinfo  ////////////////////////////////////////////////
@@ -350,6 +404,9 @@ class iinfo {
     this.align = ialign;
     this.vert = ivert;
     this.lines = [];
+    for (let i = 0; i < 8; i++) {
+      this.lines[i] = new llines
+    }
   }
   set(iinfo_id, ipos_x, ipos_y, ialign, ivert) {
     this.info_id = iinfo_id;
@@ -388,8 +445,7 @@ class iinfo {
           x_corr=canW/2
           y_corr=line_high*3
         }
-        this.lines[i] = new llines(
-          '',
+        this.lines[i].set(
           ipos_x+x_corr,
           ipos_y + line_high * i * ivert+y_corr,
           ialign,
@@ -402,8 +458,7 @@ class iinfo {
     // players info
     else {
       // player name
-      this.lines[0] = new llines(
-        "",
+      this.lines[0].set(
         ipos_x,
         ipos_y + nam_ofs,
         ialign,
@@ -411,8 +466,7 @@ class iinfo {
         mame_size + " " + theme["canvas"]["font-family"],
         theme["canvas"]["name"],
       );
-      this.lines[1] = new llines(
-        "",
+      this.lines[1].set(
         ipos_x,
         ipos_y + inf_ofs,
         ialign,
@@ -438,8 +492,7 @@ class iinfo {
       }
       for (let i = 2; i < line_num; i++) {
         line_len = line_len - 18;
-        this.lines[i] = new llines(
-          "",
+        this.lines[i].set(
           ipos_x,
           ipos_y + ofs + (i - 2) * line_high * ivert,
           ialign,
@@ -452,58 +505,13 @@ class iinfo {
       }
     }
   }
-  clear() {
-    var a = -1;
-    var h = canH / 14;
-    var w = canW / 3;
-    var d = canW / 45; //sklon
-    if (this.align == "left") {
-      a = 1;
-    }
-    //ctx0.save ()
-    //ctx0.beginPath()
-    //ctx0.fillStyle = "balck"
-    for (let i = 0; i < 7; i++) {
-      if (a == 1 && this.vert == 1) {
-        ctx0.clearRect(
-          0,
-          0 + this.vert * i * h,
-          a * (w - i * d),
-          this.vert * h,
-        );
-      } else if (a == 1 && this.vert == -1) {
-        ctx0.clearRect(
-          0,
-          canH + this.vert * i * h,
-          a * (w - i * d),
-          this.vert * h,
-        );
-      }
-      if (a == -1 && this.vert == 1) {
-        ctx0.clearRect(
-          canW,
-          0 + this.vert * i * h,
-          a * (w - i * d),
-          this.vert * h,
-        );
-      } else if (a == -1 && this.vert == -1) {
-        ctx0.clearRect(
-          canW,
-          canH + this.vert * i * h,
-          a * (w - i * d),
-          this.vert * h,
-        );
-      }
-    }
-    //ctx0.closePath();
-    //ctx0.fill()
-    ctx0.restore();
-  }
   write() {
     //this.clear()
     for (let i = 0; i < 2; i++) {
-      //this.lines[i].clear()
-      this.lines[i].write();
+      if (this.lines[i].text !== "") {
+        this.lines[i].clear_text()
+        this.lines[i].write();
+      }
     }
     let row_cnt = 7
     if (portrait) {
@@ -511,14 +519,15 @@ class iinfo {
     }
     for (let i = 2; i < row_cnt; i++) {
       if (this.info_id != 3) {
-        this.lines[i].draw();
+        this.lines[i].clear_piece(); //elim pieces
+        this.lines[i].draw(); //elim pieces
       } else { // info panel 3 power lines...
-        this.lines[i].clear()
+        this.lines[i].clear_text()
         this.lines[i].write();
       }
     }
+    }
   }
-}
 class iinfos {
   constructor() {
     var a = theme["canvas"]["font-family"];
@@ -526,6 +535,10 @@ class iinfos {
     this.players = [];
     this.index = [];
     this.panel = [];
+    this.pieces_value = [];
+    this.vote_results = null;
+    this.eliminations = [];
+
     for (let i = 0; i < 4; i++) {
       this.panel[i] = new iinfo(0, 0, 0, "", 0);
     }
@@ -556,6 +569,10 @@ class iinfos {
     this.index = rotateArray([0, 1, 2], B.view_player); //todo
     this.set_oriantation();
     this.panel[3].lines[5].set_text("# " + ID.toString());
+    this.vote_results = idata.vote_results;
+    this.pieces_value = idata.pieces_value;
+    this.eliminations = idata.eliminations;
+
     let last_move = B.slog.substring((B.slog_pointer-1) * 4, B.slog_pointer * 4);
     let a = last_move.substring(0,1)
     if (a == 's' || a == 'S') {
@@ -572,7 +589,8 @@ class iinfos {
     if (B.gid_new>0){
       this.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
     }
-    if (idata.vote_results != null) { //vote history
+    //vote history
+    if (idata.vote_results != null) {
       let verb = " offers ";
       let j = 0;
       let vc = 0; // vote count
@@ -584,20 +602,22 @@ class iinfos {
       let index2 = rotateArray([0, 1, 2], idata.onmove - vc); //todo
       for (let i = 0; i < 3; i++) {
         if (idata.vote_results[index2[i]] == "A") {
-          this.panel[3].lines[2 - j].text = this.players[index2[i]].substr(0, 12)+verb+idata.vote_results.kind+".";
+          this.panel[3].lines[2 - j].set_text(this.players[index2[i]].substr(0, 12)+verb+idata.vote_results.kind+".");
           verb = " accepts ";
           j++;
         } else if (idata.vote_results[index2[i]] == "D") {
-          this.panel[3].lines[2 - j].text = this.players[index2[i]]+" declines "+idata.vote_results.kind+".";
+          this.panel[3].lines[2 - j].set_text(this.players[index2[i]]+" declines "+idata.vote_results.kind+".");
           j++;
         } else {
-          }
+          //this.panel[3].lines[2 - j].set_text("");
+          //j++;
+        }
       }
-    } else {
-      // power lines
-      this.power_lines(idata);
     }
-    this.elim_lines(idata);
+    else {
+      this.panel[3].lines[2].set_text("Power:");
+    }
+    this.elim_lines();
     for (let i = 0; i < 3; i++) {
       this.panel[i].lines[0].set_text(this.players[this.index[i]]); // set players names
       for (let z = 0; z < 7; z++) {
@@ -618,13 +638,17 @@ class iinfos {
       this.panel[i].lines[1].color =
         theme["pieces"]["color"][(this.index[i] + 2) % 3];
       this.panel[i].lines[1].text = ""; // idata.eliminated_value[this.index[i]].toString()
-      // eliminated pieces
+      // set eliminated pieces
       var e = elim2array(idata.eliminated[this.index[i]]);
       if (e != undefined) {
-        for (let j = 0; j < e.length; j++) {
-          this.panel[i].lines[j + 2].color =
-            theme["pieces"]["color"][this.index[i]];
-          this.panel[i].lines[j + 2].text = e[j];
+        for (let j = 2; j < this.panel[i].lines.length; j++) {
+          if (e[j-2] !== undefined) {
+            this.panel[i].lines[j].color =  theme["pieces"]["color"][this.index[i]];
+            this.panel[i].lines[j].set_piece(e[j-2]);
+          }
+          else { // because need to delete empty lines
+            this.panel[i].lines[j].set_piece("");
+          }
         }
       }
     }
@@ -644,16 +668,26 @@ class iinfos {
     ctx0.closePath();
     ctx0.restore();
   }
-  power_lines(idata) {
-    if (idata.vote_results == null) {
+  clear_power_lines() {
+    let high = r*0.7;
+    this.panel[3].lines[0].text_width_old = r*13
+    this.panel[3].lines[0].text_height = high*2
+    this.panel[3].lines[0].clear_text()
+    this.panel[3].lines[1].text_width_old = r*13
+    this.panel[3].lines[1].text_height = high*2
+    this.panel[3].lines[1].clear_text()
+  }
+  power_lines() {
+    if (this.vote_results == null) {
       let high = r*0.7;
-      let x = this.panel[3].lines[0].pos_x
+      let x = this.panel[3].lines[0].pos_x+4 // 4 due to stroke
       let y = this.panel[3].lines[0].pos_y
       let p = 0; //power
+      this.clear_power_lines();
       for (let i = 0; i < 3; i++) {
         //draw hex
         y = y - high;
-        p = idata.pieces_value[this.index[i]];
+        p = this.pieces_value[this.index[i]];
         this.daw_line(
           x,
           y,
@@ -663,10 +697,17 @@ class iinfos {
         );
       }
       //this.panel[3].lines[2].pos_y = y - 20
-      this.panel[3].lines[2].set_text("Power:");
     }
   }
-  elim_lines(idata) {
+  clear_elim_lines() {
+    for (let i = 0; i < 3; i++) {
+      this.panel[i].lines[1].text_width_old = r * 8
+      this.panel[i].lines[1].text_height = Number(info_size.substring(0, info_size.length - 2));
+      this.panel[i].lines[1].clear_text()
+    }
+  }
+  elim_lines() {
+    this.clear_elim_lines()
     let high = r/4;
     let step = r/7;
     let al = -1;
@@ -677,10 +718,10 @@ class iinfos {
         al = -1;
       }
       let ind = rotateArray([0, 1, 2], i + B.view_player); //todo
-      let e1 = idata.eliminations[ind[0]][ind[1]];
-      let e2 = idata.eliminations[ind[0]][ind[2]];
-      let x = this.panel[i].lines[1].pos_x;
-      let y = this.panel[i].lines[1].pos_y;
+      let e1 = this.eliminations[ind[0]][ind[1]];
+      let e2 = this.eliminations[ind[0]][ind[2]];
+      let x = this.panel[i].lines[1].pos_x+al*4;
+      let y = this.panel[i].lines[1].pos_y-10;
       let corr1 = 0;
       let corr2 = 0;
       if (this.panel[i].lines[1].align == "center" && e1!=0 && e2!=0 ) {
@@ -704,25 +745,19 @@ class iinfos {
     }
   }
   write() {
+    if (this.vote_results !== null) {
+      this.clear_power_lines()
+    }
     for (let i = 0; i < 4; i++) {
       this.panel[i].write();
     }
-  }
-  clear() {
-    if (portrait) {
-      ctx0.clearRect(0,0,canW,380)
-      ctx0.clearRect(0,2290,canW,canH/2)
-    }
-    else {
-      for (let i = 0; i < 4; i++) {
-        //draw hex tile
-        this.panel[i].clear();
-      }
+    if (this.vote_results == null) {
+      this.power_lines();
     }
   }
   getVoteHist() {
     const msg = this.panel[3].lines.map(({ text }) => text);
-    const msg1 = msg.reverse().slice(3, 7);
+    const msg1 = msg.slice(0, 3).reverse();
     return msg1.join("<br>");
   }
 }
@@ -1196,7 +1231,7 @@ class board {
   moveValid() {
     if (B.gid_new>0){
       II.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
-      II.panel[3].lines[3].clear()
+      II.panel[3].lines[3].clear_text()
       II.panel[3].lines[3].write()
     }
     if (
@@ -1364,10 +1399,8 @@ function Step_3_setelim_board_and_draw(idata) {
   B.draw_tile();
   B.draw_pieces();
   II.set(idata);
-  II.clear();
   II.write();
-  II.power_lines(idata);
-  II.elim_lines(idata);
+  II.elim_lines();
   if (SS.active) {
     SS.set()
     SS.write()
@@ -1377,7 +1410,6 @@ function Step_3_setelim_board_and_draw(idata) {
     B.moveValid();
     }
   button_control();
-  //setTimeout(function (){
   if (
     idata.vote_needed &&
     B.view_player_org == B.onmove &&
@@ -1385,7 +1417,6 @@ function Step_3_setelim_board_and_draw(idata) {
   ) {
     window_vote(B.vote_results_kind, II.getVoteHist());
   }
-  //}, 0)
   if (B.finished) {
     var name = II.players[B.onmove];
     const vp = document.getElementById("goVotePlayers");
@@ -1408,16 +1439,12 @@ function Step_3_setelim_board_and_draw(idata) {
       "<td>" + II.players[1] + "</td> <td>" + idata.score[1] + "</td>";
     rp2.innerHTML =
       "<td>" + II.players[2] + "</td> <td>" + idata.score[2] + "</td>";
-    F.semaforwait_green();
+    //F.semaforwait_green();
     modal_go.show();
   }
-  //setTimeout(function (){
-  //SemaforWait = false;
-  //modal_wt.hide();
-  //}, 0);
 }
 function button_control() {
-  if (B.move_number_org == B.move_number && B.view_player_org == B.onmove) {
+  if (B.move_number_org == B.move_number && B.slog_pointer == B.slog.length/4) {
     //&& SemaforVoteDraw
     document.getElementById("b_dr").disabled = false;
     document.getElementById("b_rs").disabled = false;
@@ -1425,14 +1452,18 @@ function button_control() {
     document.getElementById("b_dr").disabled = true;
     document.getElementById("b_rs").disabled = true;
   }
+  if (B.finished) {
+    document.getElementById("b_dr").disabled = true;
+    document.getElementById("b_rs").disabled = true;
+  }
+
   if (
     B.move_number_org == B.move_number - 1 &&
     B.view_player_org == (B.onmove + 2) % 3 &&
     !B.hist_changed
   ) {
     document.getElementById("b_ok").disabled = false;
-    document.getElementById("b_ok").style.backgroundColor =
-      theme["canvas"]["name_onmove"];
+    document.getElementById("b_ok").style.backgroundColor = theme["canvas"]["name_onmove"];
   } else {
     document.getElementById("b_ok").style.backgroundColor = "#6c757d";
     document.getElementById("b_ok").disabled = true;
@@ -1543,9 +1574,10 @@ function Click_Rotate() {
     B.gid_new = B.get_gid_rotate();
   }
   B.view_player = (B.view_player + 1) % 3;
-  F.fetchGET(
-    url + "/api/v1/manager/board?id=" + ID.toString()+"&view_pid="+B.view_player.toString(),
-    Step_12_setcode
+ F.fetchPOST(
+    url + "/api/v1/game/info",
+    { slog: slog, view_pid: B.view_player },
+    Step_3_setelim_board_and_draw,
   );
 }
 function Click_Board(event) {
@@ -1661,15 +1693,16 @@ window.addEventListener('orientationchange', function() {
     window.addEventListener('resize', afterOrientationChange);
 });
 
-const boardEvents = new EventSource(
-  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
-);
-boardEvents.onmessage = (event) => {
-  const payload = JSON.parse(event.data);
-  if (payload.slog_length <= B.slog.length) {
-    return;
-  }
-  else {
-    Click_Refresh();
-  }
-};
+//const boardEvents = new EventSource(
+//  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
+//);
+//boardEvents.onmessage = (event) => {
+//  const payload = JSON.parse(event.data);
+//  if (payload.slog_length <= B.slog.length) {
+//    return;
+//  }
+//  else {
+//    Click_Refresh();
+//  }
+//};
+//
