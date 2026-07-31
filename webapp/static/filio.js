@@ -1455,8 +1455,11 @@ function button_control() {
   if (B.finished) {
     document.getElementById("b_dr").disabled = true;
     document.getElementById("b_rs").disabled = true;
+    document.getElementById("b_rt").disabled = true;
   }
-
+  else {
+    document.getElementById("b_rt").disabled = false;
+  }
   if (
     B.move_number_org == B.move_number - 1 &&
     B.view_player_org == (B.onmove + 2) % 3 &&
@@ -1693,16 +1696,15 @@ window.addEventListener('orientationchange', function() {
     window.addEventListener('resize', afterOrientationChange);
 });
 
-//const boardEvents = new EventSource(
-//  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
-//);
-//boardEvents.onmessage = (event) => {
-//  const payload = JSON.parse(event.data);
-//  if (payload.slog_length <= B.slog.length) {
-//    return;
-//  }
-//  else {
-//    Click_Refresh();
-//  }
-//};
-//
+const boardEvents = new EventSource(
+  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
+);
+boardEvents.onmessage = (event) => {
+  const payload = JSON.parse(event.data);
+  if (payload.slog_length <= B.slog.length) {
+    return;
+  }
+  else {
+    Click_Refresh();
+  }
+};
