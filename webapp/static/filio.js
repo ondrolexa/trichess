@@ -356,7 +356,7 @@ class llines {
       }
     }
   }
-  clear_text() {//todo finalize clear elimitnted and remove old clear
+  clear_text() {
     let corr = this.text_height/3;
     //ctx0.closePath()
     //ctx0.save();
@@ -374,7 +374,7 @@ class llines {
     //ctx0.closePath()
     //ctx0.restore();
   }
-  clear_piece() {//todo finalize clear elimitnted and remove old clear
+  clear_piece() {
     let offset = piece_size ;
     //ctx0.save();
     //ctx0.fillStyle = "blue"
@@ -775,7 +775,7 @@ class hex {
     this.x = setx(a,b);
     this.y = sety(b);
     this.code = "";
-    this.id = id; //todo - to asi nepotrebujem...
+    this.id = id;
     this.piece = { piece: "", player_id: -1 };
     this.hex_color = theme["board"]["hex_color"][(2 * a + b) % 3];
     this.lumi = undefined; // R,G,B, luminiscence todo
@@ -943,48 +943,48 @@ class board {
     this.hist_changed = false;
     this.border = [];
     this.bishop_elim = [];
-    this.slog_pointer = -1;
+    this.slog_pointer = -1; // todo slog_pointer vs this.move_number*
     this.vote_needed = false;
     this.vote_results_kind = "x";
   }
-  set_border(){ //todo review
-     this.border[0] = {
-      b1: this.hexs[0].x,
-      b2: this.hexs[0].y,
-      z1: this.hexs[0].x,
-      z2: 0,
-    };
-    this.border[1] = {
-      b1: this.hexs[7].x,
-      b2: this.hexs[7].y,
-      z1: 1 / 2,
-      z2: Math.sqrt(3) / 2,
-    };
-    this.border[2] = {
-      b1: this.hexs[91].x,
-      b2: this.hexs[91].y,
-      z1: -1 / 2,
-      z2: Math.sqrt(3) / 2,
-    };
-    this.border[3] = {
-      b1: this.hexs[168].x,
-      b2: this.hexs[168].y,
-      z1: -this.hexs[168].y,
-      z2: 0,
-    };
-    this.border[4] = {
-      b1: this.hexs[161].x,
-      b2: this.hexs[161].y,
-      z1: -1 / 2,
-      z2: -Math.sqrt(3) / 2,
-    };
-    this.border[5] = {
-      b1: this.hexs[77].x,
-      b2: this.hexs[77].y,
-      z1: 1 / 2,
-      z2: -Math.sqrt(3) / 2,
-    };
-  }
+  //set_border(){ //todo review
+  //   this.border[0] = {
+  //    b1: this.hexs[0].x,
+  //    b2: this.hexs[0].y,
+  //    z1: this.hexs[0].x,
+  //    z2: 0,
+  //  };
+  //  this.border[1] = {
+  //    b1: this.hexs[7].x,
+  //    b2: this.hexs[7].y,
+  //    z1: 1 / 2,
+  //    z2: Math.sqrt(3) / 2,
+  //  };
+  //  this.border[2] = {
+  //    b1: this.hexs[91].x,
+  //    b2: this.hexs[91].y,
+  //    z1: -1 / 2,
+  //    z2: Math.sqrt(3) / 2,
+  //  };
+  //  this.border[3] = {
+  //    b1: this.hexs[168].x,
+  //    b2: this.hexs[168].y,
+  //    z1: -this.hexs[168].y,
+  //    z2: 0,
+  //  };
+  //  this.border[4] = {
+  //    b1: this.hexs[161].x,
+  //    b2: this.hexs[161].y,
+  //    z1: -1 / 2,
+  //    z2: -Math.sqrt(3) / 2,
+  //  };
+  //  this.border[5] = {
+  //    b1: this.hexs[77].x,
+  //    b2: this.hexs[77].y,
+  //    z1: 1 / 2,
+  //    z2: -Math.sqrt(3) / 2,
+  //  };
+  //}
   init() {
     let cnt = 0;
     for (let i = 0; i < 15; i++) {
