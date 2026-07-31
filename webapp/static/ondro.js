@@ -1204,7 +1204,11 @@ function gameInfo(init = false, redraw = false) {
         data.move_number,
       );
 
-      if (AppState.slog == AppState.server_slog && AppState.on_move) {
+      if (
+        AppState.slog == AppState.server_slog &&
+        AppState.on_move &&
+        !data.finished
+      ) {
         draw.disabled = false;
         resign.disabled = false;
       } else {
