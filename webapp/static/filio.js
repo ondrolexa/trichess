@@ -947,44 +947,44 @@ class board {
     this.vote_needed = false;
     this.vote_results_kind = "x";
   }
-  //set_border(){ //todo review
-  //   this.border[0] = {
-  //    b1: this.hexs[0].x,
-  //    b2: this.hexs[0].y,
-  //    z1: this.hexs[0].x,
-  //    z2: 0,
-  //  };
-  //  this.border[1] = {
-  //    b1: this.hexs[7].x,
-  //    b2: this.hexs[7].y,
-  //    z1: 1 / 2,
-  //    z2: Math.sqrt(3) / 2,
-  //  };
-  //  this.border[2] = {
-  //    b1: this.hexs[91].x,
-  //    b2: this.hexs[91].y,
-  //    z1: -1 / 2,
-  //    z2: Math.sqrt(3) / 2,
-  //  };
-  //  this.border[3] = {
-  //    b1: this.hexs[168].x,
-  //    b2: this.hexs[168].y,
-  //    z1: -this.hexs[168].y,
-  //    z2: 0,
-  //  };
-  //  this.border[4] = {
-  //    b1: this.hexs[161].x,
-  //    b2: this.hexs[161].y,
-  //    z1: -1 / 2,
-  //    z2: -Math.sqrt(3) / 2,
-  //  };
-  //  this.border[5] = {
-  //    b1: this.hexs[77].x,
-  //    b2: this.hexs[77].y,
-  //    z1: 1 / 2,
-  //    z2: -Math.sqrt(3) / 2,
-  //  };
-  //}
+  set_border(){ //todo review
+     this.border[0] = {
+      b1: this.hexs[0].x,
+      b2: this.hexs[0].y,
+      z1: this.hexs[0].x,
+      z2: 0,
+    };
+    this.border[1] = {
+      b1: this.hexs[7].x,
+      b2: this.hexs[7].y,
+      z1: 1 / 2,
+      z2: Math.sqrt(3) / 2,
+    };
+    this.border[2] = {
+      b1: this.hexs[91].x,
+      b2: this.hexs[91].y,
+      z1: -1 / 2,
+      z2: Math.sqrt(3) / 2,
+    };
+    this.border[3] = {
+      b1: this.hexs[168].x,
+      b2: this.hexs[168].y,
+      z1: -this.hexs[168].y,
+      z2: 0,
+    };
+    this.border[4] = {
+      b1: this.hexs[161].x,
+      b2: this.hexs[161].y,
+      z1: -1 / 2,
+      z2: -Math.sqrt(3) / 2,
+    };
+    this.border[5] = {
+      b1: this.hexs[77].x,
+      b2: this.hexs[77].y,
+      z1: 1 / 2,
+      z2: -Math.sqrt(3) / 2,
+    };
+  }
   init() {
     let cnt = 0;
     for (let i = 0; i < 15; i++) {
@@ -1008,7 +1008,7 @@ class board {
         }
       }
     }
-    this.set_border();
+   this.set_border();
   }
   bishop_elim_color() {
     var c = [];
@@ -1103,53 +1103,6 @@ class board {
       this.hexs[i].code = idata.gid2code[i]
     }
   }
-  draw_border() {// todo asi vyhodit
-    ctx0.save();
-    ctx0.beginPath();
-
-    ctx0.lineWidth = 10;
-    ctx0.strokeStyle = theme["board"]["border"];
-    ctx0.transform(1.004, 0, 0, 1.004, -9, -5);
-
-    var rb = r * 1.0;
-    var x1 = this.hexs[0].x + rb * Math.cos((7 / 6) * Math.PI);
-    var y1 = this.hexs[0].y + rb * Math.sin((7 / 6) * Math.PI);
-    var x2 = this.hexs[0].x + rb * Math.cos((3 / 2) * Math.PI);
-    var y2 = this.hexs[0].y + rb * Math.sin((3 / 2) * Math.PI);
-    var dist = Math.sqrt(Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2));
-    ctx0.moveTo(x1, y1);
-    ctx0.lineTo(x2, y2);
-    var d = 1;
-    var a1 = 0;
-    var a2 = -1 / 6;
-    var m = 1;
-    var l = 15;
-    for (let j = 0; j < 90; j++) {
-      if (j % 15 == 0) {
-        a1 = a2; //-1/6
-        a2 = a1 + 1 / 3; // 1/6
-        if (j % 30 == 0) {
-          m = 1;
-        } else {
-          m = 0;
-        }
-      }
-      if (j % 2 == m) {
-        d = a1;
-      } else {
-        d = a2;
-      }
-      x1 = x2;
-      y1 = y2;
-      x2 = x1 + dist * Math.cos(d * Math.PI);
-      y2 = y1 + dist * Math.sin(d * Math.PI);
-      ctx0.moveTo(x1, y1);
-      ctx0.lineTo(x2, y2);
-    }
-    ctx0.closePath();
-    ctx0.stroke();
-    ctx0.restore();
-  }
   draw_tile() {
     for (let i = 0; i < 169; i++) {
       if (this.hexs[i].show_flag) {
@@ -1174,7 +1127,6 @@ class board {
     for (let i = 0; i < 169; i++) {
       if (this.hexs[i].show_flag) {
         this.hexs[i].draw_piece2(bpiece_lineWidth);
-        //this.hexs[i].lumi = 0
       }
     }
   }
@@ -1707,4 +1659,4 @@ boardEvents.onmessage = (event) => {
   else {
     Click_Refresh();
   }
-};
+  };
