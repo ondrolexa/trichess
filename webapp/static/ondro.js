@@ -1593,6 +1593,19 @@ function debounce(fn, delayMs) {
 
 window.addEventListener("resize", debounce(fitStageIntoDiv, 150));
 window.addEventListener("orientationchange", doOnOrientationChange);
+// Mobile browsers can silently invalidate a backgrounded tab's Konva hit
+// canvases (the off-screen graphs used for click/tap hit-testing) even
+// though the visible canvas repaints fine on return, leaving the board
+// unclickable until reload. Force a hit-graph rebuild whenever the page
+// regains visibility.
+document.addEventListener("visibilitychange", function () {
+  if (document.visibilityState === "visible") {
+    board_layer.drawHit();
+    interactive_layer.drawHit();
+    pieces_layer.drawHit();
+    top_layer.drawHit();
+  }
+});
 
 // ready to go
 
