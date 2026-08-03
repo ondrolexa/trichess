@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import click
 from flask import Flask
@@ -32,7 +32,7 @@ class DBHandler(logging.Handler):
             from webapp.models import Log, db
 
             _ = current_app._get_current_object()
-        except RuntimeError, AttributeError:
+        except (RuntimeError, AttributeError):
             return
         # Use the existing app context — no nested push so the session stays alive
         entry = Log(
@@ -200,7 +200,7 @@ def purge_logs(days):
     """Delete log entries older than specified number of days."""
     from webapp.models import Log
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
     deleted = Log.query.filter(Log.created_at < cutoff).delete()
     db.session.commit()
     click.echo(f"Deleted {deleted} log entries older than {days} days")
@@ -226,7 +226,7 @@ def remove_bot_games(days):
 
     from webapp.models import Log, Score, TriBoard
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
     candidates = TriBoard.query.filter(
         TriBoard.status == 2, TriBoard.modified_at < cutoff
     ).all()

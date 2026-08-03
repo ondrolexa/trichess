@@ -53,6 +53,7 @@ const AppState = {
   targets: new Set(),
   promotions: new Set(),
   lastmove: { gid: -1, tgid: -1 },
+  prelastmove: { gid: -1, tgid: -1 },
 
   // Canvas / layout dimensions. Defaults are the portrait-optimized values
   // (bigger/lower board) since doOnOrientationChange() never fires on many
@@ -760,6 +761,30 @@ function createHexHigh(xy) {
   return hex;
 }
 
+function hideMoveHighlight(state) {
+  if (state["gid"] != -1) {
+    AppState.gid2high[state["gid"]].visible(false);
+  }
+  if (state["tgid"] != -1) {
+    AppState.gid2high[state["tgid"]].visible(false);
+  }
+  state["gid"] = -1;
+  state["tgid"] = -1;
+}
+
+function setMoveHighlight(state, moveData, color) {
+  state["gid"] = moveData["gid"];
+  AppState.gid2high[state["gid"]].visible(true);
+  AppState.gid2high[state["gid"]].stroke(
+    AppState.current == state["gid"] ? theme["board"]["selection"] : color,
+  );
+  state["tgid"] = moveData["tgid"];
+  AppState.gid2high[state["tgid"]].visible(true);
+  AppState.gid2high[state["tgid"]].stroke(
+    AppState.current == state["tgid"] ? theme["board"]["selection"] : color,
+  );
+}
+
 function createHexValid(xy) {
   let hex = new Konva.Circle({
     x: xy[0],
@@ -1269,36 +1294,30 @@ function gameInfo(init = false, redraw = false) {
         backmove.disabled = true;
         backmove.className = "btn btn-secondary mb-2 col-12";
       }
-      // Show last move
+      // Show last two moves: hide both trackers' old squares first
+      // (unconditionally, so a null response resets the tracker instead of
+      // leaving stale gid/tgid behind), then draw both new ones (pre-last
+      // first, last move second so an overlapping last-move highlight
+      // visually wins) — hiding must not be interleaved with drawing, or
+      // one tracker's stale-hide step can erase a square the other tracker
+      // just drew.
+      const preLastMoverPid = ((((data.move_number - 2) % 3) + 3) % 3);
+      const lastMoverPid = ((((data.move_number - 1) % 3) + 3) % 3);
+      hideMoveHighlight(AppState.prelastmove);
+      hideMoveHighlight(AppState.lastmove);
+      if (data.pre_last_move != null) {
+        setMoveHighlight(
+          AppState.prelastmove,
+          data.pre_last_move,
+          theme["pieces"]["color"][preLastMoverPid],
+        );
+      }
       if (data.last_move != null) {
-        if (AppState.lastmove["gid"] != -1) {
-          AppState.gid2high[AppState.lastmove["gid"]].visible(false);
-        }
-        AppState.lastmove["gid"] = data.last_move["gid"];
-        AppState.gid2high[AppState.lastmove["gid"]].visible(true);
-        if (AppState.current == AppState.lastmove["gid"]) {
-          AppState.gid2high[AppState.lastmove["gid"]].stroke(
-            theme["board"]["selection"],
-          );
-        } else {
-          AppState.gid2high[AppState.lastmove["gid"]].stroke(
-            theme["board"]["last_move"],
-          );
-        }
-        if (AppState.lastmove["tgid"] != -1) {
-          AppState.gid2high[AppState.lastmove["tgid"]].visible(false);
-        }
-        AppState.lastmove["tgid"] = data.last_move["tgid"];
-        AppState.gid2high[AppState.lastmove["tgid"]].visible(true);
-        if (AppState.current == AppState.lastmove["tgid"]) {
-          AppState.gid2high[AppState.lastmove["tgid"]].stroke(
-            theme["board"]["selection"],
-          );
-        } else {
-          AppState.gid2high[AppState.lastmove["tgid"]].stroke(
-            theme["board"]["last_move"],
-          );
-        }
+        setMoveHighlight(
+          AppState.lastmove,
+          data.last_move,
+          theme["pieces"]["color"][lastMoverPid],
+        );
       }
       // show piece in chess
       if (data.in_chess) {
