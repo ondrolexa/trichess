@@ -11,7 +11,6 @@ canvas:
   game_over: "black"
 
 board:
-  last_move: "#00ff00"
   valid_move: "black"
   selection: "white"
   attack_move: "red"
@@ -23,7 +22,6 @@ board:
   hex_alpha: "a8"
   hint_lines: "#222222"
   hex_border: "#000000"
-  border: "#ffffff"
 
 pieces:
   font-family: "Roboto"

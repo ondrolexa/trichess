@@ -800,9 +800,10 @@ class hex {
   draw() {
     ctx0.save();
     ctx0.beginPath();
-    if (theme["board"]["hex_border"] == "#000000") {
-      ctx0.lineWidth = r/10;
-      ctx0.strokeStyle = "#000000";
+    let color = theme["board"]["hex_border"]
+    if ( theme["board"]["hex_border"]!== null && theme["board"]["hex_border"] !== "#000001") {
+      ctx0.lineWidth = r/30;
+      ctx0.strokeStyle = theme["board"]["hex_border"];
     }
     for (let i = 0; i < 6; i++) {
       //draw hex tile
@@ -821,7 +822,7 @@ class hex {
     }
     ctx0.closePath();
     ctx0.fill();
-     if (theme["board"]["hex_border"] == "#000000") {
+    if ( theme["board"]["hex_border"]!== null && theme["board"]["hex_border"] !== "#000001") {
        ctx0.stroke()
     }
     ctx0.restore();
@@ -938,6 +939,8 @@ class board {
     this.move_number_max = -1;
     this.last_move_from = -1;
     this.last_move_to = -1;
+    this.pre_last_move_from = -1;
+    this.pre_last_move_to = -1;
     this.onmove = 0;
     this.finished = false;
     this.hist_changed = false;
@@ -1038,6 +1041,10 @@ class board {
     if (jdata.vote_results != null) {
       this.vote_results_kind = jdata.vote_results.kind;
     }
+    if (jdata.pre_last_move != null) {
+      this.pre_last_move_from = jdata.pre_last_move.gid;
+      this.pre_last_move_to = jdata.pre_last_move.tgid;
+    }
     if (jdata.last_move != null) {
       this.last_move_from = jdata.last_move.gid;
       this.last_move_to = jdata.last_move.tgid;
@@ -1111,19 +1118,20 @@ class board {
     }
   }
   draw_pieces() {
-    // mark last move
+    // mark last & prelast move
+    let hex_size = 0.93;
+    let hex_lineWidth = lineWidth*1.7;
+    let hex_color =  theme["pieces"]["color"][this.hexs[this.last_move_to].piece.player_id]
     if (this.last_move_from != -1) {
-      this.hexs[this.last_move_from].draw_hex(
-        lineWidth*3,
-        theme["board"]["last_move"],
-        0.88,
-      );
-      this.hexs[this.last_move_to].draw_hex(
-        lineWidth*3,
-        theme["board"]["last_move"],
-        0.88,
-      );
+      this.hexs[this.last_move_from].draw_hex(hex_lineWidth, hex_color, hex_size);
+      this.hexs[this.last_move_to].draw_hex(hex_lineWidth, hex_color, hex_size);
     }
+    hex_color =  theme["pieces"]["color"][this.hexs[this.pre_last_move_to].piece.player_id]
+    if (this.pre_last_move_from != -1) {
+      this.hexs[this.pre_last_move_from].draw_hex(hex_lineWidth, hex_color, hex_size);
+      this.hexs[this.pre_last_move_to].draw_hex(hex_lineWidth, hex_color, hex_size);
+    }
+    // draw piece
     for (let i = 0; i < 169; i++) {
       if (this.hexs[i].show_flag) {
         this.hexs[i].draw_piece2(bpiece_lineWidth);
@@ -1306,15 +1314,6 @@ function Step_1_settoken() {
   F.fetchGET(
     url + "/api/v1/manager/board?id=" + ID.toString(),
     Step_2_setplayers,
-  );
-}
-function Step_12_setcode(idata) {  // The function is using by Click_Rotate()
-  F.semaforwait_green();
-  B.set_code(idata)
-  F.fetchPOST(
-    url + "/api/v1/game/info",
-    { slog: B.slog, view_pid: B.view_player },
-    Step_3_setelim_board_and_draw,
   );
 }
 function Step_2_setplayers(idata) {

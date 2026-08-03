@@ -11,7 +11,6 @@ canvas:
   game_over: "gold"
 
 board:
-  last_move: "#04d410"
   valid_move: "#ffffff"
   selection: "#ffffff"
   attack_move: "#32cd32"
@@ -22,8 +21,7 @@ board:
   hex_inchess: "#8900b5"
   hex_alpha: "ff"
   hint_lines: "#000000"
-  hex_border: "#000001"
-  border: "#ffffff"
+  hex_border:  "#000001"
 
 pieces:
   font-family: "Roboto"
