@@ -116,6 +116,8 @@ def index():
             return redirect(url_for("register"))
         else:
             return redirect(url_for("index"))
+    if g.user.is_authenticated and not g.user.is_admin:
+        return redirect(url_for("active_games"))
     return render_template("index.html")
 
 
@@ -475,7 +477,6 @@ def password():
 
 
 @app.route("/help")
-@login_required
 def help():
     return render_template("help.html")
 

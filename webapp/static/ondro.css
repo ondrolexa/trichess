@@ -1,26 +1,49 @@
 .main-container {
+    display: flex;
+    flex-direction: row;
     min-height: calc(100vh - 56px);
+    min-height: calc(100dvh - 56px);
+}
+
+/* Mobile landscape hides the navbar (ondro.js's doOnOrientationChange())
+   instead of just collapsing it — the 56px above is reserved for a navbar
+   that isn't actually taking up any space then, wasting it as unusable
+   blank room instead of giving it to the board. */
+.main-container.no-navbar {
+    min-height: 100vh;
+    min-height: 100dvh;
 }
 
 .canvas-container {
     display: flex;
     justify-content: center;
-    min-height: calc(100vh - 60px);
-}
-
-#mainCanvas {
-    border: 2px solid #dee2e6;
-    border-radius: 8px;
-    background-color: white;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    max-width: 100%;
-    height: auto;
+    flex: 1 1 auto;
+    min-height: 40vh;
+    min-height: 40dvh;
+    /* Without this, a stale (pre-resize) Konva-injected canvas element can
+       hold explicit pixel dimensions larger than this flex item's computed
+       size; flexbox's automatic minimum size then keeps the box at least
+       that big (the classic "flex child won't shrink below content"
+       pitfall), which in turn makes fitStageIntoDiv()'s next measurement
+       read that same inflated size back — a feedback loop that only a full
+       reload broke. overflow:hidden makes the box respect its flex-computed
+       size instead of its content's. */
+    overflow: hidden;
 }
 
 .sidebar {
+    flex: 0 0 200px;
+    padding: 12px;
     border-left: 1px solid #dee2e6;
-    min-height: calc(100vh - 56px);
-    padding: 20px;
+    overflow-y: auto;
+}
+
+/* Narrow sidebar (landscape phones/tablets, and "in-between" desktop
+   widths below the 992px side-by-side breakpoint): a single column of
+   buttons fits more comfortably than the 2-column desktop arrangement. */
+.sidebar .row > .col {
+    flex: 0 0 100%;
+    max-width: 100%;
 }
 
 .sidebar-btn {
@@ -68,19 +91,51 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (min-width: 992px) {
     .sidebar {
-        min-height: auto;
+        flex: 0 0 320px;
+        padding: 20px;
+    }
+
+    .sidebar .row > .col {
+        /* Bootstrap's own bare-.col default (flex-grow:1, flex-basis:0%) —
+           restores the even 2-per-row split that the base single-column
+           rule above overrides. */
+        flex: 1 0 0%;
+    }
+}
+
+/* Mobile landscape (navbar hidden, .no-navbar height reclaim already
+   applied above): pull the canvas up past the remaining empirical gap. */
+@media (orientation: landscape) and (max-width: 991px) {
+    .canvas-container {
+        margin-top: -90px;
+    }
+}
+
+/* Stacked (canvas above, sidebar below) is reserved for mobile portrait
+   only — everywhere else (landscape phones/tablets, "in-between" desktop
+   widths, and wide desktop) keeps the side-by-side layout above. */
+@media (orientation: portrait) and (max-width: 767px) {
+    .main-container {
+        flex-direction: column;
+    }
+
+    .canvas-container {
+        min-height: 40vh;
+        min-height: 40dvh;
+    }
+
+    .sidebar {
+        flex: 0 0 auto;
         border-left: none;
         border-top: 1px solid #dee2e6;
     }
 
-    .canvas-container {
-        min-height: 38vh;
-    }
-
-    #mainCanvas {
-        width: 90%;
-        height: 400px;
+    .sidebar .row > .col {
+        /* Bootstrap's own bare-.col default (flex-grow:1, flex-basis:0%) —
+           restores the even 2-per-row split that the base single-column
+           rule above overrides. */
+        flex: 1 0 0%;
     }
 }

@@ -103,6 +103,7 @@ const backmove = document.getElementById("backMove");
 const forwardmove = document.getElementById("forwardMove");
 const modalPiece = new bootstrap.Modal(document.getElementById("selectPiece"));
 const navbar = document.getElementById("header");
+const mainContainer = document.querySelector(".main-container");
 const voteModals = {
   draw: new bootstrap.Modal(document.getElementById("voteDrawDialog")),
   resign: new bootstrap.Modal(document.getElementById("voteResignDialog")),
@@ -571,7 +572,26 @@ function fitStageIntoDiv() {
   // container's own midpoint. Something outside this formula (likely
   // asymmetric visual weight from the player racks, or container
   // box-model quirks) shifts the true visual center left of world-x=0.
-  stage.position({ x: -10, y: AppState.visual_shift });
+  //
+  // Vertical position: width-bound fits (portrait/desktop) have leftover
+  // vertical room, where AppState.visual_shift's per-orientation constant
+  // (hand-tuned against real devices) controls how that slack is used.
+  // Height-bound fits (mobile landscape, where the container is much wider
+  // than the world box) have *zero* leftover vertical space by
+  // definition — offsetY/scale already map the world box to exactly
+  // containerHeight pixels top-to-bottom, so any additional fixed-pixel
+  // shift on top of that either leaves a gap above the board or clips it
+  // below, and the right amount to cancel that out (`scale`) depends on
+  // the live container size, not a per-device constant. Using `scale`
+  // itself as the y-shift exactly cancels offsetY's "-1 world unit" term,
+  // landing the content flush against the container's top and bottom.
+  const heightBound =
+    containerHeight / AppState.stageHeight <=
+    containerWidth / AppState.stageWidth;
+  stage.position({
+    x: -10,
+    y: heightBound ? scale : AppState.visual_shift,
+  });
   // Natural-fit scale, used as the zoom-out floor by applyZoom().
   AppState.baseScale = scale;
   stage.batchDraw();
@@ -593,8 +613,11 @@ function doOnOrientationChange() {
   switch (window.screen.orientation.type) {
     case "landscape-primary":
       navbar.style.display = "none";
+      // Reclaim the navbar's reserved height now that it's hidden — see
+      // the .no-navbar rule in ondro.css.
+      mainContainer.classList.add("no-navbar");
       AppState.stageWidth = 15.8;
-      AppState.stageHeight = 20.5;
+      AppState.stageHeight = 22.5;
       AppState.visual_shift = 20;
       AppState.anchor0name = { x: 0, y: 7.4 };
       AppState.anchor0el = { x: 11.2, y: 6.9 };
@@ -604,11 +627,12 @@ function doOnOrientationChange() {
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
-        window.scrollTo(0, 10);
+        window.scrollTo(0, 0);
       });
       break;
     case "portrait-secondary":
       navbar.style.display = "";
+      mainContainer.classList.remove("no-navbar");
       AppState.stageWidth = 15.8;
       AppState.stageHeight = 15.5;
       AppState.visual_shift = 70;
@@ -620,12 +644,14 @@ function doOnOrientationChange() {
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
+        window.scrollTo(0, 0);
       });
       break;
     case "landscape-secondary":
       navbar.style.display = "none";
+      mainContainer.classList.add("no-navbar");
       AppState.stageWidth = 15.8;
-      AppState.stageHeight = 20.5;
+      AppState.stageHeight = 22.5;
       AppState.visual_shift = 20;
       AppState.anchor0name = { x: 0, y: 7.4 };
       AppState.anchor0el = { x: 11.2, y: 6.9 };
@@ -635,11 +661,12 @@ function doOnOrientationChange() {
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
-        window.scrollTo(0, 10);
+        window.scrollTo(0, 0);
       });
       break;
     default:
       navbar.style.display = "";
+      mainContainer.classList.remove("no-navbar");
       AppState.stageWidth = 15.8;
       AppState.stageHeight = 15.5;
       AppState.visual_shift = 70;
@@ -651,6 +678,7 @@ function doOnOrientationChange() {
       requestAnimationFrame(() => {
         fitStageIntoDiv();
         applyAnchors();
+        window.scrollTo(0, 0);
       });
   }
 }
@@ -677,6 +705,7 @@ function applyInitialLayout() {
   // has more room to spare) — stageHeight 20 -> 16.7 is what drives that,
   // being the binding dimension whenever the window is wider than tall.
   navbar.style.display = "";
+  mainContainer.classList.remove("no-navbar");
   const isPortrait = window.innerHeight > window.innerWidth;
   AppState.stageWidth = isPortrait ? 15.8 : 14.2;
   AppState.stageHeight = isPortrait ? 15.5 : 16.7;

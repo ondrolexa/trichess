@@ -1,11 +1,89 @@
 {% extends "base.html" %}
 
-{%block content%}
-{% if current_user.is_authenticated %}
-  <h2>Welcome {{ current_user.username }}!</h2>
-  <p>Thanks for joining our test server. Check the menu above (a hamburger menu on mobile) for rules and game management.</p>
-{% else %}
-  <h2>Welcome on Trichess server!</h2>
-  <p>Please log in to start playing! If you just signed up, we might still be verifying your account. If you can't get in yet, please try again in a little while.</p>
-{% endif %}
-{%endblock%}
+{% block styles %}
+<style>
+  .hero {
+    padding: 3rem 0 1rem;
+    text-align: center;
+  }
+  .hero h1 {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .hero .lead {
+    max-width: 46rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .gif-card {
+    border-radius: 1rem;
+    padding: 0.75rem;
+    margin: 2rem auto;
+    max-width: 520px;
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.35);
+  }
+  .gif-card img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+  }
+  .feature-grid {
+    margin: 2.5rem 0;
+  }
+  .feature-grid h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+  {% if current_user.is_authenticated %}
+  <h1>Welcome back, {{ current_user.username }}!</h1>
+  <p class="lead text-body-secondary">Ready for your next move?</p>
+  <a class="btn btn-primary btn-lg mt-2" href="{{ url_for('active_games') }}">Continue to your games</a>
+  {% else %}
+  <h1>Chess, but the board bends&nbsp;&mdash;&nbsp;and three minds clash.</h1>
+  <p class="lead text-body-secondary">
+    TriChess reimagines chess on a 169-cell hexagonal board built for three
+    players at once. More directions to move, more pieces per side, and a
+    whole new layer of alliances, betrayals, and voted resignations.
+  </p>
+  <div class="mt-3">
+    <a class="btn btn-primary btn-lg me-2" href="{{ url_for('register') }}">Register</a>
+    <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('login') }}">Login</a>
+  </div>
+  {% endif %}
+</section>
+
+<div class="gif-card bg-dark" data-bs-theme="dark">
+  <img src="{{ url_for('static', filename='img/gameplay_night_school.gif') }}"
+       alt="Animated demo of a TriChess game in progress on the hexagonal board" loading="lazy">
+</div>
+
+<div class="row feature-grid text-center">
+  <div class="col-md-3 mb-3">
+    <h3>Hexagonal arena</h3>
+    <p class="text-body-secondary">169 cells, three home bases, no edge of the board is ever truly safe.</p>
+  </div>
+  <div class="col-md-3 mb-3">
+    <h3>Three-player diplomacy</h3>
+    <p class="text-body-secondary">Resignation and draw votes turn every endgame into a negotiation.</p>
+  </div>
+  <div class="col-md-3 mb-3">
+    <h3>No third player? Bring a bot</h3>
+    <p class="text-body-secondary">Fill an empty seat with a built-in bot and play whenever you like.</p>
+  </div>
+  <div class="col-md-3 mb-3">
+    <h3>Make it yours</h3>
+    <p class="text-body-secondary">Multiple board themes and piece sets, including a colorblind-friendly palette.</p>
+  </div>
+</div>
+
+<p class="text-center text-body-secondary">
+  Check the Help menu above for the full rules and tips.
+  {% if not current_user.is_authenticated %}Register to claim your seat at the board.{% endif %}
+</p>
+{% endblock %}

@@ -266,6 +266,21 @@ class GameAPI:
                 }
         return None
 
+    @property
+    def pre_last_move(self):
+        """Second-to-last move as ``{gid, tgid}``, or None if there isn't one."""
+        if self.last_move is None:
+            return None
+        chunks = [self.slog[i : i + 4] for i in range(0, len(self.slog), 4)]
+        move_chunks = [c for c in chunks if c[0] not in ("R", "S", "r", "s")]
+        if len(move_chunks) < 2:
+            return None
+        from_pos, to_pos, new_piece = self.slog2pos(*move_chunks[-2])
+        return {
+            "gid": self.pos2gid[from_pos],
+            "tgid": self.pos2gid[to_pos],
+        }
+
     def in_chess(self):
         """Check if player on move has chess"""
         res = {0: [], 1: [], 2: []}

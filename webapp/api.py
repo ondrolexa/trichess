@@ -457,6 +457,7 @@ game_response = api.model(
         "move_number": fields.Integer,
         "onmove": fields.Integer,
         "last_move": fields.Nested(last_move),
+        "pre_last_move": fields.Nested(last_move),
         "finished": fields.Boolean,
         "in_chess": fields.Boolean,
         "king_pos": fields.Integer,
@@ -500,6 +501,7 @@ class GameInfo(Resource):
                 res["move_number"] = ga.move_number
                 res["onmove"] = ga.on_move
                 res["last_move"] = ga.last_move
+                res["pre_last_move"] = ga.pre_last_move
                 res["finished"] = not ga.move_possible()
                 res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess()
                 res["resignation"] = ga.resignation()

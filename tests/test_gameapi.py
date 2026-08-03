@@ -139,6 +139,31 @@ class TestGameFlow:
         ga.replay_from_slog(ga.slog + "RAAD")
         assert ga.last_move is None
 
+    def test_pre_last_move_none_on_empty_slog(self, game):
+        assert game.pre_last_move is None
+
+    def test_pre_last_move_none_after_one_move(self, game_with_one_move):
+        assert game_with_one_move.pre_last_move is None
+
+    def test_pre_last_move_after_two_moves(self, game):
+        first_targets = game.valid_moves(152)
+        game.make_move(152, first_targets[0]["tgid"])
+        second_from = next(gid for gid in range(169) if game.valid_moves(gid))
+        second_targets = game.valid_moves(second_from)
+        game.make_move(second_from, second_targets[0]["tgid"])
+
+        plm = game.pre_last_move
+        assert plm is not None
+        assert plm["gid"] == 152
+        assert plm["tgid"] == first_targets[0]["tgid"]
+
+    def test_pre_last_move_none_after_full_vote_record(self):
+        """When slog ends with a set-vote (R/S prefix), pre_last_move returns None."""
+        ga = GameAPI(view_pid=0)
+        ga.make_move(152, 142)
+        ga.replay_from_slog(ga.slog + "RAAD")
+        assert ga.pre_last_move is None
+
     def test_undo_reverts_state(self, game):
         game.make_move(167, 152)
         assert game.move_number == 1

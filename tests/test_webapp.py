@@ -151,6 +151,37 @@ class Test_Admin_Route_None_Checks:
         assert resp.status_code in (302, 303)
 
 
+class Test_Help_Route_Is_Public:
+    def test_anonymous_can_view_help(self, client):
+        resp = client.get("/help")
+        assert resp.status_code == 200
+
+    def test_logged_in_user_can_view_help(self, app, client):
+        _create_user()
+        _login(client)
+        resp = client.get("/help")
+        assert resp.status_code == 200
+
+
+class Test_Index_Route_Redirects_By_Login_State:
+    def test_anonymous_sees_landing_page(self, client):
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert b"Register" in resp.data
+
+    def test_logged_in_non_admin_redirects_to_active_games(self, app, client):
+        _create_user()
+        _login(client)
+        resp = client.get("/")
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/games")
+
+    def test_logged_in_admin_still_sees_landing_page(self, app, client):
+        _login_as_admin(client)
+        resp = client.get("/")
+        assert resp.status_code == 200
+
+
 class Test_DBHandler_Commits_Log_Rows:
     def test_logger_error_persists_across_a_later_rollback(self, app):
         logger = logging.getLogger("webapp.some_module")
