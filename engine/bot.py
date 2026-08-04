@@ -22,6 +22,12 @@ def _terminal_score(ga: GameAPI, pid: int) -> float:
     Draw: every player gets 2/3. Resignation: the non-accepting player gets
     2.0, the two who accepted get 0.0. Checkmate: score = (player's checker
     count) * 2 / total checkers. Stalemate / other: each player gets 2/3.
+
+    Deliberately does not check GameAPI.repetition()/endgame(): this scores
+    hypothetical nodes from ga.copy(), never the real replayed game, and
+    the search is only MIN_SOUND_DEPTH-ish plies deep — nowhere near enough
+    to observe a real threefold repetition. Stalemate is already covered by
+    the final `return 2.0 / 3` below.
     """
     if ga.draw():
         return 2.0 / 3

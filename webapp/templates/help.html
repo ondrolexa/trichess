@@ -151,12 +151,14 @@
           <li><strong>Draw voting</strong>: All three must accept for a draw. One holdout keeps the game going.</li>
           <li><strong>Proportional checkmate</strong>: When multiple players attack a king, the checkmate points are
             split proportionally by how many pieces each attacker contributed.</li>
+          <li><strong>Automatic endings</strong>: Stalemate (no legal move, but not in check) and threefold
+            repetition end the game on their own — no vote needed.</li>
         </ul>
 
         <h4>4. Unique Scoring</h4>
         <ul>
           <li><strong>Win (checkmate)</strong>: 2.0 points (split among attackers if multiple)</li>
-          <li><strong>Draw / Stalemate</strong>: 2/3 point each</li>
+          <li><strong>Draw / Stalemate / Threefold repetition</strong>: 2/3 point each</li>
           <li><strong>Resignation</strong>: The non-resigning player gets 2.0</li>
           <li><strong>Rating</strong>: Multi-player Elo starting at 500</li>
         </ul>
@@ -719,6 +721,26 @@
           for yellow (yellow knight).</p>
         <p>If a player had another piece somewhere on the board that is not blocked, it would have to move. The game
           would continue.</p>
+
+        <h3>Stalemate, Draws, and Repetition</h3>
+        <p>Not every game ends in checkmate. Trichess recognizes four other ways a game can end, all sharing the same
+          2/3-point-each split (except resignation):</p>
+        <ul>
+          <li><strong>Stalemate</strong>: The player on move has no legal move anywhere on the board, but their king
+            is <em>not</em> in check. Unlike checkmate, this ends the game immediately and automatically — 2/3 point
+            for each of the three players.</li>
+          <li><strong>Threefold repetition</strong>: If the exact same position — same pieces on the same squares,
+            same player to move, and the same castling/pawn-double-step rights — occurs three times over the course
+            of the game, the game ends automatically in a draw, 2/3 point each. No one needs to claim it; the server
+            detects it as soon as the third occurrence happens.</li>
+          <li><strong>Draw vote</strong>: All three players accept a draw — 2/3 point each. See the <strong>How to
+              Play</strong> tab for how voting works.</li>
+          <li><strong>Resignation vote</strong>: Two players accept resignation and one declines — the declining
+            player wins outright (2.0 points). See the <strong>How to Play</strong> tab.</li>
+        </ul>
+        <p>Stalemate and threefold repetition require no action from any player — the server checks for both after
+          every move and ends the game the instant either condition is met.</p>
+
         <h3>Basic Strategy</h3>
         <p>Trichess is an incredibly complex strategic game, and it is impossible to go into all the possible tactics
           one could use to win. Here are some hints for new players.</p>
@@ -915,6 +937,23 @@
         <p>Move kinds: <code>s</code> (standard), <code>a</code> (attack-only), <code>f</code> (forward-only),
           <code>n</code> (infinite slide), <code>d</code> (double-step), <code>c</code> (castling).</p>
 
+        <h4>Endgame Detection</h4>
+        <p><code>GameAPI.endgame()</code> is the single classifier all game-ending logic dispatches through (API
+          response, DB persistence, and scoring) — it returns one of <code>"checkmate"</code>,
+          <code>"draw"</code>, <code>"resignation"</code>, <code>"stalemate"</code>, <code>"repetition"</code>, or
+          <code>None</code> while the game is still ongoing. Draw/resignation come from
+          <code>Voting</code>; checkmate/stalemate both reduce to "the on-move player has no legal move anywhere",
+          distinguished only by whether their king is currently attacked.</p>
+        <p>Threefold repetition is detected via <code>GameAPI._position_signature()</code> — a hashable tuple of
+          every occupied hex's (position, piece label, owning player) plus the <code>used</code> flag of any
+          Pawn/King/Rook (the only pieces whose future legal moves depend on it: pawn double-step and
+          king/rook castling eligibility). <code>replay_from_slog()</code> tallies one signature's occurrence count
+          per move as it replays; <code>repetition()</code> is true once the current position's count reaches 3.
+          The tally is rebuilt from scratch on every request (consistent with the engine's stateless,
+          replay-the-whole-slog design) and is intentionally not threaded through <code>make_move()</code> or
+          <code>copy()</code>, since the bot's minimax search only ever evaluates hypothetical positions, never the
+          real game.</p>
+
         <hr>
 
         <h3>Bot Player System</h3>
@@ -983,8 +1022,9 @@
 
         <h4>Score</h4>
         <ul>
-          <li><code>player_id</code>, <code>board_id</code>, <code>score</code> (float), <code>tag</code> (N/R/D/S),
-            <code>onmove</code> (bool)</li>
+          <li><code>player_id</code>, <code>board_id</code>, <code>score</code> (float), <code>tag</code>
+            (<code>N</code>=checkmate, <code>D</code>=draw, <code>R</code>=resignation, <code>S</code>=stalemate,
+            <code>T</code>=threefold repetition), <code>onmove</code> (bool)</li>
           <li>Never created for a board with any bot seat</li>
         </ul>
 

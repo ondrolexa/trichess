@@ -1,9 +1,9 @@
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
-from engine import get_game
+from engine import GameAPI, get_game
 from webapp.main import db
-from webapp.models import TriBoard, User
+from webapp.models import Score, TriBoard, User
 
 
 def _create_user(username, active=True):
@@ -92,3 +92,116 @@ class TestGameBoardGetViewPidOverride:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 400
+
+
+class TestGameBoardEndgamePersistence:
+    """Covers GameBoard.post()'s endgame() dispatch for the two newly-added
+    outcomes (repetition, stalemate) — draw/resignation/checkmate dispatch
+    is unchanged and already exercised elsewhere (e.g. test_botplayer.py)."""
+
+    def _setup(self, app):
+        alice = _create_user("alice")
+        bob = _create_user("bob")
+        carol = _create_user("carol")
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol})
+        return tb, {0: alice, 1: bob, 2: carol}
+
+    def test_repetition_ending_persists_tag_t_and_notifies(
+        self, monkeypatch, app, client
+    ):
+        from webapp import api
+
+        calls = []
+        monkeypatch.setattr(api, "post_notification", lambda *a, **k: calls.append(a))
+
+        tb, players = self._setup(app)
+
+        # Each player shuffles a knight out and back, twice around — the
+        # same real move sequence proven in test_gameapi.py's
+        # TestEndgame.test_repetition_via_move_sequence to reach threefold
+        # repetition after the 12th move.
+        ga = GameAPI(view_pid=0)
+        knights = {0: 166, 1: 17, 2: 26}
+        current = dict(knights)
+        for _ in range(2):
+            for pid in range(3):
+                frm = current[pid]
+                to = next(m["tgid"] for m in ga.valid_moves(frm) if m["kind"] == "safe")
+                ga.make_move(frm, to)
+                current[pid] = to
+            for pid in range(3):
+                frm = current[pid]
+                to = knights[pid]
+                ga.make_move(frm, to)
+                current[pid] = to
+        # position_counts is only maintained while replaying a slog (see
+        # engine/gameapi.py) — make_move() alone won't reflect it, so
+        # verify via a fresh replay of the accumulated slog, same as
+        # GameBoard.post() itself does via get_game().
+        assert get_game(0, ga.slog).endgame() == "repetition"
+
+        # Persist all but the final (12th) move, then POST that last move
+        # as the on-move player — mirrors how the client only ever submits
+        # one new move at a time.
+        tb.slog = ga.slog[:-4]
+        db.session.commit()
+        prior = get_game(0, tb.slog)
+        poster_username = players[prior.on_move].username
+
+        with app.test_request_context():
+            token = create_access_token(identity=poster_username)
+        resp = client.post(
+            "/api/v1/manager/board",
+            json={"id": tb.id, "slog": ga.slog},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert resp.status_code == 200
+        db.session.refresh(tb)
+        assert tb.status == 2
+        scores = Score.query.filter_by(board_id=tb.id).all()
+        assert len(scores) == 3
+        assert all(s.tag == "T" for s in scores)
+        assert all(s.score == 2.0 / 3 for s in scores)
+        assert any("threefold repetition" in c[1] for c in calls)
+
+    def test_stalemate_ending_persists_tag_s_and_notifies(
+        self, monkeypatch, app, client
+    ):
+        from webapp import api
+
+        calls = []
+        monkeypatch.setattr(api, "post_notification", lambda *a, **k: calls.append(a))
+        # A from-scratch, POST-reachable stalemate position would require a
+        # full legal game reaching that exact state — see the board-surgery
+        # approach used for the engine-level unit test instead
+        # (test_gameapi.py::TestEndgame.test_stalemate_detected). Here we
+        # only need to verify GameBoard.post()'s dispatch/persistence for
+        # the "stalemate" outcome, so force the classification directly.
+        monkeypatch.setattr(GameAPI, "endgame", lambda self: "stalemate")
+
+        tb, players = self._setup(app)
+        ga = get_game(0, "")
+        poster_username = players[ga.on_move].username
+        for gid in range(169):
+            targets = ga.valid_moves(gid)
+            if targets:
+                ga.make_move(gid, targets[0]["tgid"])
+                break
+
+        with app.test_request_context():
+            token = create_access_token(identity=poster_username)
+        resp = client.post(
+            "/api/v1/manager/board",
+            json={"id": tb.id, "slog": ga.slog},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert resp.status_code == 200
+        db.session.refresh(tb)
+        assert tb.status == 2
+        scores = Score.query.filter_by(board_id=tb.id).all()
+        assert len(scores) == 3
+        assert all(s.tag == "S" for s in scores)
+        assert all(s.score == 2.0 / 3 for s in scores)
+        assert any("ended in a stalemate" in c[1] for c in calls)

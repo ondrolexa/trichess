@@ -215,10 +215,12 @@ class TestVoting:
     def test_resignation_detected(self, game):
         game.voting.set_resign_voting("A", "A", "D")
         assert game.resignation()
+        assert game.endgame() == "resignation"
 
     def test_draw_detected(self, game):
         game.voting.set_draw_voting("A", "A", "A")
         assert game.draw()
+        assert game.endgame() == "draw"
 
     def test_draw_not_resign(self, game):
         game.voting.set_draw_voting("A", "A", "A")
@@ -276,3 +278,79 @@ class TestMovePossible:
     def test_move_possible_empty_after_draw(self, game):
         game.voting.set_draw_voting("A", "A", "A")
         assert not game.move_possible()
+
+
+class TestEndgame:
+    def test_endgame_none_at_start(self, game):
+        assert game.endgame() is None
+        assert not game.repetition()
+
+    def test_repetition_via_move_sequence(self):
+        # Each player shuffles a knight out and back to the same square,
+        # twice around — the starting position (already counted once at
+        # construction) then recurs after each full 3-player round trip,
+        # reaching 3 occurrences (threefold) after the second cycle.
+        ga = GameAPI(view_pid=0)
+        knights = {0: 166, 1: 17, 2: 26}
+        current = dict(knights)
+        for _ in range(2):
+            for pid in range(3):
+                frm = current[pid]
+                to = next(m["tgid"] for m in ga.valid_moves(frm) if m["kind"] == "safe")
+                ga.make_move(frm, to)
+                current[pid] = to
+            for pid in range(3):
+                frm = current[pid]
+                to = knights[pid]
+                ga.make_move(frm, to)
+                current[pid] = to
+
+        # position_counts is only maintained while replaying a slog — the
+        # real API always reconstructs state this way (get_game() ->
+        # replay_from_slog()), so replay the accumulated slog to see it.
+        replayed = GameAPI(view_pid=0)
+        replayed.replay_from_slog(ga.slog)
+        assert replayed.repetition()
+        assert replayed.endgame() == "repetition"
+
+    def test_repetition_counting_threshold(self, game):
+        sig = game._position_signature()
+        assert not game.repetition()
+        game.position_counts[sig] = 2
+        assert not game.repetition()
+        game.position_counts[sig] = 3
+        assert game.repetition()
+
+    def test_stalemate_detected(self):
+        # Clear the board down to a lone king plus two enemy queens
+        # positioned to cover every one of the king's 5 on-board escape
+        # squares (from a board corner) without attacking the king's own
+        # square — a genuine stalemate: no legal move, not in check.
+        #
+        # Player.king() caches its King instance and ignores `hex=` on
+        # repeat calls, so repositioning it must go through
+        # king.hex/new_hex directly rather than board.place_piece(...).
+        ga = GameAPI(view_pid=0)
+        board = ga.board
+        for hex in board:
+            hex.piece = None
+
+        king = ga.players[0].king_piece
+        king.hex.piece = None
+        king_hex = board[Pos(0, 7)]
+        king_hex.piece = king
+        king.hex = king_hex
+
+        q1 = ga.players[1].queen()
+        q1_hex = board[Pos(1, -7)]
+        q1_hex.piece = q1
+        q1.hex = q1_hex
+
+        q2 = ga.players[2].queen()
+        q2_hex = board[Pos(-1, 5)]
+        q2_hex.piece = q2
+        q2.hex = q2_hex
+
+        assert not ga.move_possible()
+        assert not ga.in_chess()[0]
+        assert ga.endgame() == "stalemate"

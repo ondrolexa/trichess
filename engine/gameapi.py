@@ -1,5 +1,7 @@
+from collections import defaultdict
+
 from engine.board import Board
-from engine.pieces import Pos
+from engine.pieces import King, Pawn, Pos, Rook
 from engine.player import Player
 
 
@@ -165,6 +167,8 @@ class GameAPI:
         self.view_pid = view_pid % 3
         self.board = Board(players=self.players)
         self.update_ui_mappings()
+        self.position_counts = defaultdict(int)
+        self.position_counts[self._position_signature()] += 1
 
     # gid<->Pos ordering is a pure function of view_pid — same 169 cells,
     # same traversal order, every single time. Caching it (keyed by
@@ -238,6 +242,10 @@ class GameAPI:
         ga.view_pid = self.view_pid
         ga.board = self.board.copy(players=ga.players)
         ga.update_ui_mappings()
+        # position_counts intentionally omitted — copy() only backs the bot's
+        # minimax search over hypothetical positions, which never calls
+        # repetition()/endgame() (see engine/bot.py._terminal_score), so
+        # skipping it avoids a 169-cell signature scan on every search node.
         return ga
 
     @property
@@ -399,6 +407,8 @@ class GameAPI:
         self.board = Board(players=self.players)
         self.voting.clean()
         self.update_ui_mappings()
+        self.position_counts = defaultdict(int)
+        self.position_counts[self._position_signature()] += 1
         # replay
         for q1, r1, q2, r2 in zip(s[::4], s[1::4], s[2::4], s[3::4]):
             # clean previously finished voting
@@ -421,6 +431,7 @@ class GameAPI:
                 # make move
                 self.board.move_piece(from_pos, to_pos, new_piece)
                 self.move_number += 1
+                self.position_counts[self._position_signature()] += 1
 
             # fix slog when just finished voting
             if self.voting.finished() and q1 in ["r", "s"]:
@@ -533,6 +544,51 @@ class GameAPI:
                     if any(tested):
                         return True
         return False
+
+    def _position_signature(self):
+        """Hashable snapshot of everything that affects future legal moves.
+
+        Made of the on-move player, every occupied hex's (pos, label,
+        owning pid), and the ``used`` flag of Pawn/King/Rook pieces — the
+        only pieces whose move generation depends on it (a pawn's
+        double-step and a king/rook's castling eligibility). Board
+        iteration order is fixed, so two equal positions always produce an
+        identical signature without needing to sort.
+        """
+        pieces = []
+        for hex in self.board:
+            if hex.has_piece:
+                piece = hex.piece
+                entry = (hex.pos.q, hex.pos.r, piece.label, piece.player.pid)
+                if isinstance(piece, (Pawn, King, Rook)):
+                    entry += (piece.used,)
+                pieces.append(entry)
+        return (self.on_move, tuple(pieces))
+
+    def repetition(self):
+        """True when the current position has now occurred 3 or more times."""
+        return self.position_counts[self._position_signature()] >= 3
+
+    def endgame(self):
+        """Classify how the game ended, or None while it's still ongoing.
+
+        Checked in this order: an explicit draw vote, an explicit
+        resignation vote, threefold repetition (checked independently of
+        move availability — a position can recur while the on-move player
+        still has legal moves), then — only once the on-move player has no
+        legal move at all — checkmate vs stalemate depending on whether
+        their king is currently attacked.
+        """
+        if self.draw():
+            return "draw"
+        if self.resignation():
+            return "resignation"
+        if self.repetition():
+            return "repetition"
+        if not self.move_possible():
+            in_chess, _, _ = self.in_chess()
+            return "checkmate" if in_chess else "stalemate"
+        return None
 
 
 def get_game(view_pid, slog):

@@ -82,24 +82,25 @@ def compute_outcome_scores(ga):
     """Score (out of 2.0) awarded to each player once a finished game's result
     is known — shared by the API's finished-game preview (GameInfo) and its
     persist path (GameBoard), which previously reimplemented this separately."""
-    if ga.draw():
-        return {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
-    if ga.resignation():
-        resigned = ga.voting.results(kind="resign")
-        uid = set([0, 1, 2]).difference(resigned).pop()
-        scores = {0: 0.0, 1: 0.0, 2: 0.0}
-        scores[uid] = 2.0
-        return scores
-    in_chess, _, who = ga.in_chess()
-    if in_chess:
-        scores = {0: 0.0, 1: 0.0, 2: 0.0}
-        tot = [len(p) for p in who.values()]
-        for uid, v in enumerate(tot):
-            score = v * 2 / sum(tot)
-            if score > 0:
-                scores[uid] = score
-        return scores
-    return {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
+    match ga.endgame():
+        case "resignation":
+            resigned = ga.voting.results(kind="resign")
+            uid = set([0, 1, 2]).difference(resigned).pop()
+            scores = {0: 0.0, 1: 0.0, 2: 0.0}
+            scores[uid] = 2.0
+            return scores
+        case "checkmate":
+            in_chess, _, who = ga.in_chess()
+            scores = {0: 0.0, 1: 0.0, 2: 0.0}
+            tot = [len(p) for p in who.values()]
+            for uid, v in enumerate(tot):
+                score = v * 2 / sum(tot)
+                if score > 0:
+                    scores[uid] = score
+            return scores
+        case _:
+            # draw, stalemate, repetition all split points equally
+            return {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
 
 
 def get_rating_history():
@@ -459,11 +460,12 @@ game_response = api.model(
         "last_move": fields.Nested(last_move),
         "pre_last_move": fields.Nested(last_move),
         "finished": fields.Boolean,
+        "endgame": fields.String(
+            enum=["checkmate", "draw", "resignation", "stalemate", "repetition"]
+        ),
         "in_chess": fields.Boolean,
         "king_pos": fields.Integer,
         "chess_by": fields.Nested(game_pieces),
-        "resignation": fields.Boolean,
-        "draw": fields.Boolean,
         "pieces": fields.Nested(game_pieces),
         "pieces_value": fields.Nested(game_pieces_value),
         "eliminated": fields.Nested(game_eliminated),
@@ -502,10 +504,9 @@ class GameInfo(Resource):
                 res["onmove"] = ga.on_move
                 res["last_move"] = ga.last_move
                 res["pre_last_move"] = ga.pre_last_move
-                res["finished"] = not ga.move_possible()
+                res["endgame"] = ga.endgame()
+                res["finished"] = res["endgame"] is not None
                 res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess()
-                res["resignation"] = ga.resignation()
-                res["draw"] = ga.draw()
                 res["pieces"] = ga.pieces()
                 res["pieces_value"] = ga.pieces_value()
                 res["eliminated"] = ga.eliminated()
@@ -514,7 +515,7 @@ class GameInfo(Resource):
                 res["vote_needed"] = ga.voting.needed()
                 res["vote_results"] = ga.voting.votes()
                 res["score"] = {0: 0.0, 1: 0.0, 2: 0.0}
-                if not ga.move_possible():
+                if res["finished"]:
                     res["score"] = compute_outcome_scores(ga)
                 return res
             except Exception as err:
@@ -773,11 +774,11 @@ class GameBoard(Resource):
                         user = User.query.filter_by(
                             username=players[ga2.on_move].username
                         ).first()
-                        if not ga2.move_possible():
+                        endgame_kind = ga2.endgame()
+                        if endgame_kind is not None:
                             # Game finished do all needed
                             tb.status = 2
-                            in_chess, _, _ = ga2.in_chess()
-                            if ga2.draw():
+                            if endgame_kind == "draw":
                                 scores = compute_outcome_scores(ga2)
                                 for uid, value in scores.items():
                                     if not board_has_bot:
@@ -804,7 +805,7 @@ class GameBoard(Resource):
                                         "board_id": tb.id,
                                     },
                                 )
-                            elif ga2.resignation():
+                            elif endgame_kind == "resignation":
                                 resigned = ga2.voting.results(kind="resign")
                                 ruid = set([0, 1, 2]).difference(resigned).pop()
                                 scores = compute_outcome_scores(ga2)
@@ -842,7 +843,7 @@ class GameBoard(Resource):
                                         "board_id": tb.id,
                                     },
                                 )
-                            elif in_chess:
+                            elif endgame_kind == "checkmate":
                                 scores = compute_outcome_scores(ga2)
                                 for uid, value in scores.items():
                                     if not board_has_bot:
@@ -878,7 +879,7 @@ class GameBoard(Resource):
                                         "board_id": tb.id,
                                     },
                                 )
-                            else:
+                            elif endgame_kind == "stalemate":
                                 scores = compute_outcome_scores(ga2)
                                 for uid, value in scores.items():
                                     if not board_has_bot:
@@ -900,6 +901,33 @@ class GameBoard(Resource):
                                 logger.log(
                                     GAME,
                                     "Game finished — tag S (stalemate)",
+                                    extra={
+                                        "user_id": user.id,
+                                        "board_id": tb.id,
+                                    },
+                                )
+                            else:  # endgame_kind == "repetition"
+                                scores = compute_outcome_scores(ga2)
+                                for uid, value in scores.items():
+                                    if not board_has_bot:
+                                        new_score = Score(
+                                            player_id=players[uid].id,
+                                            board_id=tb.id,
+                                            score=value,
+                                            tag="T",
+                                            onmove=uid == ga2.on_move,
+                                        )
+                                        db.session.add(new_score)
+                                    if not players[uid].is_bot and notify_players:
+                                        post_notification(
+                                            players[uid].username,
+                                            f"The game {state.id} ended in a threefold repetition",
+                                            "Game over",
+                                            state.id,
+                                        )
+                                logger.log(
+                                    GAME,
+                                    "Game finished — tag T (repetition)",
                                     extra={
                                         "user_id": user.id,
                                         "board_id": tb.id,

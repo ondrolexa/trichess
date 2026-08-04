@@ -162,6 +162,17 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep)
 - `1` = Active game in progress
 - `2` = Finished/archived game
 
+### Endgame detection & Score.tag
+- `GameAPI.endgame()` is the single classifier all game-ending logic (API response, DB persistence, scoring) goes
+  through — returns `"checkmate"`, `"draw"`, `"resignation"`, `"stalemate"`, `"repetition"`, or `None` while the
+  game is still ongoing.
+- Draw and resignation require all/enough players to vote; checkmate and stalemate both come down to "the on-move
+  player has no legal move anywhere", split by whether their king is currently attacked; threefold repetition is
+  detected automatically via a position-signature counter built while replaying the slog (`GameAPI._position_signature()`/`position_counts`) — no player action needed for stalemate or repetition.
+- `Score.tag`: `N`=checkmate, `D`=draw, `R`=resignation, `S`=stalemate, `T`=threefold repetition.
+- Scoring: checkmate splits 2.0 points proportionally by attacking pieces; resignation gives the non-accepting
+  player 2.0; draw/stalemate/repetition all split 2/3 point to each of the three players.
+
 ### Log Model
 - Logs are stored in the `log` table for analytics and debugging.
 - Three levels: `ERROR`, `WARNING`, and custom `GAME` (value 25).

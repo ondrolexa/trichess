@@ -1359,9 +1359,9 @@ function gameInfo(init = false, redraw = false) {
           AppState.movelabel_text = `${data.vote_results["kind"]} voting\nin progress`;
         }
       } else if (data.finished) {
-        if (data.draw) {
+        if (data.endgame === "draw") {
           gameover_text.text("GAME OVER\nDraw agreed");
-        } else if (data.resignation) {
+        } else if (data.endgame === "resignation") {
           let wid;
           if (data.vote_results[0] == "D") {
             wid = 0;
@@ -1371,6 +1371,10 @@ function gameInfo(init = false, redraw = false) {
             wid = 2;
           }
           gameover_text.text("GAME OVER\n" + AppState.pid2name[wid] + " win");
+        } else if (data.endgame === "stalemate") {
+          gameover_text.text("GAME OVER\nStalemate");
+        } else if (data.endgame === "repetition") {
+          gameover_text.text("GAME OVER\nThreefold repetition");
         } else {
           gameover_text.text(
             "GAME OVER\n" + AppState.pid2name[data.onmove] + " lost",
