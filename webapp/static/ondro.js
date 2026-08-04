@@ -751,7 +751,7 @@ function createHexHigh(xy) {
     x: xy[0],
     y: xy[1],
     sides: 6,
-    radius: HEX_SIZE - 0.075,
+    radius: theme["board"]["hex_border"] === null ? HEX_SIZE - 0.0375 : HEX_SIZE - 0.075,
     fillEnabled: false,
     stroke: "black",
     strokeWidth: 0.08,
