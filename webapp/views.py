@@ -550,6 +550,7 @@ def admin_users():
             users = (
                 User.query.filter(User.id > 1)
                 .filter(User.active == 1)
+                .filter_by(is_bot=False)
                 .order_by(User.last_login.desc())
                 .all()
             )
