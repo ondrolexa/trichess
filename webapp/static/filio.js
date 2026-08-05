@@ -801,7 +801,7 @@ class hex {
     ctx0.save();
     ctx0.beginPath();
     let color = theme["board"]["hex_border"]
-    if ( theme["board"]["hex_border"]!== null && theme["board"]["hex_border"] !== "#000001") {
+    if ( theme["board"]["hex_border"]!== null ) {
       ctx0.lineWidth = r/30;
       ctx0.strokeStyle = theme["board"]["hex_border"];
     }
@@ -822,7 +822,7 @@ class hex {
     }
     ctx0.closePath();
     ctx0.fill();
-    if ( theme["board"]["hex_border"]!== null && theme["board"]["hex_border"] !== "#000001") {
+    if ( theme["board"]["hex_border"]!== null ) {
        ctx0.stroke()
     }
     ctx0.restore();
@@ -943,6 +943,7 @@ class board {
     this.pre_last_move_to = -1;
     this.onmove = 0;
     this.finished = false;
+    this.endgame = "";
     this.hist_changed = false;
     this.border = [];
     this.bishop_elim = [];
@@ -1036,6 +1037,7 @@ class board {
     const jdata = idata;
     this.move_number = jdata.move_number; //this.slog.length/4//jdata.move_number;
     this.finished = jdata.finished;
+    this.endgame = jdata.endgame;
     this.onmove = jdata.onmove;
     this.vote_needed = jdata.vote_needed;
     if (jdata.vote_results != null) {
@@ -1121,13 +1123,14 @@ class board {
     // mark last & prelast move
     let hex_size = 0.93;
     let hex_lineWidth = lineWidth*1.7;
-    let hex_color =  theme["pieces"]["color"][this.hexs[this.last_move_to].piece.player_id]
-    if (this.last_move_from != -1) {
+    let hex_color =  "";
+    if (this.last_move_from != null && this.last_move_from != -1) {
+      hex_color =  theme["pieces"]["color"][this.hexs[this.last_move_to].piece.player_id]
       this.hexs[this.last_move_from].draw_hex(hex_lineWidth, hex_color, hex_size);
       this.hexs[this.last_move_to].draw_hex(hex_lineWidth, hex_color, hex_size);
     }
-    hex_color =  theme["pieces"]["color"][this.hexs[this.pre_last_move_to].piece.player_id]
-    if (this.pre_last_move_from != -1) {
+    if (this.pre_last_move_from != null && this.pre_last_move_from != -1) {
+      hex_color =  theme["pieces"]["color"][this.hexs[this.pre_last_move_to].piece.player_id]
       this.hexs[this.pre_last_move_from].draw_hex(hex_lineWidth, hex_color, hex_size);
       this.hexs[this.pre_last_move_to].draw_hex(hex_lineWidth, hex_color, hex_size);
     }
@@ -1153,9 +1156,14 @@ class board {
         r_i = this.hexs[i].id;
       }
     }
-    this.gid_old = this.gid_new;
-    this.gid_new = r_i;
-    return this.gid_new;
+    if (d_min < 44000) {
+      this.gid_old = this.gid_new;
+      this.gid_new = r_i;
+      return this.gid_new;
+    }
+    else {
+      B.gid_new = -1;
+    }
   }
   getSlog() {
     let slog = this.slog.substr(0, this.slog_pointer * 4);
@@ -1193,7 +1201,6 @@ class board {
       II.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
       II.panel[3].lines[3].clear_text()
       II.panel[3].lines[3].write()
-    }
     if (
       !(
         this.hexs[this.gid_new].piece.piece != undefined &&
@@ -1207,9 +1214,10 @@ class board {
       { slog: this.getSlog(), view_pid: this.view_player, gid: this.gid_new },
       Step_valid_moves,
     );
+    }
   }
   moveMake(inew_piece = "") {
-    if (this.gid_old == -1 || this.gid_old == this.gid_new) {
+    if (this.gid_old == -1 || this.gid_old == this.gid_new || this.gid_new === -1) {
       return;
     }
     if (
@@ -1369,29 +1377,29 @@ function Step_3_setelim_board_and_draw(idata) {
     window_vote(B.vote_results_kind, II.getVoteHist());
   }
   if (B.finished) {
-    var name = II.players[B.onmove];
-    const vp = document.getElementById("goVotePlayers");
+    let name = II.players[B.onmove];
+    let vp = document.getElementById("goVotePlayers");
+    let ot = document.getElementById("gameOverText");
+    ot.innerHTML = "GAME OVER !!!<br>" + B.endgame.toUpperCase();
     if (idata.vote_results == null) {
       vp.innerHTML = "<br>" + name + " lost :-(";
     } else if (
       B.vote_results_kind == "draw" ||
       B.vote_results_kind == "resign"
     ) {
-      //const modal_go = new bootstrap.Modal(document.getElementById("gameOver"));
       vp.innerHTML = II.getVoteHist();
     } else {
+
     }
+    //score
     const rp0 = document.getElementById("goRatingPlayer0");
     const rp1 = document.getElementById("goRatingPlayer1");
     const rp2 = document.getElementById("goRatingPlayer2");
-    rp0.innerHTML =
-      "<td>" + II.players[0] + "</td> <td>" + idata.score[0] + "</td>";
-    rp1.innerHTML =
-      "<td>" + II.players[1] + "</td> <td>" + idata.score[1] + "</td>";
-    rp2.innerHTML =
-      "<td>" + II.players[2] + "</td> <td>" + idata.score[2] + "</td>";
-    //F.semaforwait_green();
+    rp0.innerHTML = "<td>" + II.players[0] + "</td> <td>" + idata.score[0] + "</td>";
+    rp1.innerHTML = "<td>" + II.players[1] + "</td> <td>" + idata.score[1] + "</td>";
+    rp2.innerHTML = "<td>" + II.players[2] + "</td> <td>" + idata.score[2] + "</td>";
     modal_go.show();
+    F.semaforwait_green();
   }
 }
 function button_control() {
@@ -1515,6 +1523,7 @@ function Click_Refresh() {
   B.move_number_max = -1;
   B.move_number_org = -1;
   B.hist_changed = false;
+  II.panel[3].lines[3].set_text("")      // remove cursor
   B.gid_new = -1;
   F.fetchGET(
     url + "/api/v1/manager/board?id=" + ID.toString()+"&view_pid="+B.view_player.toString(),
@@ -1571,14 +1580,21 @@ function getMouesPosition(e) {
       B.getGid(x, y);
     }
     B.draw_tile();
-    B.hexs[B.gid_new].draw_mark("rect"); // show cursor
+    if (B.gid_new !== -1) {
+      B.hexs[B.gid_new].draw_mark("rect"); // show cursor
+    } else {
+      II.panel[3].lines[3].set_text("")      // remove cursor
+      II.panel[3].lines[3].clear_text();
+    }
     B.draw_pieces();
     //if new piece promotion
-    if (B.hexs[B.gid_new].promo_flag) {
-      SS.line[1].color = theme["pieces"]["color"][B.onmove % 3];
-      SS.write();
-      SemaforGreen = true;
-      return;
+    if (B.gid_new  !== -1) {
+      if (B.hexs[B.gid_new].promo_flag ) {
+        SS.line[1].color = theme["pieces"]["color"][B.onmove % 3];
+        SS.write();
+        SemaforGreen = true;
+        return;
+      }
     }
     B.moveValid();
     B.moveMake();
