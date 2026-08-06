@@ -1481,6 +1481,68 @@ function Click_Resign() {
   B.vote_results_kind = "resign";
   window_vote("resign", ["Do you want to offer the resignation?"]);
 }
+function Click_Demo() {
+  function code2gid(code) {
+    for (let z = 0; z < 169; z++) {
+      if (code === B.hexs[z].code) {
+        return z;
+      }
+    }
+    return -1;
+  }
+  function fff_valid() {
+      B.moveValid();
+  }
+  const slog = B.slog;
+  B.slog = "";
+  let point = 0;
+  //B.slog_pointer = 0;
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  async function runLoopWithDelay() {
+  B.slog_pointer = 0;
+  II.clear_elim_lines()
+  let row_cnt = 7
+    if (portrait) {  row_cnt = 8   };
+    for (let j = 0; j < 3; j++) {
+      for (let i = 2; i < row_cnt; i++) {
+        II.panel[j].lines[i].set_text("")
+      }
+    }
+  //////////////////////////////////////////////////////////////////////
+  for (let i = 1; i <= 100; i++) {
+    F.fetchPOST(
+    url + "/api/v1/game/info",
+    { slog: B.slog, view_pid: B.view_player },
+      Step_3_setelim_board_and_draw,
+    );
+    await delay(500);
+    B.draw_tile(); // remove cursor
+    B.draw_pieces();
+    await delay(2000);
+    let code1 = slog.substring((B.slog_pointer*4),(B.slog_pointer*4)+2)
+    B.gid_new = code2gid(code1)
+    B.hexs[B.gid_new].draw_mark("rect")  //cursor start move
+    await delay(500);
+    fff_valid(); // show valid moves
+    await delay(1000);
+    B.draw_tile(); // remove cursor
+    B.draw_pieces();
+    B.moveValid();; // show valid moves
+    //await delay(1500);
+    let code2 = slog.substring((B.slog_pointer*4)+2,(B.slog_pointer*4)+4)
+    B.gid_old = B.gid_new;
+    B.gid_new = code2gid(code2)
+    B.hexs[B.gid_new].draw_mark("rect")
+    await delay(500);
+    B.draw_tile(); // remove cursor
+    B.draw_pieces();
+    B.moveMake();
+    B.slog = B.slog + B.hexs[B.gid_old].code + B.hexs[B.gid_new].code
+    B.slog_pointer = B.slog_pointer +1
+  }
+}
+runLoopWithDelay();
+}
 function Click_Backward() {
   SS.active = false;
   B.slog_pointer = B.slog_pointer - 1;
