@@ -1,4 +1,5 @@
 # Trichess
+[![Docker](https://github.com/ondrolexa/trichess/actions/workflows/docker-image.yml/badge.svg)](https://github.com/ondrolexa/trichess/actions/workflows/docker-image.yml)
 
 A web application for 3-player chess on hexagonal board. Proof of concept
 
