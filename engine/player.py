@@ -109,6 +109,8 @@ class Player:
         # keep reference for king
         if not hasattr(self, "_king_piece"):
             self._king_piece = King(self, **kwargs)
+        elif "hex" in kwargs:
+            self._king_piece.hex = kwargs["hex"]
         return self._king_piece
 
     @property

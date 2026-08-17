@@ -1,5 +1,35 @@
-from engine import GameAPI
+from engine import GameAPI, get_game
 from engine.pieces import Pos
+
+
+class TestCastling:
+    def test_castling_offered_after_path_clears_via_replay(self):
+        # Regression test: get_game() builds two Board() instances sharing
+        # the same Player objects (GameAPI.__init__, then
+        # replay_from_slog). Player.king() used to cache its King instance
+        # and silently drop the `hex=` kwarg on the second placement, so an
+        # unmoved king's `.hex` stayed pointed at the first, throwaway
+        # board — permanently frozen at the pristine starting layout. Any
+        # castling occupancy check (Piece.pos_candidates reads board state
+        # via `self.hex.board`) then saw turn-0 occupancy instead of the
+        # real, replayed position. Here pid 2's queen starts on Pos(7,-4),
+        # directly between the king (Pos(7,-3), never moved) and its SLr
+        # castling destination (Pos(7,-5)) toward the rook on Pos(7,-7);
+        # once the queen has moved away for real, castling must be offered.
+        slog = (
+            "BNDLHBIBOCLEDNEMFDHDNFMFINIMCFFEOFMEANBMBHBIMEJGBOJKDFEF"
+            "OGKCFNFMIBJBNHLHGNGLJBKCOBKDGOIKFEICOHNHEOGNHAHBNEJAAOAJ"
+            "HBJBJALCENFLDEDKODNEFLNHICFE"
+        )
+        ga = get_game(2, slog)
+        assert ga.on_move == 2
+
+        king_gid = ga.pos2gid[Pos(7, -3)]
+        assert ga.gid2hex[king_gid].piece.label == "K"
+        castle_gid = ga.pos2gid[Pos(7, -5)]
+
+        moves = ga.valid_moves(king_gid)
+        assert any(m["tgid"] == castle_gid for m in moves)
 
 
 class TestGidMapping:
