@@ -57,12 +57,31 @@
   </div>
   {% endif %}
 </section>
-
-<div class="gif-card bg-dark" data-bs-theme="dark">
-  <img src="{{ url_for('static', filename='img/gameplay_night_school.gif') }}"
-       alt="Animated demo of a TriChess game in progress on the hexagonal board" loading="lazy">
+<!-- Demo -->
+<div class="container d-flex justify-content-center">
+  <div class="row w-100 justify-content-center g-3">
+    <h2 class="text-center">Demo</h2>
+    <!-- Column 1 -->
+    <div class="col-6">
+      <h5 class="text-center">Board Ondro</h5>
+      <div class="bg-light rounded shadow-lg">
+        <img src="{{ url_for('static', filename='img/gameplay_night_school_old.gif') }}" class="img-fluid" alt="Animated GIF example">
+      </div>
+    </div>
+    <!-- Column 2 -->
+    <div class="col-6">
+      <h5 class="text-center">Board Filio</h5>
+      <div class="bg-light rounded shadow-lg">
+        <div class="ratio ratio-1x1 rounded ">
+          <video controls>
+            <source src="{{ url_for('static', filename='img/demo_#20_contast.webm') }}" type="video/webm">
+            Your browser does not support HTML5 video.
+          </video>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
-
 <div class="row feature-grid text-center">
   <div class="col-md-3 mb-3">
     <h3>Hexagonal arena</h3>
