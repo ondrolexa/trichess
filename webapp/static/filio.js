@@ -1725,16 +1725,15 @@ window.addEventListener('orientationchange', function() {
     window.addEventListener('resize', afterOrientationChange);
 });
 
-//const boardEvents = new EventSource(
-//  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
-//);
-//boardEvents.onmessage = (event) => {
-//  const payload = JSON.parse(event.data);
-//  if (payload.slog_length <= B.slog.length) {
-//    return;
-//  }
-//  else {
-//    Click_Refresh();
-//  }
-//  };
-//
+const boardEvents = new EventSource(
+  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
+);
+boardEvents.onmessage = (event) => {
+  const payload = JSON.parse(event.data);
+  if (payload.slog_length <= B.slog.length) {
+    return;
+  }
+  else {
+    Click_Refresh();
+  }
+  };
