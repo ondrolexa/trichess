@@ -377,7 +377,7 @@ class llines {
   clear_piece() {
     let offset = piece_size ;
     //ctx0.save();
-    //ctx0.fillStyle = "blue"
+    //ctx0.fillStyle = "red"
     let p = piece_size * 9.6
     if (this.text_width_old !== 0) {
       if (this.align === 'left') {
@@ -390,8 +390,6 @@ class llines {
         ctx0.clearRect(this.pos_x-offset,this.pos_y+p/2, -p * this.text_width_old, -p)
       }
     }
-    //ctx0.fill()
-    //ctx0.closePath()
     //ctx0.restore();
   }
 }
@@ -649,6 +647,11 @@ class iinfos {
           else { // because need to delete empty lines
             this.panel[i].lines[j].set_piece("");
           }
+        }
+      }
+      else {
+        for (let j = 2; j < this.panel[i].lines.length; j++) {
+          this.panel[i].lines[j].set_piece("");
         }
       }
     }
