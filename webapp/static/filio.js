@@ -1385,7 +1385,7 @@ function Step_3_setelim_board_and_draw(idata) {
     let ot = document.getElementById("gameOverText");
     ot.innerHTML = "GAME OVER !!!<br>" + B.endgame.toUpperCase();
     if (idata.vote_results == null) {
-      vp.innerHTML = "<br>" + name + " lost :-(";
+      vp.innerHTML = name + " lost :-(";
     } else if (
       B.vote_results_kind == "draw" ||
       B.vote_results_kind == "resign"

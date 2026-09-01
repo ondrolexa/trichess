@@ -47,27 +47,28 @@
 </div>
 
 <div class="modal" id="gameOver" tabindex="-1">
-  <div class="modal-dialog ">
+  <!-- <div class="modal-dialog" style="margin-top: 0 !important;">-->
+    <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="modal-body text-center pb-0">
+        <h5><strong><span id="gameOverText"></span></strong></h5>
+        <hr class="my-2">
+        <h5><strong><span id="goVotePlayers"></span></strong></h5>
+        <hr class="my-2">
+        <h6 class="mb-0"><span>Score:</span></h6>
       </div>
-      <div class="modal-body text-center">
-        <h1><strong><span id="gameOverText" ></span></strong></h1>
-        <hr>
-        <h2><strong><span id="goVotePlayers"></span></strong></h2>
-        <hr>
-        <h3><span>Score:</span></h3>
-      </div >
-      <h3 class="mx-auto">
-        <div >
-          <table class="table">
-              <tr id="goRatingPlayer0"></tr>
-              <tr id="goRatingPlayer1"></tr>
-              <tr id="goRatingPlayer2"></tr>
+      <div class="m-auto mt-0">
+          <table class="table table-sm mb-0">
+            <tr id="goRatingPlayer0"></tr>
+            <tr id="goRatingPlayer1"></tr>
+            <tr id="goRatingPlayer2"></tr>
           </table>
-        </div >
-        </h3>
+      </div>
+      <div class="modal-footer pb-2 justify-content-center">
+      <!-- <div class="modal-footer border-top-0 pt-0 pb-2 justify-content-center">-->
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <a href="{{ url_for('available_games') }}" class="btn btn-primary" id="btnPlayAgain">Play Again</a>
+          <a href="{{ url_for('rating') }}" class="btn btn-primary" id="btnRatRec">Rating Records</a>
       </div>
     </div>
   </div>
