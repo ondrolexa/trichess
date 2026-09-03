@@ -31,8 +31,8 @@ const AppState = {
   view_pid: 0,
   ready: false,
 
-  // Animation tween
-  active_tween: { active: false, tween: null },
+  // Animation tweens (one per currently-pulsing "in chess" king)
+  active_tweens: [],
 
   // Eliminated-piece Konva shapes per player (populated at runtime)
   elpieces: { 0: {}, 1: {}, 2: {} },
@@ -451,39 +451,22 @@ group1.add(p1name, p1el2, p1el0);
 const group2 = new Konva.Group({ x: 9.2, y: -6.9 });
 group2.add(p2name, p2el0, p2el1);
 
-const gameover = new Konva.Group({
-  visible: false,
-});
-
-const gameover_bg = new Konva.Rect({
-  x: -8,
-  y: -3,
-  width: 16,
-  height: 6.5,
-  opacity: 0.65,
-  fill: theme["canvas"]["background"],
-  listening: true,
-});
-
-const gameover_text = new Konva.Text({
-  x: -7,
-  y: -2,
-  text: "GAME OVER",
-  fontFamily: theme["canvas"]["font-family"],
-  fill: theme["canvas"]["game_over"],
-  fontSize: 2.4,
-  fontStyle: "bold",
-  align: "center",
-  verticalAlign: "middle",
-  opacity: 0.65,
-  listening: false,
-});
-
-gameover.add(gameover_bg);
-gameover.add(gameover_text);
-gameover.on("click tap", function (evt) {
-  gameover.visible(false);
-});
+// Game-over is a Bootstrap modal (#gameoverDialog in board_ondro.html), not
+// a Konva overlay — canvas text's vertical metrics render inconsistently
+// across browser/OS font-rasterizers (confirmed: opposite corrections were
+// needed on desktop vs. real mobile, and desktop's mobile-viewport
+// emulation didn't reproduce the real-device behavior, since it still uses
+// the desktop rendering engine). Plain HTML/CSS avoids that class of bug
+// entirely, same as the existing vote modals (voteModals, below).
+const gameoverModal = new bootstrap.Modal(
+  document.getElementById("gameoverDialog"),
+);
+const gameoverMessage = document.getElementById("gameoverMessage");
+const gameoverBadges = [
+  document.getElementById("gameoverBadge0"),
+  document.getElementById("gameoverBadge1"),
+  document.getElementById("gameoverBadge2"),
+];
 
 const qline = new Konva.Line({
   points: [],
@@ -785,6 +768,19 @@ function setMoveHighlight(state, moveData, color) {
   );
 }
 
+function playInChessTween(gid) {
+  const tween = new Konva.Tween({
+    node: AppState.gid2piece[gid],
+    easing: Konva.Easings.EaseInOut,
+    duration: 0.5,
+    scaleX: 0.1,
+    scaleY: 0.1,
+    yoyo: true,
+  });
+  tween.play();
+  AppState.active_tweens.push(tween);
+}
+
 function createHexValid(xy) {
   let hex = new Konva.Circle({
     x: xy[0],
@@ -921,10 +917,10 @@ function boardReset() {
   cleanHigh();
   // Destroy only the per-gid shapes boardInfo() recreates on every reset —
   // removeChildren() alone leaks their listeners. Layer "chrome" (background,
-  // qline/rline/sline, player-name labels, gameover) is a set of singletons
-  // that boardInfo() re-adds by reference each time and must NOT be destroyed
-  // here (gameover in particular has a click handler attached once at module
-  // scope — destroying it would break the tap-to-dismiss game-over banner).
+  // qline/rline/sline, player-name labels) is a set of singletons that
+  // boardInfo() re-adds by reference each time and must NOT be destroyed
+  // here. (The game-over banner is a Bootstrap modal outside the Konva
+  // stage entirely, so it isn't part of this concern at all anymore.)
   for (let gid = 0; gid < TOTAL_HEXES; gid++) {
     AppState.gid2hex[gid].destroy();
     AppState.gid2high[gid].destroy();
@@ -1244,11 +1240,11 @@ function gameInfo(init = false, redraw = false) {
           : theme["canvas"]["name"];
       }
 
-      if (AppState.active_tween["active"] == true) {
-        AppState.active_tween["tween"].reset();
-        AppState.active_tween["tween"].destroy();
-        AppState.active_tween["active"] = false;
+      for (const tween of AppState.active_tweens) {
+        tween.reset();
+        tween.destroy();
       }
+      AppState.active_tweens = [];
 
       updateStats(
         data.eliminated,
@@ -1321,16 +1317,7 @@ function gameInfo(init = false, redraw = false) {
       }
       // show piece in chess
       if (data.in_chess) {
-        AppState.active_tween["tween"] = new Konva.Tween({
-          node: AppState.gid2piece[data.king_pos],
-          easing: Konva.Easings.EaseInOut,
-          duration: 0.5,
-          scaleX: 0.1,
-          scaleY: 0.1,
-          yoyo: true,
-        });
-        AppState.active_tween["tween"].play();
-        AppState.active_tween["active"] = true;
+        playInChessTween(data.king_pos);
         AppState.gid2high[data.king_pos].visible(true);
         AppState.gid2high[data.king_pos].stroke(theme["board"]["hex_inchess"]);
         for (let player in data.chess_by) {
@@ -1339,6 +1326,24 @@ function gameInfo(init = false, redraw = false) {
             AppState.gid2high[data.chess_by[player][pcs].gid].stroke(
               theme["board"]["hex_inchess"],
             );
+          }
+        }
+      }
+      // show next player's king in chess too, if applicable
+      if (data.in_chess_next.in_chess) {
+        playInChessTween(data.in_chess_next.king_pos);
+        AppState.gid2high[data.in_chess_next.king_pos].visible(true);
+        AppState.gid2high[data.in_chess_next.king_pos].stroke(
+          theme["board"]["hex_inchess"],
+        );
+        for (let player in data.in_chess_next.chess_by) {
+          for (let pcs in data.in_chess_next.chess_by[player]) {
+            AppState.gid2high[
+              data.in_chess_next.chess_by[player][pcs].gid
+            ].visible(true);
+            AppState.gid2high[
+              data.in_chess_next.chess_by[player][pcs].gid
+            ].stroke(theme["board"]["hex_inchess"]);
           }
         }
       }
@@ -1360,7 +1365,7 @@ function gameInfo(init = false, redraw = false) {
         }
       } else if (data.finished) {
         if (data.endgame === "draw") {
-          gameover_text.text("GAME OVER\nDraw agreed");
+          gameoverMessage.textContent = "Draw agreed";
         } else if (data.endgame === "resignation") {
           let wid;
           if (data.vote_results[0] == "D") {
@@ -1370,23 +1375,31 @@ function gameInfo(init = false, redraw = false) {
           } else {
             wid = 2;
           }
-          gameover_text.text("GAME OVER\n" + AppState.pid2name[wid] + " win");
+          gameoverMessage.textContent = AppState.pid2name[wid] + " win";
         } else if (data.endgame === "stalemate") {
-          gameover_text.text("GAME OVER\nStalemate");
+          gameoverMessage.textContent = "Stalemate";
         } else if (data.endgame === "repetition") {
-          gameover_text.text("GAME OVER\nThreefold repetition");
+          gameoverMessage.textContent = "Threefold repetition";
         } else {
-          gameover_text.text(
-            "GAME OVER\n" + AppState.pid2name[data.onmove] + " lost",
-          );
+          gameoverMessage.textContent = AppState.pid2name[data.onmove] + " lost";
         }
         for (let p = 0; p < 3; p++) {
+          const pid = AppState.seat2pid[p];
           AppState.player_names[p] =
-            `${AppState.seat2name[p]} (${data.score[AppState.seat2pid[p]]})`;
+            `${AppState.seat2name[p]} (${data.score[pid]})`;
         }
-        gameover.visible(true);
+        // Badge order follows the game's own seats (pid 0/1/2), not the
+        // viewer-relative seat rotation — the same order every player sees,
+        // regardless of who's viewing.
+        for (let pid = 0; pid < 3; pid++) {
+          gameoverBadges[pid].style.backgroundColor = theme["pieces"]["color"][pid];
+          gameoverBadges[pid].style.color = "#000000";
+          gameoverBadges[pid].children[0].textContent = AppState.pid2name[pid];
+          gameoverBadges[pid].children[1].textContent = data.score[pid].toFixed(2);
+        }
+        gameoverModal.show();
       } else {
-        gameover.visible(false);
+        gameoverModal.hide();
         board_layer.on("click tap", handleBoardClick);
       }
     })
@@ -1533,8 +1546,6 @@ function boardInfo() {
       pieces_layer.add(movelabel);
       pieces_layer.add(group0name, group0el, group1, group2);
 
-      // game over
-      top_layer.add(gameover);
       // lines
       interactive_layer.add(qline);
       interactive_layer.add(rline);

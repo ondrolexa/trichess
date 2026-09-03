@@ -643,17 +643,36 @@ def reset(token):
 @app.route("/token", methods=["POST"])
 @csrf.exempt
 def token():
-    """Request from client app to return JWT token"""
-    json = request.get_json()
-    username = json.get("username", "")
-    if username:
+    """Issue a JWT for username+password credentials.
+
+    Restricted to API_TOKEN_USERS — direct API/token access is limited to
+    trusted accounts; normal browser gameplay never calls this route (see
+    /play/<id>, which mints its own token server-side).
+
+    Accepts an OAuth2 "password" grant form body (what Swagger UI's
+    Authorize dialog sends for the jsonWebToken scheme) or a plain JSON
+    body {"username", "password"} for other API clients.
+    """
+    allowed = {
+        u.strip() for u in app.config.get("API_TOKEN_USERS", "").split(",") if u.strip()
+    }
+    if request.form:
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+    else:
+        data = request.get_json(silent=True) or {}
+        username = data.get("username", "")
+        password = data.get("password", "")
+    if username in allowed:
         user = User.query.filter_by(username=username).first()
-        if user is not None and check_password_hash(
-            user.password, json.get("password", "")
-        ):
+        if user is not None and check_password_hash(user.password, password):
             access_token = create_access_token(identity=username)
             refresh_token = create_refresh_token(identity=username)
-            return jsonify(access_token=access_token, refresh_token=refresh_token)
+            return jsonify(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                token_type="bearer",
+            )
     return abort(404)
 
 

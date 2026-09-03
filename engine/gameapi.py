@@ -297,6 +297,15 @@ class GameAPI:
             res[p.player.pid].append({"gid": self.pos2gid[p.pos], "piece": p.label})
         return inchess, self.pos2gid[kingpos], res
 
+    def in_chess_next(self):
+        """Check if the player after the one on move has chess"""
+        res = {0: [], 1: [], 2: []}
+        next_pid = (self.on_move + 1) % 3
+        inchess, kingpos, pieces = self.board.in_chess(self.players[next_pid])
+        for p in pieces:
+            res[p.player.pid].append({"gid": self.pos2gid[p.pos], "piece": p.label})
+        return inchess, self.pos2gid[kingpos], res
+
     def eliminated(self):
         """Return eliminated pieces for players"""
         res = {0: [], 1: [], 2: []}

@@ -118,6 +118,25 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="gameoverDialog" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">GAME OVER</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="fs-4 fw-bold" id="gameoverMessage"></p>
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+          <span class="badge rounded-4 p-3 fs-5" style="width: 7rem;" id="gameoverBadge0"><div class="fw-bold"></div><div></div></span>
+          <span class="badge rounded-4 p-3 fs-5" style="width: 7rem;" id="gameoverBadge1"><div class="fw-bold"></div><div></div></span>
+          <span class="badge rounded-4 p-3 fs-5" style="width: 7rem;" id="gameoverBadge2"><div class="fw-bold"></div><div></div></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 {%endblock%}
 {% block scripts %}
 <script type="text/javascript">

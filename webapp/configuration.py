@@ -41,6 +41,14 @@ class Config(object):
         os.environ.get("SINGLE_PLAYER_NOTIFICATIONS", "false").lower() == "true"
     )
     BOT_GAMES_REMOVAL = int(os.environ.get("BOT_GAMES_REMOVAL", 15))
+    # Comma-separated allowlist of usernames that may mint an API bearer
+    # token via /token (Swagger UI's "Authorize" dialog included). Normal
+    # browser gameplay never calls /token — the board page mints its own
+    # token server-side for whoever is logged in (see views.py's /play/<id>)
+    # — so this only limits direct API access, not who can play. No
+    # hardcoded default — unset means nobody can mint a token until this is
+    # configured in .env.
+    API_TOKEN_USERS = os.environ.get("API_TOKEN_USERS", "")
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
     MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"

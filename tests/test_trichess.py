@@ -77,3 +77,17 @@ class Test_GameAPI:
         assert inchess
         assert kingpos == 0
         assert pieces[2][0]["piece"] == "Q"
+
+    def test_chess_next(self, game):
+        # on-move player (0) is safe, but their move put the next player (1)
+        # in chess from player 2's bishop.
+        game.replay_from_slog("DNDLIAICNELIBOEIEDFENCLEEIHLCGCHOBGF")
+        assert game.on_move == 0
+        assert not game.in_chess()[0]
+        inchess, kingpos, pieces = game.in_chess_next()
+        assert inchess
+        assert kingpos == 40
+        assert pieces[2][0]["piece"] == "B"
+
+    def test_chess_next_false(self, game):
+        assert not game.in_chess_next()[0]

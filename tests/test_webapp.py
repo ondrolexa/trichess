@@ -129,12 +129,72 @@ class Test_CSRF_Protection:
 
     def test_token_endpoint_exempt_from_csrf(self, app, client):
         app.config["WTF_CSRF_ENABLED"] = True
+        app.config["API_TOKEN_USERS"] = "alice"
         _create_user()
         resp = client.post(
             "/token", json={"username": "alice", "password": "password123"}
         )
         assert resp.status_code == 200
         assert "access_token" in resp.get_json()
+
+
+class Test_Token_Endpoint_Allowlist:
+    def test_oauth2_password_grant_form_body_succeeds(self, app, client):
+        """Swagger UI's Authorize dialog POSTs an OAuth2 password-grant form
+        body (not JSON) — the endpoint must accept that shape too."""
+        app.config["API_TOKEN_USERS"] = "alice"
+        _create_user()
+        resp = client.post(
+            "/token",
+            data={
+                "grant_type": "password",
+                "username": "alice",
+                "password": "password123",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert "access_token" in body
+        assert body["token_type"] == "bearer"
+
+    def test_username_not_on_allowlist_is_rejected(self, app, client):
+        """Correct credentials for a user outside API_TOKEN_USERS still 404."""
+        app.config["API_TOKEN_USERS"] = "alice"
+        _create_user(username="bob")
+        resp = client.post(
+            "/token", json={"username": "bob", "password": "password123"}
+        )
+        assert resp.status_code == 404
+
+    def test_empty_allowlist_rejects_everyone(self, app, client):
+        """Default/unset API_TOKEN_USERS denies token issuance entirely."""
+        app.config["API_TOKEN_USERS"] = ""
+        _create_user()
+        resp = client.post(
+            "/token", json={"username": "alice", "password": "password123"}
+        )
+        assert resp.status_code == 404
+
+
+class Test_GameInfo_InChessNext:
+    def test_response_includes_in_chess_next(self, app, client):
+        user = _create_user()
+        with app.test_request_context():
+            token = create_access_token(identity=user.username)
+        resp = client.post(
+            "/api/v1/game/info",
+            json={
+                "slog": "DNDLIAICNELIBOEIEDFENCLEEIHLCGCHOBGF",
+                "view_pid": 0,
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()["in_chess_next"] == {
+            "in_chess": True,
+            "king_pos": 40,
+            "chess_by": {"0": [], "1": [], "2": [{"gid": 54, "piece": "B"}]},
+        }
 
 
 class Test_Admin_Route_None_Checks:

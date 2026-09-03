@@ -24,7 +24,12 @@ blueprint = Blueprint("api", __name__)
 api = Api(blueprint, version="1.0", title="TriChess API")
 
 authorizations = {
-    "jsonWebToken": {"type": "apiKey", "in": "header", "name": "Authorization"}
+    "jsonWebToken": {
+        "type": "oauth2",
+        "flow": "password",
+        "tokenUrl": "/token",
+        "scopes": {},
+    }
 }
 
 K = 9.0
@@ -657,6 +662,15 @@ scores = api.model(
     },
 )
 
+in_chess_next_info = api.model(
+    "Chess status for the player after on-move",
+    {
+        "in_chess": fields.Boolean,
+        "king_pos": fields.Integer,
+        "chess_by": fields.Nested(game_pieces),
+    },
+)
+
 game_response = api.model(
     "Game response",
     {
@@ -671,6 +685,7 @@ game_response = api.model(
         "in_chess": fields.Boolean,
         "king_pos": fields.Integer,
         "chess_by": fields.Nested(game_pieces),
+        "in_chess_next": fields.Nested(in_chess_next_info),
         "pieces": fields.Nested(game_pieces),
         "pieces_value": fields.Nested(game_pieces_value),
         "eliminated": fields.Nested(game_eliminated),
@@ -712,6 +727,12 @@ class GameInfo(Resource):
                 res["endgame"] = ga.endgame()
                 res["finished"] = res["endgame"] is not None
                 res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess()
+                in_chess_n, king_pos_n, chess_by_n = ga.in_chess_next()
+                res["in_chess_next"] = {
+                    "in_chess": in_chess_n,
+                    "king_pos": king_pos_n,
+                    "chess_by": chess_by_n,
+                }
                 res["pieces"] = ga.pieces()
                 res["pieces_value"] = ga.pieces_value()
                 res["eliminated"] = ga.eliminated()

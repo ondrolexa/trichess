@@ -68,11 +68,13 @@ The application uses environment variables for configuration, loaded from a `.en
 | `BOT_DEPTH` | Minimax search depth for bot moves/votes (higher = stronger but slower) | `3` |
 | `SINGLE_PLAYER_NOTIFICATIONS` | Send live "your turn"/"game over" push notifications for 1-human-vs-2-bots games | `false` |
 | `BOT_GAMES_REMOVAL` | Delete finished bot games (and their logs) older than this many minutes via `remove-bot-games`; `0` disables deletion | `15` |
+| `API_TOKEN_USERS` | Comma-separated allowlist of usernames who may mint an API bearer token via `POST /token` (including Swagger UI's "Authorize" dialog) | `` (empty — nobody allowed until set) |
 
 ### Security Notes
 - **Always change the default secret keys in production**.
 - Restrict `CORS_ORIGINS` to trusted domains only.
 - Set `DEBUG=false` in production.
+- Restrict `API_TOKEN_USERS` to trusted accounts — it gates direct API access, not browser gameplay (every logged-in player still gets their own token server-side for the board UI).
 
 ## :rocket: Running the application
 ```bash
