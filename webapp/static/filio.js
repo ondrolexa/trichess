@@ -1398,9 +1398,9 @@ function Step_3_setelim_board_and_draw(idata) {
     const rp0 = document.getElementById("goRatingPlayer0");
     const rp1 = document.getElementById("goRatingPlayer1");
     const rp2 = document.getElementById("goRatingPlayer2");
-    rp0.innerHTML = "<td>" + II.players[0] + "</td> <td>" + idata.score[0] + "</td>";
-    rp1.innerHTML = "<td>" + II.players[1] + "</td> <td>" + idata.score[1] + "</td>";
-    rp2.innerHTML = "<td>" + II.players[2] + "</td> <td>" + idata.score[2] + "</td>";
+    rp0.innerHTML = `<td>${II.players[0]}</td> <td>${Math.round(idata.score[0] * 100) / 100}</td>`;
+    rp1.innerHTML = `<td>${II.players[1]}</td> <td>${Math.round(idata.score[1] * 100) / 100}</td>`;
+    rp2.innerHTML = `<td>${II.players[2]}</td> <td>${Math.round(idata.score[2] * 100) / 100}</td>`;
     modal_go.show();
     F.semaforwait_green();
   }
