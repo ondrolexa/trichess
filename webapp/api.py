@@ -41,6 +41,211 @@ SINGLE_PLAYER_NOTIFICATIONS = (
 )
 
 
+def _bot_notification_flags(players):
+    """Return (board_has_bot, notify_players) for a game's 3 seats.
+
+    Games with a bot seat are casual: no Score rows, no rating impact, no
+    pointless notifications to a bot's own (unmonitored) username. A solo
+    human playing against 2 bots additionally has its own notifications
+    suppressed by default (see SINGLE_PLAYER_NOTIFICATIONS).
+    """
+    board_has_bot = any(p.is_bot for p in players.values())
+    single_player_vs_bots = sum(p.is_bot for p in players.values()) == 2
+    notify_players = not single_player_vs_bots or SINGLE_PLAYER_NOTIFICATIONS
+    return board_has_bot, notify_players
+
+
+def finalize_if_finished(
+    tb, ga, players, board_has_bot, notify_players, actor_user=None
+):
+    """If *ga* (the board's current replayed state) is over, mark *tb*
+    finished and run the same scoring/notification/logging that a live
+    move ending the game goes through. Returns the endgame kind classifying
+    how it ended, or None if the game isn't actually over.
+
+    *actor_user* is the User to credit the GAME log line to; None when
+    called from an automated sweep rather than a live request. Caller is
+    responsible for the eventual db.session.commit().
+    """
+    endgame_kind = ga.endgame()
+    if endgame_kind is None:
+        return None
+    tb.status = 2
+    log_user_id = actor_user.id if actor_user is not None else None
+    if endgame_kind == "draw":
+        scores = compute_outcome_scores(ga)
+        for uid, value in scores.items():
+            if not board_has_bot:
+                db.session.add(
+                    Score(
+                        player_id=players[uid].id,
+                        board_id=tb.id,
+                        score=value,
+                        tag="D",
+                        onmove=uid == ga.on_move,
+                    )
+                )
+            if not players[uid].is_bot and notify_players:
+                post_notification(
+                    players[uid].username,
+                    f"Draw agreed in game {tb.id}",
+                    "Game over",
+                    tb.id,
+                )
+        logger.log(
+            GAME,
+            "Game finished — tag D (draw)",
+            extra={"user_id": log_user_id, "board_id": tb.id},
+        )
+    elif endgame_kind == "resignation":
+        resigned = ga.voting.results(kind="resign")
+        ruid = set([0, 1, 2]).difference(resigned).pop()
+        scores = compute_outcome_scores(ga)
+        if not board_has_bot:
+            for uid, value in scores.items():
+                db.session.add(
+                    Score(
+                        player_id=players[uid].id,
+                        board_id=tb.id,
+                        score=value,
+                        tag="R",
+                        onmove=uid == ga.on_move,
+                    )
+                )
+        if not players[ruid].is_bot and notify_players:
+            post_notification(
+                players[ruid].username,
+                f"You win in game {tb.id} by resignation",
+                "Game over",
+                tb.id,
+            )
+        for uid in resigned:
+            if not players[uid].is_bot and notify_players:
+                post_notification(
+                    players[uid].username,
+                    f"You lost in game {tb.id} by resignation",
+                    "Game over",
+                    tb.id,
+                )
+        logger.log(
+            GAME,
+            "Game finished — tag R (resignation)",
+            extra={"user_id": log_user_id, "board_id": tb.id},
+        )
+    elif endgame_kind == "checkmate":
+        scores = compute_outcome_scores(ga)
+        for uid, value in scores.items():
+            if not board_has_bot:
+                db.session.add(
+                    Score(
+                        player_id=players[uid].id,
+                        board_id=tb.id,
+                        score=value,
+                        tag="N",
+                        onmove=uid == ga.on_move,
+                    )
+                )
+            if players[uid].is_bot or not notify_players:
+                continue
+            if uid == ga.on_move:
+                post_notification(
+                    players[uid].username,
+                    f"You lost in game {tb.id}",
+                    "Game over",
+                    tb.id,
+                )
+            else:
+                post_notification(
+                    players[uid].username,
+                    f"{players[ga.on_move].username} lost in game {tb.id}. Your score is {scores[uid]:g}",
+                    "Game over",
+                    tb.id,
+                )
+        logger.log(
+            GAME,
+            "Game finished — tag N (checkmate)",
+            extra={"user_id": log_user_id, "board_id": tb.id},
+        )
+    elif endgame_kind == "stalemate":
+        scores = compute_outcome_scores(ga)
+        for uid, value in scores.items():
+            if not board_has_bot:
+                db.session.add(
+                    Score(
+                        player_id=players[uid].id,
+                        board_id=tb.id,
+                        score=value,
+                        tag="S",
+                        onmove=uid == ga.on_move,
+                    )
+                )
+            if not players[uid].is_bot and notify_players:
+                post_notification(
+                    players[uid].username,
+                    f"The game {tb.id} ended in a stalemate",
+                    "Game over",
+                    tb.id,
+                )
+        logger.log(
+            GAME,
+            "Game finished — tag S (stalemate)",
+            extra={"user_id": log_user_id, "board_id": tb.id},
+        )
+    else:  # endgame_kind == "repetition"
+        scores = compute_outcome_scores(ga)
+        for uid, value in scores.items():
+            if not board_has_bot:
+                db.session.add(
+                    Score(
+                        player_id=players[uid].id,
+                        board_id=tb.id,
+                        score=value,
+                        tag="T",
+                        onmove=uid == ga.on_move,
+                    )
+                )
+            if not players[uid].is_bot and notify_players:
+                post_notification(
+                    players[uid].username,
+                    f"The game {tb.id} ended in a threefold repetition",
+                    "Game over",
+                    tb.id,
+                )
+        logger.log(
+            GAME,
+            "Game finished — tag T (repetition)",
+            extra={"user_id": log_user_id, "board_id": tb.id},
+        )
+    if not board_has_bot:
+        update_rating_db()
+    return endgame_kind
+
+
+def sweep_finalize(board_id):
+    """If board_id's current position is already game-over, finalize it
+    (status/scores/notifications/log) without requiring a new move to be
+    POSTed. Returns True if it just finalized, False if the game is still
+    ongoing (or the board doesn't exist / isn't active).
+
+    Used by bot_sweep_command (self-heals a board stuck at status=1 whose
+    slog already replays to a terminal position — e.g. a legacy game that
+    predates a since-added endgame rule) and maybe_trigger_bot (so a bot is
+    never asked to search for a move on a position that's already over).
+    """
+    tb = db.session.get(TriBoard, board_id)
+    if tb is None or tb.status != 1:
+        return False
+    ga = get_game(0, tb.slog)
+    players = {0: tb.player_0, 1: tb.player_1, 2: tb.player_2}
+    board_has_bot, notify_players = _bot_notification_flags(players)
+    endgame_kind = finalize_if_finished(tb, ga, players, board_has_bot, notify_players)
+    if endgame_kind is None:
+        return False
+    db.session.commit()
+    publish_board_move(tb.id, len(tb.slog))
+    return True
+
+
 def _parse_ts(raw):
     """Parse SQLite DATETIME string to a Python datetime object."""
     if raw is None:
@@ -757,14 +962,7 @@ class GameBoard(Resource):
                         1: tb.player_1,
                         2: tb.player_2,
                     }
-                    # Games with a bot seat are casual: no Score rows, no
-                    # rating impact, no pointless notifications to a bot's
-                    # own (unmonitored) username.
-                    board_has_bot = any(p.is_bot for p in players.values())
-                    single_player_vs_bots = sum(p.is_bot for p in players.values()) == 2
-                    notify_players = (
-                        not single_player_vs_bots or SINGLE_PLAYER_NOTIFICATIONS
-                    )
+                    board_has_bot, notify_players = _bot_notification_flags(players)
                     poster = ga1.on_move == pid[username]
                     voting = ga1.voting.active() or ga2.voting.active()
                     oneadded = ga2.move_number - ga1.move_number == 1
@@ -774,168 +972,15 @@ class GameBoard(Resource):
                         user = User.query.filter_by(
                             username=players[ga2.on_move].username
                         ).first()
-                        endgame_kind = ga2.endgame()
-                        if endgame_kind is not None:
-                            # Game finished do all needed
-                            tb.status = 2
-                            if endgame_kind == "draw":
-                                scores = compute_outcome_scores(ga2)
-                                for uid, value in scores.items():
-                                    if not board_has_bot:
-                                        new_score = Score(
-                                            player_id=players[uid].id,
-                                            board_id=tb.id,
-                                            score=value,
-                                            tag="D",
-                                            onmove=uid == ga2.on_move,
-                                        )
-                                        db.session.add(new_score)
-                                    if not players[uid].is_bot and notify_players:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"Draw agreed in game {state.id}",
-                                            "Game over",
-                                            state.id,
-                                        )
-                                logger.log(
-                                    GAME,
-                                    "Game finished — tag D (draw)",
-                                    extra={
-                                        "user_id": user.id,
-                                        "board_id": tb.id,
-                                    },
-                                )
-                            elif endgame_kind == "resignation":
-                                resigned = ga2.voting.results(kind="resign")
-                                ruid = set([0, 1, 2]).difference(resigned).pop()
-                                scores = compute_outcome_scores(ga2)
-                                if not board_has_bot:
-                                    for uid, value in scores.items():
-                                        new_score = Score(
-                                            player_id=players[uid].id,
-                                            board_id=tb.id,
-                                            score=value,
-                                            tag="R",
-                                            onmove=uid == ga2.on_move,
-                                        )
-                                        db.session.add(new_score)
-                                # notify
-                                if not players[ruid].is_bot and notify_players:
-                                    post_notification(
-                                        players[ruid].username,
-                                        f"You win in game {state.id} by resignation",
-                                        "Game over",
-                                        state.id,
-                                    )
-                                for uid in resigned:
-                                    if not players[uid].is_bot and notify_players:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"You lost in game {state.id} by resignation",
-                                            "Game over",
-                                            state.id,
-                                        )
-                                logger.log(
-                                    GAME,
-                                    "Game finished — tag R (resignation)",
-                                    extra={
-                                        "user_id": user.id,
-                                        "board_id": tb.id,
-                                    },
-                                )
-                            elif endgame_kind == "checkmate":
-                                scores = compute_outcome_scores(ga2)
-                                for uid, value in scores.items():
-                                    if not board_has_bot:
-                                        new_score = Score(
-                                            player_id=players[uid].id,
-                                            board_id=tb.id,
-                                            score=value,
-                                            tag="N",
-                                            onmove=uid == ga2.on_move,
-                                        )
-                                        db.session.add(new_score)
-                                    if players[uid].is_bot or not notify_players:
-                                        continue
-                                    if uid == ga2.on_move:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"You lost in game {state.id}",
-                                            "Game over",
-                                            state.id,
-                                        )
-                                    else:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"{players[ga2.on_move].username} lost in game {state.id}. Your score is {scores[uid]:g}",
-                                            "Game over",
-                                            state.id,
-                                        )
-                                logger.log(
-                                    GAME,
-                                    "Game finished — tag N (checkmate)",
-                                    extra={
-                                        "user_id": user.id,
-                                        "board_id": tb.id,
-                                    },
-                                )
-                            elif endgame_kind == "stalemate":
-                                scores = compute_outcome_scores(ga2)
-                                for uid, value in scores.items():
-                                    if not board_has_bot:
-                                        new_score = Score(
-                                            player_id=players[uid].id,
-                                            board_id=tb.id,
-                                            score=value,
-                                            tag="S",
-                                            onmove=uid == ga2.on_move,
-                                        )
-                                        db.session.add(new_score)
-                                    if not players[uid].is_bot and notify_players:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"The game {state.id} ended in a stalemate",
-                                            "Game over",
-                                            state.id,
-                                        )
-                                logger.log(
-                                    GAME,
-                                    "Game finished — tag S (stalemate)",
-                                    extra={
-                                        "user_id": user.id,
-                                        "board_id": tb.id,
-                                    },
-                                )
-                            else:  # endgame_kind == "repetition"
-                                scores = compute_outcome_scores(ga2)
-                                for uid, value in scores.items():
-                                    if not board_has_bot:
-                                        new_score = Score(
-                                            player_id=players[uid].id,
-                                            board_id=tb.id,
-                                            score=value,
-                                            tag="T",
-                                            onmove=uid == ga2.on_move,
-                                        )
-                                        db.session.add(new_score)
-                                    if not players[uid].is_bot and notify_players:
-                                        post_notification(
-                                            players[uid].username,
-                                            f"The game {state.id} ended in a threefold repetition",
-                                            "Game over",
-                                            state.id,
-                                        )
-                                logger.log(
-                                    GAME,
-                                    "Game finished — tag T (repetition)",
-                                    extra={
-                                        "user_id": user.id,
-                                        "board_id": tb.id,
-                                    },
-                                )
-                            if not board_has_bot:
-                                update_rating_db()
-                        else:
+                        endgame_kind = finalize_if_finished(
+                            tb,
+                            ga2,
+                            players,
+                            board_has_bot,
+                            notify_players,
+                            actor_user=user,
+                        )
+                        if endgame_kind is None:
                             # notify next player
                             if not players[ga2.on_move].is_bot and notify_players:
                                 post_notification(

@@ -67,7 +67,7 @@ The application uses environment variables for configuration, loaded from a `.en
 | `REDIS_URL` | Redis connection URL for the bot's background move queue (RQ) | `redis://localhost:6379/0` |
 | `BOT_DEPTH` | Minimax search depth for bot moves/votes (higher = stronger but slower) | `3` |
 | `SINGLE_PLAYER_NOTIFICATIONS` | Send live "your turn"/"game over" push notifications for 1-human-vs-2-bots games | `false` |
-| `BOT_GAMES_REMOVAL` | Delete finished bot games (and their logs) older than this many days via `remove-bot-games`; `0` disables deletion | `0` |
+| `BOT_GAMES_REMOVAL` | Delete finished bot games (and their logs) older than this many minutes via `remove-bot-games`; `0` disables deletion | `15` |
 
 ### Security Notes
 - **Always change the default secret keys in production**.
@@ -118,9 +118,9 @@ flask --app=webapp build-opening-book
 ```
 
 Delete finished games with a bot player, and their logs, once older than
-`BOT_GAMES_REMOVAL` days (default `0` — disabled; see `crontab`)
+`BOT_GAMES_REMOVAL` minutes (default `15`; `0` disables; see `crontab`)
 ```bash
-flask --app=webapp remove-bot-games --days 120
+flask --app=webapp remove-bot-games --minutes 15
 ```
 
 ## Project Structure
@@ -194,7 +194,7 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep)
 - **`purge-logs`**: Delete log entries older than `--days` (default 90).
 - **`bot-sweep`**: Re-trigger any active game whose on-move seat is a bot (runs via cron — see `crontab`).
 - **`build-opening-book`**: Rebuild `instance/opening_book.json` from finished games in the database.
-- **`remove-bot-games`**: Delete finished games with a bot player, and their logs, older than `--days` (`BOT_GAMES_REMOVAL` env var, default `0` = disabled; runs monthly via cron — see `crontab`).
+- **`remove-bot-games`**: Delete finished games with a bot player, and their logs, older than `--minutes` (`BOT_GAMES_REMOVAL` env var, default `15`; `0` disables; runs every 5 minutes via cron — see `crontab`).
 
 ### Bot players
 - A game's owner can fill an empty seat with one of 2 dedicated bot accounts (`Bot 1`/`Bot 2`, `User.is_bot=True`) from the `/join` lobby.

@@ -40,7 +40,7 @@ class Config(object):
     SINGLE_PLAYER_NOTIFICATIONS = (
         os.environ.get("SINGLE_PLAYER_NOTIFICATIONS", "false").lower() == "true"
     )
-    BOT_GAMES_REMOVAL = int(os.environ.get("BOT_GAMES_REMOVAL", 0))
+    BOT_GAMES_REMOVAL = int(os.environ.get("BOT_GAMES_REMOVAL", 15))
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
     MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"
