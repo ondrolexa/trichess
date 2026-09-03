@@ -41,7 +41,16 @@ def maybe_trigger_bot(board_id: int) -> None:
 
     Cheap read done here (not inside the job) so ordinary all-human games
     never touch Redis.
+
+    Checks sweep_finalize() first: a bot should never be asked to search for
+    a move on a position that's already game-over (e.g. a board that reached
+    a since-added endgame rule — like threefold repetition — before that
+    rule existed, and never got another move to trigger the check).
     """
+    from webapp.api import sweep_finalize
+
+    if sweep_finalize(board_id):
+        return
     tb = db.session.get(TriBoard, board_id)
     if tb is None or tb.status != 1:
         return

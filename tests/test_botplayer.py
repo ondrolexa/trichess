@@ -3,7 +3,7 @@ from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 
 from engine import GameAPI, get_game
-from webapp import botplayer
+from webapp import api, botplayer
 from webapp.main import db
 from webapp.models import Log, Score, TriBoard, User
 
@@ -20,6 +20,28 @@ def _bots():
         User.query.filter_by(username="Bot 1").first(),
         User.query.filter_by(username="Bot 2").first(),
     )
+
+
+def _repetition_slog():
+    """Slog reaching threefold repetition (on_move == 0 afterward): each
+    player shuffles a knight out and back, twice around — mirrors
+    tests/test_gameapi.py's TestEndgame.test_repetition_via_move_sequence.
+    """
+    ga = GameAPI(view_pid=0)
+    knights = {0: 166, 1: 17, 2: 26}
+    current = dict(knights)
+    for _ in range(2):
+        for pid in range(3):
+            frm = current[pid]
+            to = next(m["tgid"] for m in ga.valid_moves(frm) if m["kind"] == "safe")
+            ga.make_move(frm, to)
+            current[pid] = to
+        for pid in range(3):
+            frm = current[pid]
+            to = knights[pid]
+            ga.make_move(frm, to)
+            current[pid] = to
+    return ga.slog
 
 
 def _make_board(owner, seats, slog="", status=1):
@@ -72,6 +94,64 @@ class TestMaybeTriggerBot:
     def test_does_not_enqueue_for_missing_board(self, app):
         botplayer.maybe_trigger_bot(999999)
         assert len(botplayer.bot_queue) == 0
+
+    def test_finalizes_instead_of_enqueuing_when_already_finished(self, app):
+        bot1, bot2 = _bots()
+        alice = _create_user("alice")
+        # on_move is 0 after this slog and the position is already a
+        # threefold repetition — a bot sits at seat 0.
+        tb = _make_board(alice, {0: bot1, 1: bot2, 2: alice}, slog=_repetition_slog())
+
+        botplayer.maybe_trigger_bot(tb.id)
+
+        assert len(botplayer.bot_queue) == 0
+        db.session.refresh(tb)
+        assert tb.status == 2
+
+
+class TestSweepFinalize:
+    def test_finalizes_bot_seat_game_with_no_score_rows(self, app):
+        bot1, bot2 = _bots()
+        alice = _create_user("alice")
+        tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, slog=_repetition_slog())
+
+        assert api.sweep_finalize(tb.id) is True
+
+        db.session.refresh(tb)
+        assert tb.status == 2
+        assert Score.query.filter_by(board_id=tb.id).count() == 0
+
+    def test_finalizes_all_human_game_with_score_rows(self, app):
+        alice = _create_user("alice")
+        bob = _create_user("bob")
+        carol = _create_user("carol")
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, slog=_repetition_slog())
+
+        assert api.sweep_finalize(tb.id) is True
+
+        db.session.refresh(tb)
+        assert tb.status == 2
+        assert Score.query.filter_by(board_id=tb.id).count() == 3
+
+    def test_returns_false_for_ongoing_game(self, app):
+        bot1, bot2 = _bots()
+        alice = _create_user("alice")
+        tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, slog="")
+
+        assert api.sweep_finalize(tb.id) is False
+
+        db.session.refresh(tb)
+        assert tb.status == 1
+
+    def test_returns_false_for_already_finished_board(self, app):
+        bot1, bot2 = _bots()
+        alice = _create_user("alice")
+        tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, status=2)
+
+        assert api.sweep_finalize(tb.id) is False
+
+    def test_returns_false_for_missing_board(self, app):
+        assert api.sweep_finalize(999999) is False
 
 
 class TestRunBotMove:
@@ -411,24 +491,24 @@ class TestResendNotificationNeverTargetsBots:
         assert calls == []
 
 
-def _backdate_board(tb, days):
+def _backdate_board(tb, minutes):
     db.session.execute(
         text(
             "UPDATE triboard SET modified_at = datetime('now', :offset) "
             "WHERE id = :id"
         ),
-        {"offset": f"-{days} day", "id": tb.id},
+        {"offset": f"-{minutes} minute", "id": tb.id},
     )
     db.session.commit()
 
 
 class TestRemoveBotGames:
-    def test_default_is_zero_days_disabled(self):
+    def test_default_is_15_minutes_enabled(self):
         from webapp import main
 
-        assert main.BOT_GAMES_REMOVAL == 0
+        assert main.BOT_GAMES_REMOVAL == 15
 
-    def test_zero_days_removes_nothing(self, app):
+    def test_zero_minutes_disables_removal(self, app):
         from webapp import main
 
         bot1, bot2 = _bots()

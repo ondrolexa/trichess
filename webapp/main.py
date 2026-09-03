@@ -206,27 +206,34 @@ def purge_logs(days):
     click.echo(f"Deleted {deleted} log entries older than {days} days")
 
 
-BOT_GAMES_REMOVAL = int(os.environ.get("BOT_GAMES_REMOVAL", 0))
+BOT_GAMES_REMOVAL = int(os.environ.get("BOT_GAMES_REMOVAL", 15))
 
 
-def remove_bot_games(days):
+def remove_bot_games(minutes):
     """Delete finished games with a bot player, and their Log rows, once
-    older than `days`. days <= 0 (the default, 0) is a no-op — deletion is
-    opt-in only, never on by default.
+    older than `minutes`. minutes <= 0 disables deletion entirely.
 
-    Score rows are cleared defensively (bot games shouldn't have any — see
-    GameBoard.post()'s board_has_bot guard — but this is what actually
-    makes the delete FK-safe in general, not a hypothetical-only check).
-    Log rows referencing the board are deleted too (not just detached):
-    PRAGMA foreign_keys=ON means an orphaned board_id would otherwise
-    violate the FK, and a removed bot game's logs aren't worth keeping.
+    Bot games are casual (no Score rows, no rating impact — see
+    GameBoard.post()'s board_has_bot guard) and unplayable once finished, so
+    the default is a short grace period rather than opt-in: enabled out of
+    the box, just long enough that a player who just finished watching the
+    board doesn't have it vanish mid-glance.
+
+    Score rows are cleared defensively (bot games shouldn't have any, but
+    this is what actually makes the delete FK-safe in general, not a
+    hypothetical-only check). Log rows referencing the board are deleted too
+    (not just detached): PRAGMA foreign_keys=ON means an orphaned board_id
+    would otherwise violate the FK, and a removed bot game's logs aren't
+    worth keeping.
     """
-    if days <= 0:
+    if minutes <= 0:
         return 0
 
     from webapp.models import Log, Score, TriBoard
 
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+        minutes=minutes
+    )
     candidates = TriBoard.query.filter(
         TriBoard.status == 2, TriBoard.modified_at < cutoff
     ).all()
@@ -246,16 +253,16 @@ def remove_bot_games(days):
 
 @app.cli.command("remove-bot-games")
 @click.option(
-    "--days",
+    "--minutes",
     default=BOT_GAMES_REMOVAL,
     help="Delete finished bot games (and their logs) older than this many "
-    "days. 0 (default) disables deletion.",
+    "minutes. 0 disables deletion.",
 )
-def remove_bot_games_command(days):
+def remove_bot_games_command(minutes):
     """Delete finished games with a bot player, and their logs, older than
-    --days (BOT_GAMES_REMOVAL env var, default 0 = disabled)."""
-    removed = remove_bot_games(days)
-    click.echo(f"Removed {removed} finished bot game(s) older than {days} days")
+    --minutes (BOT_GAMES_REMOVAL env var, default 15)."""
+    removed = remove_bot_games(minutes)
+    click.echo(f"Removed {removed} finished bot game(s) older than {minutes} minutes")
 
 
 @app.cli.command("build-opening-book")
@@ -272,16 +279,33 @@ def build_opening_book_command():
 
 @app.cli.command("bot-sweep")
 def bot_sweep_command():
-    """Re-trigger any active game whose on-move seat is a bot.
+    """Re-trigger any active game whose on-move seat is a bot, and finalize
+    any active game whose position is already game-over.
 
-    Safety net for maybe_trigger_bot()'s normal move/vote-triggered path —
-    covers a queued job lost to e.g. a Redis restart, which nothing else
-    would ever re-trigger. Meant to run every few minutes via cron.
+    The re-trigger half is a safety net for maybe_trigger_bot()'s normal
+    move/vote-triggered path — covers a queued job lost to e.g. a Redis
+    restart, which nothing else would ever re-trigger. The finalize half
+    self-heals a board stuck at status=1 whose slog already replays to a
+    terminal position (e.g. a legacy game that predates a since-added
+    endgame rule, or simply never got another move to trigger the check) —
+    covers boards on a human's turn too, which maybe_trigger_bot alone
+    can't reach. Meant to run every few minutes via cron.
     """
+    from webapp.api import sweep_finalize
     from webapp.botplayer import maybe_trigger_bot
     from webapp.models import TriBoard
 
     board_ids = [tb.id for tb in TriBoard.query.filter_by(status=1).all()]
+    finalized = 0
     for board_id in board_ids:
-        maybe_trigger_bot(board_id)
-    click.echo(f"Swept {len(board_ids)} active game(s)")
+        try:
+            if sweep_finalize(board_id):
+                finalized += 1
+            else:
+                maybe_trigger_bot(board_id)
+        except Exception as err:
+            # One board's failure (e.g. a transient Redis hiccup on the
+            # publish/enqueue side, after the DB write already committed)
+            # must not abort the sweep for every other board.
+            logger.error(f"[bot-sweep] Failed processing board {board_id}: {err}")
+    click.echo(f"Swept {len(board_ids)} active game(s), finalized {finalized}")
