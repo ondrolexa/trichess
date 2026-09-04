@@ -191,7 +191,6 @@ class Test_GameInfo_InChessNext:
         )
         assert resp.status_code == 200
         assert resp.get_json()["in_chess_next"] == {
-            "in_chess": True,
             "king_pos": 40,
             "chess_by": {"0": [], "1": [], "2": [{"gid": 54, "piece": "B"}]},
         }

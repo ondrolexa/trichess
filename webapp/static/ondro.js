@@ -1317,20 +1317,24 @@ function gameInfo(init = false, redraw = false) {
       }
       // show piece in chess
       if (data.in_chess) {
-        playInChessTween(data.king_pos);
-        AppState.gid2high[data.king_pos].visible(true);
-        AppState.gid2high[data.king_pos].stroke(theme["board"]["hex_inchess"]);
-        for (let player in data.chess_by) {
-          for (let pcs in data.chess_by[player]) {
-            AppState.gid2high[data.chess_by[player][pcs].gid].visible(true);
-            AppState.gid2high[data.chess_by[player][pcs].gid].stroke(
+        playInChessTween(data.in_chess.king_pos);
+        AppState.gid2high[data.in_chess.king_pos].visible(true);
+        AppState.gid2high[data.in_chess.king_pos].stroke(
+          theme["board"]["hex_inchess"],
+        );
+        for (let player in data.in_chess.chess_by) {
+          for (let pcs in data.in_chess.chess_by[player]) {
+            AppState.gid2high[data.in_chess.chess_by[player][pcs].gid].visible(
+              true,
+            );
+            AppState.gid2high[data.in_chess.chess_by[player][pcs].gid].stroke(
               theme["board"]["hex_inchess"],
             );
           }
         }
       }
       // show next player's king in chess too, if applicable
-      if (data.in_chess_next.in_chess) {
+      if (data.in_chess_next) {
         playInChessTween(data.in_chess_next.king_pos);
         AppState.gid2high[data.in_chess_next.king_pos].visible(true);
         AppState.gid2high[data.in_chess_next.king_pos].stroke(

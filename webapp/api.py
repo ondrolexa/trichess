@@ -288,6 +288,12 @@ def _board_summary(tb, username):
     }
 
 
+def _chess_status(inchess, king_pos, chess_by):
+    """Shape an engine in_chess()/in_chess_next() tuple into the JSON API's
+    nullable-object form: None when not in chess, else {king_pos, chess_by}."""
+    return {"king_pos": king_pos, "chess_by": chess_by} if inchess else None
+
+
 def compute_outcome_scores(ga):
     """Score (out of 2.0) awarded to each player once a finished game's result
     is known — shared by the API's finished-game preview (GameInfo) and its
@@ -662,10 +668,9 @@ scores = api.model(
     },
 )
 
-in_chess_next_info = api.model(
-    "Chess status for the player after on-move",
+in_chess_status = api.model(
+    "Chess status (king position + attacking pieces)",
     {
-        "in_chess": fields.Boolean,
         "king_pos": fields.Integer,
         "chess_by": fields.Nested(game_pieces),
     },
@@ -682,10 +687,8 @@ game_response = api.model(
         "endgame": fields.String(
             enum=["checkmate", "draw", "resignation", "stalemate", "repetition"]
         ),
-        "in_chess": fields.Boolean,
-        "king_pos": fields.Integer,
-        "chess_by": fields.Nested(game_pieces),
-        "in_chess_next": fields.Nested(in_chess_next_info),
+        "in_chess": fields.Nested(in_chess_status, allow_null=True),
+        "in_chess_next": fields.Nested(in_chess_status, allow_null=True),
         "pieces": fields.Nested(game_pieces),
         "pieces_value": fields.Nested(game_pieces_value),
         "eliminated": fields.Nested(game_eliminated),
@@ -726,13 +729,8 @@ class GameInfo(Resource):
                 res["pre_last_move"] = ga.pre_last_move
                 res["endgame"] = ga.endgame()
                 res["finished"] = res["endgame"] is not None
-                res["in_chess"], res["king_pos"], res["chess_by"] = ga.in_chess()
-                in_chess_n, king_pos_n, chess_by_n = ga.in_chess_next()
-                res["in_chess_next"] = {
-                    "in_chess": in_chess_n,
-                    "king_pos": king_pos_n,
-                    "chess_by": chess_by_n,
-                }
+                res["in_chess"] = _chess_status(*ga.in_chess())
+                res["in_chess_next"] = _chess_status(*ga.in_chess_next())
                 res["pieces"] = ga.pieces()
                 res["pieces_value"] = ga.pieces_value()
                 res["eliminated"] = ga.eliminated()

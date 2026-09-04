@@ -1077,9 +1077,11 @@ class board {
       }
     }
     // set chess by
-    for (let player_id in jdata.chess_by) {
-      for (let j in jdata.chess_by[player_id]) {
-        const pcs = jdata.chess_by[player_id][j];
+    const chessBy =
+      jdata.in_chess != null ? jdata.in_chess.chess_by : { 0: [], 1: [], 2: [] };
+    for (let player_id in chessBy) {
+      for (let j in chessBy[player_id]) {
+        const pcs = chessBy[player_id][j];
         this.hexs[pcs.gid].setlumi(
           theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"],
         );
@@ -1090,23 +1092,14 @@ class board {
       }
     }
     //king_pos
-    if (
-      !(
-        jdata.chess_by[0].length == 0 &&
-        jdata.chess_by[1].length == 0 &&
-        jdata.chess_by[2].length == 0
-      )
-    ) {
-      this.hexs[jdata.king_pos].setlumi(
+    if (jdata.in_chess != null) {
+      this.hexs[jdata.in_chess.king_pos].setlumi(
         theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"],
       );
-      this.hexs[jdata.king_pos].draw_piece2(
+      this.hexs[jdata.in_chess.king_pos].draw_piece2(
         bpiece_lineWidth,
         theme["board"]["hint_lines"],
       );
-    }
-    if (jdata.king_pos != 0) {
-      //this.hexs[jdata.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"])
     }
     this.bishop_elim_color();
   }
