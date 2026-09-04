@@ -1076,9 +1076,8 @@ class board {
         });
       }
     }
-    // set chess by
-    const chessBy =
-      jdata.in_chess != null ? jdata.in_chess.chess_by : { 0: [], 1: [], 2: [] };
+    // set in chess by
+    const chessBy= jdata.in_chess != null ? jdata.in_chess.chess_by : { 0: [], 1: [], 2: [] };
     for (let player_id in chessBy) {
       for (let j in chessBy[player_id]) {
         const pcs = chessBy[player_id][j];
@@ -1091,16 +1090,27 @@ class board {
         );
       }
     }
+    // todo rewrite in chess and king pos
+    // set in chess next
+    const chessBy2= jdata.in_chess_next != null ? jdata.in_chess_next.chess_by : { 0: [], 1: [], 2: [] };
+    for (let player_id in chessBy2) {
+      for (let j in chessBy2[player_id]) {
+        const pcs2 = chessBy2[player_id][j];
+        this.hexs[pcs2.gid].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"],);
+        this.hexs[pcs2.gid].draw_piece2( bpiece_lineWidth,theme["board"]["hint_lines"],);
+      }
+    }
     //king_pos
     if (jdata.in_chess != null) {
-      this.hexs[jdata.in_chess.king_pos].setlumi(
-        theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"],
-      );
-      this.hexs[jdata.in_chess.king_pos].draw_piece2(
-        bpiece_lineWidth,
-        theme["board"]["hint_lines"],
-      );
+      this.hexs[jdata.in_chess.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"],);
+      this.hexs[jdata.in_chess.king_pos].draw_piece2(bpiece_lineWidth,theme["board"]["hint_lines"],);
     }
+    //king_pos_next
+    if (jdata.in_chess_next != null) {
+      this.hexs[jdata.in_chess_next.king_pos].setlumi(theme["board"]["hex_inchess"] + theme["board"]["hex_alpha"],);
+      this.hexs[jdata.in_chess_next.king_pos].draw_piece2(bpiece_lineWidth,theme["board"]["hint_lines"],);
+    }
+
     this.bishop_elim_color();
   }
   set_code(idata) {
@@ -1721,15 +1731,16 @@ window.addEventListener('orientationchange', function() {
     window.addEventListener('resize', afterOrientationChange);
 });
 
-const boardEvents = new EventSource(
-  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
-);
-boardEvents.onmessage = (event) => {
-  const payload = JSON.parse(event.data);
-  if (payload.slog_length <= B.slog.length) {
-    return;
-  }
-  else {
-    Click_Refresh();
-  }
-  };
+//const boardEvents = new EventSource(
+//  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
+//);
+//boardEvents.onmessage = (event) => {
+//  const payload = JSON.parse(event.data);
+//  if (payload.slog_length <= B.slog.length) {
+//    return;
+//  }
+//  else {
+//    Click_Refresh();
+//  }
+//  };
+//

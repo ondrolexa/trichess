@@ -18,7 +18,7 @@ board:
     - "#4b3f17"
     - "#787878"
     - "#000000"
-  hex_inchess: "#fa6eee"
+  hex_inchess: "#0d6efd"
   hex_alpha: "FF"
   hint_lines: "#ffffff"
   hex_border:
