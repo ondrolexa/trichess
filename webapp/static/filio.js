@@ -1050,9 +1050,17 @@ class board {
       this.pre_last_move_from = jdata.pre_last_move.gid;
       this.pre_last_move_to = jdata.pre_last_move.tgid;
     }
+    else {
+      this.pre_last_move_from = -1;
+      this.pre_last_move_to = -1;
+    }
     if (jdata.last_move != null) {
       this.last_move_from = jdata.last_move.gid;
       this.last_move_to = jdata.last_move.tgid;
+    }
+    else {
+      this.last_move_from = -1;
+      this.last_move_to = -1;
     }
     if (this.move_number_org == -1){
       this.move_number_org = jdata.move_number; //this.slog.length/4//jdata.move_number;
@@ -1499,6 +1507,7 @@ function Click_Demo() {
   function fff_valid() {
       B.moveValid();
   }
+  ////////////////////////////////////////////////////////////////////////////////////////
   const slog = B.slog;
   B.slog = "";
   let point = 0;
@@ -1506,6 +1515,12 @@ function Click_Demo() {
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   async function runLoopWithDelay() {
   B.slog_pointer = 0;
+      F.fetchPOST(
+    url + "/api/v1/game/info",
+    { slog: B.slog, view_pid: B.view_player },
+      Step_3_setelim_board_and_draw,
+    );
+
   II.clear_elim_lines()
   let row_cnt = 7
     if (portrait) {  row_cnt = 8   };
@@ -1514,6 +1529,8 @@ function Click_Demo() {
         II.panel[j].lines[i].set_text("")
       }
     }
+  II.write()
+  await delay(2000);
   //////////////////////////////////////////////////////////////////////
   for (let i = 1; i <= 100; i++) {
     F.fetchPOST(
@@ -1521,25 +1538,30 @@ function Click_Demo() {
     { slog: B.slog, view_pid: B.view_player },
       Step_3_setelim_board_and_draw,
     );
-    await delay(500);
+    await delay(200);
     B.draw_tile(); // remove cursor
     B.draw_pieces();
-    await delay(2000);
+  //  II.write()
+    await delay(1000);
     let code1 = slog.substring((B.slog_pointer*4),(B.slog_pointer*4)+2)
-    B.gid_new = code2gid(code1)
-    B.hexs[B.gid_new].draw_mark("rect")  //cursor start move
+    if (code1 !== "") {
+      B.gid_new = code2gid(code1)
+      B.hexs[B.gid_new].draw_mark("rect")  //cursor start move
+    }
     await delay(500);
     fff_valid(); // show valid moves
     await delay(1000);
     B.draw_tile(); // remove cursor
     B.draw_pieces();
-    B.moveValid();; // show valid moves
+    B.moveValid(); // show valid moves
     //await delay(1500);
     let code2 = slog.substring((B.slog_pointer*4)+2,(B.slog_pointer*4)+4)
-    B.gid_old = B.gid_new;
-    B.gid_new = code2gid(code2)
-    B.hexs[B.gid_new].draw_mark("rect")
-    await delay(500);
+    if (code2 !== "") {
+      B.gid_old = B.gid_new;
+      B.gid_new = code2gid(code2)
+      B.hexs[B.gid_new].draw_mark("rect")
+    }
+    await delay(300);
     B.draw_tile(); // remove cursor
     B.draw_pieces();
     B.moveMake();

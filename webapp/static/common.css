@@ -28,3 +28,37 @@ body {
         max-width: 70px;
     }
 }
+/* Container wrapper to ensure uniform card height across all 3 columns */
+.media-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Base video styling */
+.responsive-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Default state (Tablets and Desktops - screens >= 768px): Show landscape, hide portrait */
+.landscape-video {
+  display: block !important;
+}
+
+.portrait-video {
+  display: none !important;
+}
+
+/* Mobile state (Screens < 768px): Hide landscape, show portrait */
+@media (max-width: 767.98px) {
+  .landscape-video {
+    display: none !important;
+  }
+
+  .portrait-video {
+    display: block !important;
+  }
+}

@@ -3,7 +3,7 @@
 {% block styles %}
 <style>
   .hero {
-    padding: 3rem 0 1rem;
+    padding: 1.5rem 0 1rem;
     text-align: center;
   }
   .hero h1 {
@@ -56,32 +56,55 @@
     <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('login') }}">Login</a>
   </div>
   {% endif %}
+  <!-- Demo -->
+  <h1 class="mt-3" >Demo</h1>
 </section>
-<!-- Demo -->
+
 <div class="container d-flex justify-content-center">
-  <div class="row w-100 justify-content-center g-3">
-    <h3 class="text-center">Demo</h3>
+  <!-- Row containing 3 columns side-by-side -->
+  <div class="row w-100 justify-content-center g-3 flex-nowrap">
     <!-- Column 1 -->
-    <div class="col-12 col-md-6">
-      <h5 class="text-center">Board ondro</h5>
-      <div class="bg-light rounded shadow-lg">
-        <img src="{{ url_for('static', filename='img/gameplay_night_school.gif') }}" class="img-fluid" alt="Animated GIF">
+    <div class="col-4">
+      <h5 class="text-center">Features</h5>
+      <div class="media-card bg-light rounded shadow-lg overflow-hidden">
+        <!-- Landscape Video -->
+        <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
+          <source src="{{ url_for('static', filename='img/demo_features_hr.webm') }}" type="video/webm">
+          Your browser does not support the video tag.
+        </video>
+        <!-- Portrait Video -->
+        <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
+          <source src="{{ url_for('static', filename='img/demo_features_vr.webm') }}" type="video/webm">
+          Your browser does not support the video tag.
+        </video>
       </div>
     </div>
     <!-- Column 2 -->
-    <div class="col-12 col-md-6">
+    <div class="col-4">
       <h5 class="text-center">Board filio</h5>
-      <div class="bg-light rounded shadow-lg">
-        <div class="ratio ratio-1x1 rounded ">
-          <video controls>
-            <source src="{{ url_for('static', filename='img/demo_#20_contast.webm') }}" type="video/webm">
-            Your browser does not support HTML5 video.
-          </video>
-        </div>
+      <div class="media-card bg-light rounded shadow-lg overflow-hidden">
+        <!-- Landscape Video -->
+        <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
+          <source src="{{ url_for('static', filename='img/demo_#30_contast_hr.webm') }}" type="video/webm">
+          Your browser does not support the video tag.
+        </video>
+        <!-- Portrait Video -->
+        <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
+          <source src="{{ url_for('static', filename='img/demo_#30_contast_vr.webm') }}" type="video/webm">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    </div>
+    <!-- Column 3 -->
+    <div class="col-4">
+      <h5 class="text-center">Board ondro</h5>
+      <div class="media-card bg-light rounded shadow-lg overflow-hidden">
+        <img src="{{ url_for('static', filename='img/gameplay_night_school.gif') }}" class="img-fluid" alt="Animated GIF">
       </div>
     </div>
   </div>
 </div>
+
 <div class="row feature-grid text-center">
   <div class="col-md-3 mb-3">
     <h3>Hexagonal arena</h3>
