@@ -32,18 +32,18 @@
   <p class="lead text-body-secondary">Ready for your next move?</p>
   <a class="btn btn-primary btn-lg mt-2" href="{{ url_for('active_games') }}">Continue to your games</a>
   {% else %}
-  <img class="mb-0" src="{{ url_for('static', filename='img/logo_crow_bl.svg') }}" class="img-fluid" alt="SCG image">
-  <h2><strong>Three minds clash on one hex!</strong></h2>
-  <div class="mt-2">
+  <img class="mb-2" src="{{ url_for('static', filename='img/logo_crow_bl.svg') }}" class="img-fluid" alt="SCG image">
+  <h3><strong>Three minds clash on one hex!</strong></h3>
+  <div class="mt-1">
     <a class="btn btn-primary btn-lg me-2" href="{{ url_for('register') }}">Register</a>
     <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('login') }}">Login</a>
   </div>
   {% endif %}
-  <hr class="mb-0">
-  <h1 class="mt-2"><strong>Demo</strong></h1>
+  <hr class="mb-0 mt-3">
+  <h1 class="mt-0"><strong>Demo</strong></h1>
 </section>
 <!-- Demo section-->
-<div class="container d-flex justify-content-center">
+<div class="container d-flex justify-content-center  mb-0">
   <!-- Main Row -->
   <div class="row w-100 justify-content-center g-3 flex-nowrap align-items-end">
     <!-- Column 1 -->
@@ -124,7 +124,7 @@
   </div>
 </div>
 
-<p class="text-center text-body-secondary">
+<p class="text-center text-body-secondary  mt-0">
   Check the Help menu above for the full rules and tips.
   {% if not current_user.is_authenticated %}Register to claim your seat at the board.{% endif %}
 </p>
