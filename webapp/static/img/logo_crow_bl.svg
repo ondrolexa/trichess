@@ -2,9 +2,9 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="57.168438mm"
-   height="25.173466mm"
-   viewBox="0 0 57.168437 25.173467"
+   width="54.628067mm"
+   height="24.333982mm"
+   viewBox="0 0 54.628066 24.333985"
    version="1.1"
    id="svg1"
    inkscape:version="1.4.4 (1:1.4.4+202605061436+dcaf3e7d9e)"
@@ -27,7 +27,7 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      inkscape:zoom="2.8284271"
-     inkscape:cx="31.819805"
+     inkscape:cx="26.870058"
      inkscape:cy="2.6516505"
      inkscape:window-width="2494"
      inkscape:window-height="1371"
@@ -39,87 +39,87 @@
      showborder="false"
      inkscape:clip-to-page="false">
     <sodipodi:guide
-       position="-46.248685,644.05693"
+       position="-47.51887,627.04727"
        orientation="1,0"
        id="guide1"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-29.621335,681.84885"
+       position="-30.891521,664.83919"
        orientation="0,-1"
        id="guide2"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-100.70325,703.39161"
+       position="-101.97344,686.38194"
        orientation="0,-1"
        id="guide3"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-91.244394,693.66817"
+       position="-92.51458,676.65851"
        orientation="0,-1"
        id="guide4"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-68.722864,668.75263"
+       position="-69.99305,651.74297"
        orientation="1,0"
        id="guide5"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-102.74963,663.69274"
+       position="-104.01982,646.68308"
        orientation="0,-1"
        id="guide6"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-101.2763,647.42453"
+       position="-102.54649,630.41487"
        orientation="1,0"
        id="guide9"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="9.9011447,658.60307"
+       position="8.6309592,641.59341"
        orientation="1,0"
        id="guide10"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-31.492224,658.46276"
+       position="-32.76241,641.4531"
        orientation="1,0"
        id="guide11"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-46.802075,714.92042"
+       position="-48.07226,697.91075"
        orientation="0,-1"
        id="guide12"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-17.508326,730.41218"
+       position="-18.778511,713.40251"
        orientation="0,-1"
        id="guide13"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-100.06024,723.83895"
+       position="-101.33043,706.82928"
        orientation="0,-1"
        id="guide14"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="41.225815,783.4415"
+       position="39.95563,766.43183"
        orientation="0,-1"
        id="guide7"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="89.011375,783.71021"
+       position="87.74119,766.70054"
        orientation="1,0"
        id="guide8"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="28.749581,31.343324"
+       position="27.479395,14.333652"
        orientation="1,0"
        id="guide15"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-16.903497,27.188576"
+       position="-18.173682,10.178904"
        orientation="0,-1"
        id="guide16"
        inkscape:locked="false" />
     <sodipodi:guide
-       position="-13.965986,11.687987"
+       position="-15.236171,-5.3216843"
        orientation="0,-1"
        id="guide17"
        inkscape:locked="false" />
@@ -2844,7 +2844,7 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="I"
-     transform="translate(-609.59622,-318.4015)">
+     transform="translate(-610.8664,-318.4015)">
     <g
        inkscape:groupmode="layer"
        id="layer2-5"
@@ -2925,7 +2925,7 @@
       <g
          fill="#000000"
          id="g8"
-         transform="matrix(0.25029788,0,0,0.25029789,480.89489,306.69655)">
+         transform="matrix(0.23803079,0,0,0.2380308,486.47642,306.68091)">
         <!-- Capital 'T' -->
         <path
            d="m 30,100 h 110 v 40 H 105 V 260 H 65 V 140 H 30 Z"
