@@ -3,7 +3,7 @@
 {% block styles %}
 <style>
   .hero {
-    padding: 1.5rem 0 1rem;
+
     text-align: center;
   }
   .hero h1 {
@@ -14,13 +14,6 @@
     max-width: 46rem;
     margin-left: auto;
     margin-right: auto;
-  }
-  .gif-card {
-    border-radius: 1rem;
-    padding: 0.75rem;
-    margin: 2rem auto;
-    max-width: 520px;
-    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.35);
   }
   .gif-card img {
     display: block;
@@ -45,63 +38,87 @@
   <p class="lead text-body-secondary">Ready for your next move?</p>
   <a class="btn btn-primary btn-lg mt-2" href="{{ url_for('active_games') }}">Continue to your games</a>
   {% else %}
-  <h1>Chess, but the board bends&nbsp;&mdash;&nbsp;and three minds clash.</h1>
-  <p class="lead text-body-secondary">
-    TriChess reimagines chess on a 169-cell hexagonal board built for three
-    players at once. More directions to move, more pieces per side, and a
-    whole new layer of alliances, betrayals, and voted resignations.
-  </p>
-  <div class="mt-3">
+
+  <img class="mb-2" src="{{ url_for('static', filename='img/logo_crow_bl.svg') }}" class="img-fluid" alt="SCG image">
+  <h1><strong>TRICHESS<br>Three minds clash on one hex!</strong></h1>
+
+  <div class="mt-2">
     <a class="btn btn-primary btn-lg me-2" href="{{ url_for('register') }}">Register</a>
     <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('login') }}">Login</a>
   </div>
   {% endif %}
   <!-- Demo -->
-  <h1 class="mt-3" >Demo</h1>
+  <hr>
+  <h1 class="mt-2"><strong>Demo</strong></h1>
 </section>
 
 <div class="container d-flex justify-content-center">
-  <!-- Row containing 3 columns side-by-side -->
-  <div class="row w-100 justify-content-center g-3 flex-nowrap">
+  <!-- Main Row -->
+  <div class="row w-100 justify-content-center g-3 flex-nowrap align-items-end">
+
     <!-- Column 1 -->
     <div class="col-4">
-      <h5 class="text-center">Features</h5>
+      <h5 class="text-center mb-3">Basic<br>overview</h5>
       <div class="media-card bg-light rounded shadow-lg overflow-hidden">
         <!-- Landscape Video -->
-        <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
+        <video controls class="responsive-video landscape-video d-none d-md-block w-100" autoplay loop muted playsinline>
           <source src="{{ url_for('static', filename='img/demo_features_hr.webm') }}" type="video/webm">
           Your browser does not support the video tag.
         </video>
         <!-- Portrait Video -->
-        <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
+        <video controls class="responsive-video portrait-video d-block d-md-none w-100" autoplay loop muted playsinline>
           <source src="{{ url_for('static', filename='img/demo_features_vr.webm') }}" type="video/webm">
           Your browser does not support the video tag.
         </video>
       </div>
     </div>
-    <!-- Column 2 -->
-    <div class="col-4">
-      <h5 class="text-center">Board filio</h5>
-      <div class="media-card bg-light rounded shadow-lg overflow-hidden">
-        <!-- Landscape Video -->
-        <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
-          <source src="{{ url_for('static', filename='img/demo_#30_contast_hr.webm') }}" type="video/webm">
-          Your browser does not support the video tag.
-        </video>
-        <!-- Portrait Video -->
-        <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
-          <source src="{{ url_for('static', filename='img/demo_#30_contast_vr.webm') }}" type="video/webm">
-          Your browser does not support the video tag.
-        </video>
+
+    <!-- Combined Group: Column 2 & Column 3 Wrapper -->
+    <div class="col-8">
+
+      <!-- Shared Header across Column 2 + Column 3 -->
+      <h6 class="text-center mb-0">You can choose one of these boards:</h6>
+
+      <!-- Sub-row for Column 2 and Column 3 side-by-side -->
+      <div class="row g-3 flex-nowrap">
+
+        <!-- Column 2 -->
+        <div class="col-6">
+          <h5 class="text-center">Filio</h5>
+          <div class="media-card bg-light rounded shadow-lg overflow-hidden">
+            <!-- Landscape Video -->
+            <video controls class="responsive-video landscape-video d-none d-md-block w-100" autoplay loop muted playsinline>
+              <source src="{{ url_for('static', filename='img/demo_#30_contast_hr.webm') }}" type="video/webm">
+              Your browser does not support the video tag.
+            </video>
+            <!-- Portrait Video -->
+            <video controls class="responsive-video portrait-video d-block d-md-none w-100" autoplay loop muted playsinline>
+              <source src="{{ url_for('static', filename='img/demo_#30_contast_vr.webm') }}" type="video/webm">
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+
+        <!-- Column 3 -->
+        <div class="col-6">
+          <h5 class="text-center">Ondro</h5>
+          <div class="media-card bg-light rounded shadow-lg overflow-hidden">
+            <!-- Landscape Video -->
+            <video controls class="responsive-video landscape-video d-none d-md-block w-100" autoplay loop muted playsinline>
+              <source src="{{ url_for('static', filename='img/demoo_#76_default_hr.webm') }}" type="video/webm">
+              Your browser does not support the video tag.
+            </video>
+            <!-- Portrait Video -->
+            <video controls class="responsive-video portrait-video d-block d-md-none w-100" autoplay loop muted playsinline>
+              <source src="{{ url_for('static', filename='img/demoo_#76_default_vr.webm') }}" type="video/webm">
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+
       </div>
     </div>
-    <!-- Column 3 -->
-    <div class="col-4">
-      <h5 class="text-center">Board ondro</h5>
-      <div class="media-card bg-light rounded shadow-lg overflow-hidden">
-        <img src="{{ url_for('static', filename='img/gameplay_night_school.gif') }}" class="img-fluid" alt="Animated GIF">
-      </div>
-    </div>
+
   </div>
 </div>
 
