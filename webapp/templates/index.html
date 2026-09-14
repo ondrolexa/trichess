@@ -32,79 +32,54 @@
   <p class="lead text-body-secondary">Ready for your next move?</p>
   <a class="btn btn-primary btn-lg mt-2" href="{{ url_for('active_games') }}">Continue to your games</a>
   {% else %}
-  <img class="mb-2" src="{{ url_for('static', filename='img/logo_crow_bl.svg') }}" class="img-fluid" alt="SCG image">
+  <img class="mb-0" src="{{ url_for('static', filename='img/logo_crow_bl.svg') }}" class="img-fluid" alt="SCG image">
+  <h1 class="mt-0"><strong>TRICHESS</strong></h1>
   <h3><strong>Three minds clash on one hex!</strong></h3>
   <div class="mt-1">
     <a class="btn btn-primary btn-lg me-2" href="{{ url_for('register') }}">Register</a>
     <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('login') }}">Login</a>
   </div>
   {% endif %}
-  <hr class="mb-0 mt-3">
-  <h1 class="mt-0"><strong>Demo</strong></h1>
+  <h1 class="mt-2"><strong>Demo</strong></h1>
 </section>
 <!-- Demo section-->
-<div class="container d-flex justify-content-center  mb-0">
-  <!-- Main Row -->
-  <div class="row w-100 justify-content-center g-3 flex-nowrap align-items-end">
+<div class="container d-flex justify-content-center">
+  <!-- Row containing 3 columns side-by-side -->
+  <div class="row w-100 justify-content-center g-3 flex-nowrap">
     <!-- Column 1 -->
     <div class="col-4">
-      <h5 class="text-center mb-3">Basic<br>overview</h5>
+      <h5 class="text-center">Features</h5>
       <div class="media-card bg-light rounded shadow-lg overflow-hidden">
         <!-- Landscape Video -->
-        <video controls class="responsive-video landscape-video d-none d-md-block w-100" autoplay loop muted playsinline>
+        <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
           <source src="{{ url_for('static', filename='img/demo_features_hr.webm') }}" type="video/webm">
           Your browser does not support the video tag.
         </video>
         <!-- Portrait Video -->
-        <video controls class="responsive-video portrait-video d-block d-md-none w-100" autoplay loop muted playsinline>
+        <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
           <source src="{{ url_for('static', filename='img/demo_features_vr.webm') }}" type="video/webm">
           Your browser does not support the video tag.
         </video>
       </div>
     </div>
-    <!-- Combined Group: Column 2 & Column 3 Wrapper -->
-    <div class="col-8">
-      <!-- Shared Header across Column 2 + Column 3 -->
-      <h5 class="text-center mb-0">You can choose one of these boards:</h5>
-      <!-- Sub-row for Column 2 and Column 3 side-by-side -->
-      <div class="row g-3 flex-nowrap">
-        <!-- Column 2 -->
-        <div class="col-6">
-          <h5 class="text-center">Filio</h5>
-          <div class="media-card bg-light rounded shadow-lg overflow-hidden">
-            <!-- Landscape Video -->
-            <video controls class="responsive-video landscape-video d-none d-md-block w-100" autoplay loop muted playsinline>
-              <source src="{{ url_for('static', filename='img/demo_#30_contast_hr.webm') }}" type="video/webm">
-              Your browser does not support the video tag.
-            </video>
-            <!-- Portrait Video -->
-            <video controls class="responsive-video portrait-video d-block d-md-none w-100" autoplay loop muted playsinline>
-              <source src="{{ url_for('static', filename='img/demo_#30_contast_vr.webm') }}" type="video/webm">
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        </div>
-        <!-- Column 3 -->
-        <div class="col-6">
-          <h5 class="text-center">Ondro</h5>
-          <div class="media-card bg-light rounded shadow-lg overflow-hidden">
-            <!-- Landscape Video -->
-            <video controls class="responsive-video landscape-video d-none d-md-block w-100" autoplay loop muted playsinline>
-              <source src="{{ url_for('static', filename='img/demoo_#76_default_hr.webm') }}" type="video/webm">
-              Your browser does not support the video tag.
-            </video>
-            <!-- Portrait Video -->
-            <video controls class="responsive-video portrait-video d-block d-md-none w-100" autoplay loop muted playsinline>
-              <source src="{{ url_for('static', filename='img/demoo_#76_default_vr.webm') }}" type="video/webm">
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        </div>
+    <!-- Column 2 -->
+    <div class="col-4">
+      <h5 class="text-center">Board</h5>
+      <div class="media-card bg-light rounded shadow-lg overflow-hidden">
+        <!-- Landscape Video -->
+        <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
+          <source src="{{ url_for('static', filename='img/demo_#30_contast_hr.webm') }}" type="video/webm">
+          Your browser does not support the video tag.
+        </video>
+        <!-- Portrait Video -->
+        <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
+          <source src="{{ url_for('static', filename='img/demo_#30_contast_vr.webm') }}" type="video/webm">
+          Your browser does not support the video tag.
+        </video>
       </div>
     </div>
   </div>
 </div>
-
 <div class="row feature-grid text-center mb-0">
   <div class="col-md-3 mb-3">
     <h3>Hexagonal arena</h3>
