@@ -171,7 +171,7 @@ class ssel {
         theme["canvas"]["info"],
     );
     this.line[1] = new llines();
-    this.line[0].set_piece("QRBN");
+    this.line[1].set_piece("QRBN");
     this.line[1].set(
         2463,
         1170,
@@ -213,6 +213,7 @@ class ssel {
     ctx0.save();
     ctx0.beginPath();
     ctx0.fillStyle = theme["canvas"]["background"];
+    ctx0.strokeStyle = theme["canvas"]["info"];
     this.set();
     for (let i = 0; i < 4; i++) {
       ctx0.rect(this.selx + i * this.ps, this.sely, this.ps, this.ps);
