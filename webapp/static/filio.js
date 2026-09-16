@@ -581,11 +581,11 @@ class iinfos {
       last_move = last_move.substr(0,2)+"-"+last_move.substr(2,2)
     }
     let cursor_coor = ""
-    if (B.gid_new>0) {
-      cursor_coor = B.hexs[B.gid_new].sc
-    }
+    //if (B.gid_new>=0) { todo remove
+    //  cursor_coor = B.hexs[B.gid_new].sc
+    //}
     this.panel[3].lines[4].set_text("Move: " + B.move_number_org.toString() + "/" + B.move_number.toString()+"  "+last_move)//+"-"+cursor_coor
-    if (B.gid_new>0){
+    if (B.gid_new>=0){
       this.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
     }
     //vote history
@@ -1212,7 +1212,7 @@ class board {
   }
   // move ---------------------------------------------
   moveValid() {
-    if (B.gid_new>0){
+    if (B.gid_new>=0){
       II.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
       II.panel[3].lines[3].clear_text()
       II.panel[3].lines[3].write()
