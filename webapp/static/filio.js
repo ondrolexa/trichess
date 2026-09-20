@@ -13,7 +13,7 @@ let canH = 0;
 const ctx0 = canvas0.getContext("2d");
 ctx0.lineCap = "round";
 const url = `${window.location.protocol}//${window.location.host}`;
-const bpiece_lineWidth = 0.2;
+const bpiece_lineWidth = 0.1;
 const epiece_lineWidth = 0.3;
 const lineWidth = 5  ;
 const lineStroke = 20;
@@ -1134,20 +1134,22 @@ class board {
       }
     }
   }
-  draw_pieces() {
+ draw_pieces() {
     // mark last & prelast move
     let hex_size = 0.93;
     let hex_lineWidth = lineWidth*1.7;
     let hex_color =  "";
+    let hex_color_pre =  "";
+    // show moves
+    if (this.pre_last_move_from != null && this.pre_last_move_from != -1) {
+      hex_color_pre =  theme["pieces"]["color"][(this.hexs[this.last_move_to].piece.player_id+2)%3 ]
+      this.hexs[this.pre_last_move_from].draw_hex(hex_lineWidth, hex_color_pre, hex_size);
+      this.hexs[this.pre_last_move_to].draw_hex(hex_lineWidth, hex_color_pre, hex_size);
+    }
     if (this.last_move_from != null && this.last_move_from != -1) {
       hex_color =  theme["pieces"]["color"][this.hexs[this.last_move_to].piece.player_id]
       this.hexs[this.last_move_from].draw_hex(hex_lineWidth, hex_color, hex_size);
       this.hexs[this.last_move_to].draw_hex(hex_lineWidth, hex_color, hex_size);
-    }
-    if (this.pre_last_move_from != null && this.pre_last_move_from != -1) {
-      hex_color =  theme["pieces"]["color"][this.hexs[this.pre_last_move_to].piece.player_id]
-      this.hexs[this.pre_last_move_from].draw_hex(hex_lineWidth, hex_color, hex_size);
-      this.hexs[this.pre_last_move_to].draw_hex(hex_lineWidth, hex_color, hex_size);
     }
     // draw piece
     for (let i = 0; i < 169; i++) {
@@ -1759,10 +1761,5 @@ const boardEvents = new EventSource(
 );
 boardEvents.onmessage = (event) => {
   const payload = JSON.parse(event.data);
-  if (payload.slog_length <= B.slog.length) {
-    return;
-  }
-  else {
-    Click_Refresh();
-  }
+  Click_Refresh();
   };
