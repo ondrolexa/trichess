@@ -1,8 +1,27 @@
 {% extends "base.html" %}
 
 {%block content%}
-<h2>Available games</h2>
-<p class="text-muted small">List of created games to join</p>
+<h2>New games</h2>
+<div class="card mt-3 mb-4">
+  <h5 class="card-header">Create a new game</h5>
+  <div class="card-body">
+    <form method="post" class="row row-cols-lg-auto g-2 align-items-center">
+      {{ form.hidden_tag() }}
+      <div class="col-12 d-flex flex-sm-row flex-column align-items-center gap-2">
+        <span>Choose seat for new game</span>
+        <!-- Flexbox container keeping form controls in a single row -->
+        <div class="d-flex align-items-center gap-2">
+          {{ form.seat(class="form-select w-auto") }}
+          {{ form.submit(class="btn btn-primary text-nowrap") }}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="d-flex flex-column flex-sm-row align-items-sm-baseline gap-2 mb-3">
+  <h2 class="mb-0">Available games</h2>
+  <p class="text-muted small mb-0">List of created games to join</p>
+</div>
 <div class="table-responsive">
   <table class="table table-hover table-sm align-middle">
   <thead>
@@ -79,19 +98,5 @@
     {% endfor %}
   </tbody>
   </table>
-</div>
-
-<div class="card mt-3">
-  <h5 class="card-header">Create a new game</h5>
-  <div class="card-body">
-    <form method="post" class="row row-cols-lg-auto g-2 align-items-center">
-      {{ form.hidden_tag() }}
-      <div class="col-12 d-flex flex-sm-row flex-column align-items-center gap-2">
-        <span>Choose seat for new game</span>
-        {{ form.seat(class="form-select w-auto") }}
-      </div>
-      <div class="col-12">{{ form.submit(class="btn btn-primary") }}</div>
-    </form>
-  </div>
 </div>
 {%endblock%}
