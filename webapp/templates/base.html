@@ -6,7 +6,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <!-- Loaded when system is in Light Mode -->
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon_light.ico') }}" media="(prefers-color-scheme: light)">
+    <!-- Loaded when system is in Dark Mode -->
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon_dark.ico') }}" media="(prefers-color-scheme: dark)">
     {{ bootstrap.load_css() }}
     <link rel="stylesheet" href="{{ url_for('static', filename='common.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
