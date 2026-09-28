@@ -18,8 +18,8 @@ board:
     - "#cc0000"
     - "#000000"
     - "#737373"
-  hex_inchess: "yellow"
-  hex_alpha: "a8"
+  hex_inchess: "#000dd0"
+  hex_alpha: "FF"
   hint_lines: "#ffffff"
   hex_border: "#000000"
 
