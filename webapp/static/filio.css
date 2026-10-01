@@ -2,15 +2,18 @@
     width: 100% !important;
     margin-top: 5px;
     margin-right: 5px;
+    box-sizing: border-box; /* Ensures margins/padding don't cause horizontal overflow */
 }
 .btnbig {
     width: 100% !important;
     margin-top: 5px;
     margin-right: 5px;
+    box-sizing: border-box;
 }
 .divbutt {
     margin-top: 5px;
     margin-bottom: 10px;
+    box-sizing: border-box;
 }
 @media (orientation: landscape) and (min-width: 850px) {
     .divbutt {
@@ -18,13 +21,14 @@
     }
     #canvas {
         width: 88%;
-        /*background: yellow;*/
+        /* background: yellow; */
     }
-    .btnbig {
-        height: 11% !important;
-    }
+
+    .btnbig,
     .btnwid {
-        height: 11% !important;
+        /* Replaced percentage height (which breaks in Safari without a parent height) */
+        /* with viewport height (vh) for predictable mobile/desktop rendering */
+        height: 11vh !important;
     }
 }
 @media (orientation: portrait) and (min-width: 350px) {
@@ -36,7 +40,7 @@
     }
     #canvas {
         width: 100%;
-        /*background: green*/
+        /* background: green; */
     }
     .btnbig {
         width: 150px !important;
@@ -49,11 +53,14 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
+    position: relative; /* Essential relative container for .modalwait positioning */
 }
 .modalwait {
     display: none; /* Hidden by default */
     position: absolute;
     top: 15%;
+    left: 0;  /* Prevents horizontal alignment shifts in iOS Safari */
+    right: 0; /* Ensures full width matching without triggering overflow */
     width: 100%;
     height: 100%;
     text-align: center;
@@ -66,7 +73,7 @@
         3px 0px 0 #000,
         0px -3px 0 #000,
         0px 3px 0 #000;
-    background-color: #fffffff8;
+    background-color: #ffffff;
     font-size: 60px;
     font-weight: bold;
 }

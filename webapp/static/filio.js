@@ -87,46 +87,18 @@ class fetchData {
   semaforwait_green() {
     SemaforWait = false;
     modal_wt.hide();
-  };
+  }
   fetchPOST(iurl, ijson, icallback) {
     const jsonData = JSON.stringify(ijson);
-    const z = this.headers;
+    let statusCode = null;
+
     fetch(iurl, {
       method: "POST",
       headers: this.headers,
       body: jsonData,
     })
       .then((response) => {
-        wait_msg(true);
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 422) {
-            window.alert("Token expired!");
-            location.reload();
-          return;
-          }
-          else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-        }
-        return response.json();
-      })
-      .then((data) => {
-        this.semaforwait_green();
-        icallback(data);
-      })
-      .catch((error) => {
-        this.semaforwait_green();
-        if (!(response.status === 401 || response.status === 422)) {
-          debug("fetchPOST:" + error + " url:" + iurl);
-        }
-      });
-  }
-  fetchGET(iurl, icallback) {
-    fetch(iurl, {
-      method: "GET",
-      headers: this.headers,
-    })
-      .then((response) => {
+        statusCode = response.status;
         wait_msg(true);
         if (!response.ok) {
           if (response.status === 401 || response.status === 422) {
@@ -140,13 +112,49 @@ class fetchData {
         return response.json();
       })
       .then((data) => {
-        this.semaforwait_green();
-        icallback(data);
+        // 1 second delay before processing data
+        //setTimeout(() => {
+          this.semaforwait_green();
+          icallback(data);
+        //}, 1000);
       })
       .catch((error) => {
-        //wait_msg(false)
         this.semaforwait_green();
-        if (!(response.status === 401 || response.status === 422)) {
+        if (statusCode !== 401 && statusCode !== 422) {
+          debug("fetchPOST:" + error + " url:" + iurl);
+        }
+      });
+  }
+  fetchGET(iurl, icallback) {
+    let statusCode = null;
+    fetch(iurl, {
+      method: "GET",
+      headers: this.headers,
+    })
+      .then((response) => {
+        statusCode = response.status;
+        wait_msg(true);
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 422) {
+            window.alert("Token expired!");
+            location.reload();
+            return;
+          } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+        }
+        return response.json();
+      })
+      .then((data) => {
+        // 1 second delay before processing data
+        //setTimeout(() => {
+          this.semaforwait_green();
+          icallback(data);
+        //}, 1000);
+      })
+      .catch((error) => {
+        this.semaforwait_green();
+        if (statusCode !== 401 && statusCode !== 422) {
           debug("fetchGET:" + error + " url:" + iurl);
         }
       });
@@ -1762,4 +1770,4 @@ const boardEvents = new EventSource(
 boardEvents.onmessage = (event) => {
   const payload = JSON.parse(event.data);
   Click_Refresh();
-  };
+};
