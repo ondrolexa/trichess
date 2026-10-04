@@ -62,3 +62,23 @@ body {
     display: block !important;
   }
 }
+
+.landscape-logo {
+  display: block !important;
+    width: 24.2%;
+}
+.portrait-logo {
+  display: none !important;
+  width: 35%
+}
+
+/* Mobile state (Screens < 768px): Hide landscape, show portrait */
+@media (max-width: 767.98px) {
+    .landscape-logo {
+        display: none !important;
+    }
+
+    .portrait-logo {
+        display: block !important;
+    }
+}
