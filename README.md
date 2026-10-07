@@ -10,7 +10,7 @@ A web application for 3-player chess on hexagonal board. Proof of concept
 - **Frontend**: Konva.js (canvas), Bootstrap 5, vanilla JavaScript
 - **Database**: SQLite
 
-## :hammer_and_wrench: How to install
+## How to install
 
 Create a virtual environment and install app. Go ahead and open a terminal window. Then navigate to your
 trichess project’s root folder. Once you’re in there, run the following commands to create a fresh environment:
@@ -44,7 +44,7 @@ For developemenmt setup, use:
 pip install -r requirements-dev.txt
 ```
 
-## :running: Running the application
+## Running the application
 
 ```bash
 flask --app=webapp run
@@ -52,7 +52,7 @@ flask --app=webapp run
 
 The application will be available at `http://localhost:5000`.
 
-## :factory: For developers
+## For developers
 
 The application uses environment variables for configuration, loaded from a `.env` file via `python-dotenv`.
 
@@ -76,12 +76,12 @@ The application uses environment variables for configuration, loaded from a `.en
 - Set `DEBUG=false` in production.
 - Restrict `API_TOKEN_USERS` to trusted accounts — it gates direct API access, not browser gameplay (every logged-in player still gets their own token server-side for the board UI).
 
-## :rocket: Running the application
+## Running the application
 ```bash
 flask --app=webapp --debug run
 ```
 
-## :airplane: Database Migrations
+## Database Migrations
 
 The application uses Flask-Migrate for database version control.
 
