@@ -15,6 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Oxanium:wght@200..800&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    {% include '_analytics.html' %}
     {% block styles %}{% endblock %}
     <title>TRICHESS</title>
   </head>
@@ -71,6 +72,7 @@
     <footer class="footer bg-body-secondary" id="baseFooter">
       <div class="container text-center">
         <span class="text-secondary">© 2025 Trichess - Ondro & Filio v{{ version }}</span>
+        {% if ga_config %}<span class="text-secondary"> · </span><a href="#" id="cookieSettings" class="link-secondary">Cookie settings</a>{% endif %}
       </div>
     </footer>
     {{ bootstrap.load_js() }}

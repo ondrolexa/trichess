@@ -62,6 +62,10 @@
     <button class="nav-link" id="howto-tab" data-bs-toggle="tab" data-bs-target="#howto" type="button" role="tab"
       aria-controls="howto" aria-selected="false">How to play</button>
   </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="privacy-tab" data-bs-toggle="tab" data-bs-target="#privacy" type="button" role="tab"
+      aria-controls="privacy" aria-selected="false">Privacy</button>
+  </li>
   {% if current_user.id == 1 %}
   <li class="nav-item" role="presentation">
     <button class="nav-link" id="dev-tab" data-bs-toggle="tab" data-bs-target="#dev" type="button" role="tab"
@@ -1307,5 +1311,37 @@
     </div>
   </div>
   {% endif %}
+
+  <div class="tab-pane fade" id="privacy" role="tabpanel" aria-labelledby="privacy-tab">
+    <div class="card">
+      <div class="card-body prose">
+        <h2>Privacy &amp; Cookies</h2>
+        <h3>What we store to run the game</h3>
+        <p>Your account (username, email, hashed password, preferences), your games and ratings, and a server log of
+          game events. A session cookie keeps you logged in. These are required for Trichess to work.</p>
+        <h3>Analytics (optional)</h3>
+        <p>With your consent, we use <strong>Google Analytics</strong> to see how visitors find and use the site —
+          which pages are visited, and account/lobby actions such as signing up, logging in, or creating and joining
+          games. It is <strong>never</strong> loaded before you click <em>Accept</em>.</p>
+        <ul>
+          <li>No usernames or email addresses are sent; logged-in visitors are identified only by an anonymous,
+            one-way hashed id.</li>
+          <li>Moves and in-game actions are not sent to Google.</li>
+          <li>Advertising features and Google signals are turned off.</li>
+          <li>Password-reset and verification links are masked before anything is sent.</li>
+        </ul>
+        <p>You can change your choice at any time via <strong>Cookie settings</strong> in the page footer.
+          Rejecting after accepting removes the Google Analytics cookies from your browser.</p>
+      </div>
+    </div>
+  </div>
 </div>
 {%endblock%}
+
+{% block scripts %}
+<script>
+  // Open the tab named in the URL hash, e.g. /help#privacy.
+  const hashTab = location.hash && document.getElementById(location.hash.slice(1) + "-tab");
+  if (hashTab) bootstrap.Tab.getOrCreateInstance(hashTab).show();
+</script>
+{% endblock %}

@@ -10,6 +10,8 @@ flask --app=webapp db upgrade
 Rerun flask --app=webapp db upgrade with production database
 """
 
+import hashlib
+import hmac
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -18,7 +20,7 @@ from zoneinfo import ZoneInfo
 import yaml
 from flask import abort, flash, g, jsonify, redirect
 from flask import render_template as real_render_template
-from flask import request, url_for
+from flask import request, session, url_for
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -67,6 +69,49 @@ def _jinja2_filter_timedelta(date):
     return str(now - native) + " ago"
 
 
+def track_event(name, **params):
+    """Queue a GA4 event to be emitted by the next rendered page.
+
+    Account/lobby actions all end in a redirect, so the event rides the
+    session to the page that follows and is sent from the browser — under
+    the visitor's own consent state, no server-side Measurement Protocol
+    needed. Gameplay is deliberately not tracked here (it's in the Log
+    table). Only non-identifying params belong in **params.
+    """
+    if not app.config["GA_MEASUREMENT_ID"]:
+        return
+    events = session.get("ga_events", [])
+    events.append({"name": name, "params": params})
+    session["ga_events"] = events[-10:]
+
+
+def _ga_config():
+    """Per-page GA4 settings for _analytics.html, or None to omit the tag."""
+    events = session.pop("ga_events", [])
+    if not app.config["GA_MEASUREMENT_ID"] or app.debug:
+        return None
+    authenticated = g.user is not None and g.user.is_authenticated
+    if authenticated and g.user.is_admin:
+        return None
+    config = {
+        "id": app.config["GA_MEASUREMENT_ID"],
+        "content_group": request.endpoint or "",
+        "user_id": None,
+        "user_properties": {"logged_in": "yes" if authenticated else "no"},
+        "events": events,
+    }
+    if authenticated:
+        # Opaque, stable per-user id: never the username/email or raw db id.
+        config["user_id"] = hmac.new(
+            app.config["SECRET_KEY"].encode(),
+            f"ga-user-{g.user.id}".encode(),
+            hashlib.sha256,
+        ).hexdigest()[:32]
+        config["user_properties"]["board_renderer"] = g.user.board or ""
+        config["user_properties"]["ui_theme"] = g.user.theme or ""
+    return config
+
+
 def render_template(*args, **kwargs):
     navailable = TriBoard.query.filter_by(status=0).count()
     base_dir = os.path.abspath(os.path.dirname(__file__))
@@ -96,7 +141,12 @@ def render_template(*args, **kwargs):
         kwargs["board"] = False
 
     return real_render_template(
-        *args, **kwargs, navailable=navailable, theme=theme, version=webapp_version
+        *args,
+        **kwargs,
+        navailable=navailable,
+        theme=theme,
+        version=webapp_version,
+        ga_config=_ga_config(),
     )
 
 
@@ -306,6 +356,10 @@ def available_games():
                         board.id,
                     )
             db.session.commit()
+            if fill_bot in ("0", "1", "2"):
+                track_event("bot_seat_added", seat=int(fill_bot))
+            elif fill_bot is None and seat in ("0", "1", "2"):
+                track_event("game_join", seat=int(seat))
             if board.status == 1:
                 maybe_trigger_bot(board.id)
             return redirect(url_for("available_games"))
@@ -341,6 +395,7 @@ def available_games():
                     "board_id": board.id,
                 },
             )
+            track_event("game_create")
             flash("Game created successfuly!", "success")
             return redirect(url_for("available_games"))
 
@@ -402,9 +457,11 @@ def profile():
                 "info",
             )
 
-        g.user.theme = form_profile.theme.data
-        g.user.board = form_profile.board.data
-        g.user.pieces = form_profile.pieces.data
+        for field in ("theme", "board", "pieces"):
+            value = getattr(form_profile, field).data
+            if getattr(g.user, field) != value:
+                track_event("profile_pref_change", field=field, pref_value=value)
+                setattr(g.user, field, value)
         db.session.commit()
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active_games"))
@@ -589,6 +646,7 @@ def login():
                 login_user(user)
                 user.last_login = datetime.now(timezone.utc)
                 db.session.commit()
+                track_event("login", method="password")
                 flash("Login successful!", "success")
                 if user.is_admin:
                     return redirect(url_for("index"))
@@ -718,6 +776,7 @@ def register():
         )
         db.session.add(new_user)
         db.session.commit()
+        track_event("sign_up", method="email")
         if send_verification_email(new_user):
             flash(
                 "Registration successful! Check your email for the verification link.",
@@ -767,6 +826,7 @@ def verify(token):
         user.active = True
         user.email_verified = True
         db.session.commit()
+        track_event("email_verified")
         flash("Email verified! You can now log in.", "success")
     return redirect(url_for("login"))
 

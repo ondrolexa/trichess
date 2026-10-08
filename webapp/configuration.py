@@ -49,6 +49,9 @@ class Config(object):
     # hardcoded default — unset means nobody can mint a token until this is
     # configured in .env.
     API_TOKEN_USERS = os.environ.get("API_TOKEN_USERS", "")
+    # Google Analytics 4 measurement ID (e.g. "G-XXXXXXXXXX"). Empty disables
+    # the tag entirely; it is also never rendered in debug mode or for admin.
+    GA_MEASUREMENT_ID = os.environ.get("GA_MEASUREMENT_ID", "")
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
     MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"

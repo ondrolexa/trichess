@@ -279,3 +279,72 @@ class Test_Registration_Username_Validation:
         user = User.query.filter_by(email="good@example.com").first()
         assert user is not None
         assert user.username == "good_user-1"
+
+
+class Test_Google_Analytics:
+    GA_ID = "G-TEST123"
+
+    def _enable(self, app, monkeypatch):
+        monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", self.GA_ID)
+        monkeypatch.setitem(app.config, "DEBUG", False)
+
+    def test_tag_absent_when_unconfigured(self, app, client, monkeypatch):
+        monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", "")
+        monkeypatch.setitem(app.config, "DEBUG", False)
+        html = client.get("/help").get_data(as_text=True)
+        assert "TRICHESS_GA" not in html
+        assert "cookieSettings" not in html
+
+    def test_tag_absent_in_debug_mode(self, app, client, monkeypatch):
+        monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", self.GA_ID)
+        html = client.get("/help").get_data(as_text=True)
+        assert "TRICHESS_GA" not in html
+
+    def test_tag_rendered_when_configured(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        html = client.get("/help").get_data(as_text=True)
+        assert self.GA_ID in html
+        assert '"content_group": "help"' in html
+        assert "analytics.js" in html
+        assert "cookieSettings" in html
+
+    def test_tag_absent_for_admin(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        _login_as_admin(client)
+        html = client.get("/help").get_data(as_text=True)
+        assert "TRICHESS_GA" not in html
+
+    def test_user_id_is_hashed_not_identifying(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        user = _create_user()
+        _login(client)
+        html = client.get("/help").get_data(as_text=True)
+        match = re.search(r'"user_id": "([0-9a-f]{32})"', html)
+        assert match is not None
+        assert user.username not in match.group(1)
+        assert user.email not in html
+
+    def test_login_event_emitted_once_on_next_page(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        _create_user()
+        _login(client)
+        first = client.get("/help").get_data(as_text=True)
+        assert '"name": "login"' in first
+        second = client.get("/help").get_data(as_text=True)
+        assert '"name": "login"' not in second
+
+    def test_game_create_event_queued(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        _create_user()
+        _login(client)
+        client.get("/help")  # drain the login event
+        client.post("/join", data={"seat": "Seat 1"})
+        html = client.get("/help").get_data(as_text=True)
+        assert '"name": "game_create"' in html
+
+    def test_no_events_queued_when_unconfigured(self, app, client, monkeypatch):
+        monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", "")
+        _create_user()
+        _login(client)
+        with client.session_transaction() as sess:
+            assert "ga_events" not in sess
