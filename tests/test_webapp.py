@@ -348,3 +348,39 @@ class Test_Google_Analytics:
         _login(client)
         with client.session_transaction() as sess:
             assert "ga_events" not in sess
+
+
+class Test_Password_Reset_Token_Single_Use:
+    def test_token_stops_working_after_password_change(self, app, client):
+        from webapp.token import generate_password_reset_token
+
+        user = _create_user("alice")
+        with app.test_request_context():
+            token = generate_password_reset_token(user)
+        assert client.get(f"/reset/{token}").status_code == 200
+
+        resp = client.post(
+            f"/reset/{token}",
+            data={"password": "newpassword123", "confirm": "newpassword123"},
+        )
+        assert resp.status_code == 302
+        assert "/login" in resp.headers["Location"]
+
+        resp = client.get(f"/reset/{token}")
+        assert resp.status_code == 302
+        assert "/forgot" in resp.headers["Location"]
+
+
+class Test_Secret_Keys_Fail_Closed:
+    def test_missing_secret_raises_outside_debug(self, monkeypatch):
+        import pytest
+
+        from webapp.configuration import _secret
+
+        monkeypatch.delenv("FLASK_SECRET_KEY", raising=False)
+        monkeypatch.delenv("DEBUG", raising=False)
+        monkeypatch.delenv("FLASK_DEBUG", raising=False)
+        with pytest.raises(RuntimeError):
+            _secret("FLASK_SECRET_KEY")
+        monkeypatch.setenv("DEBUG", "true")
+        assert _secret("FLASK_SECRET_KEY")

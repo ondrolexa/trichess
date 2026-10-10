@@ -205,3 +205,81 @@ class TestGameBoardEndgamePersistence:
         assert all(s.tag == "S" for s in scores)
         assert all(s.score == 2.0 / 3 for s in scores)
         assert any("ended in a stalemate" in c[1] for c in calls)
+
+
+class TestGameBoardPostValidation:
+    """POST /manager/board must accept only one legal step past the stored
+    slog — replaying a slog applies moves without any legality check."""
+
+    def _setup(self, app, slog=""):
+        alice = _create_user("alice")
+        bob = _create_user("bob")
+        carol = _create_user("carol")
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, slog=slog)
+        return tb
+
+    def _post(self, app, client, tb, username, slog):
+        token = _login(app, username)
+        return client.post(
+            "/api/v1/manager/board",
+            json={"id": tb.id, "slog": slog},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    def _stored(self, tb):
+        db.session.refresh(tb)
+        return tb.slog
+
+    def test_legal_move_is_accepted(self, app, client):
+        tb = self._setup(app)
+        ga = GameAPI(view_pid=0)
+        ga.make_move(166, ga.valid_moves(166)[0]["tgid"])
+        assert self._post(app, client, tb, "alice", ga.slog).status_code == 200
+        assert self._stored(tb) == ga.slog
+
+    def test_illegal_target_is_rejected(self, app, client):
+        tb = self._setup(app)
+        ga = GameAPI(view_pid=0)
+        legal = {m["tgid"] for m in ga.valid_moves(166)}
+        target = next(
+            gid for gid, hex in ga.gid2hex.items() if gid not in legal and gid != 166
+        )
+        slog = ga.move2slog(ga.gid2hex[166].pos, ga.gid2hex[target].pos, "")
+        assert self._post(app, client, tb, "alice", slog).status_code != 200
+        assert self._stored(tb) == ""
+
+    def test_moving_an_opponents_piece_is_rejected(self, app, client):
+        tb = self._setup(app)
+        ga = GameAPI(view_pid=0)
+        # gid 17 is player 1's knight; move it as if player 1 were on move.
+        other = GameAPI(view_pid=0)
+        other.move_number = 1
+        tgid = other.valid_moves(17)[0]["tgid"]
+        slog = ga.move2slog(ga.gid2hex[17].pos, ga.gid2hex[tgid].pos, "")
+        assert self._post(app, client, tb, "alice", slog).status_code != 200
+        assert self._stored(tb) == ""
+
+    def test_fabricated_history_with_vote_is_rejected(self, app, client):
+        tb = self._setup(app)
+        ga = GameAPI(view_pid=0)
+        ga.make_move(166, ga.valid_moves(166)[0]["tgid"])
+        ga.make_move(17, ga.valid_moves(17)[0]["tgid"])
+        ga.make_move(26, ga.valid_moves(26)[0]["tgid"])
+        # Three moves nobody played, followed by alice's resign vote.
+        forged = ga.resignation_vote(True)
+        assert self._post(app, client, tb, "alice", forged).status_code != 200
+        assert self._stored(tb) == ""
+
+    def test_votes_round_trip(self, app, client):
+        tb = self._setup(app)
+        for username in ("alice", "bob", "carol"):
+            slog = get_game(0, self._stored(tb)).draw_vote(False)
+            assert self._post(app, client, tb, username, slog).status_code == 200
+        ga = get_game(0, self._stored(tb))
+        assert ga.voting.finished() and not ga.draw()
+
+    def test_out_of_turn_post_is_rejected(self, app, client):
+        tb = self._setup(app)
+        ga = GameAPI(view_pid=0)
+        ga.make_move(166, ga.valid_moves(166)[0]["tgid"])
+        assert self._post(app, client, tb, "bob", ga.slog).status_code != 200

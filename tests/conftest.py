@@ -11,6 +11,9 @@ import os
 # test run against the `app`/`client` fixtures was silently creating and
 # dropping tables against the real instance/trichess.db.
 os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+# webapp.configuration refuses to start without signing keys outside debug.
+os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key-not-for-production-use")
+os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-key-not-for-production-use")
 
 import fakeredis
 import pytest

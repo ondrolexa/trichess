@@ -15,6 +15,13 @@ from engine.pieces import Pawn
 # looks completely safe, since that opponent's turn is never simulated at all.
 MIN_SOUND_DEPTH = 3
 
+# _terminal_score() returns the real outcome share (0.0-2.0), but
+# evaluate_for_pid() is material-scale (typically tens of points). Mixing the
+# two at the same tree level made a checkmate (2.0) look worse than any
+# ordinary move (~50), so the search is fed _terminal_value() instead, which
+# rescales the share far beyond any reachable evaluation.
+WIN_VALUE = 10_000.0
+
 
 def _terminal_score(ga: GameAPI, pid: int) -> float:
     """Return game-over score for *pid*, matching server-side compute_outcome_scores.
@@ -43,6 +50,21 @@ def _terminal_score(ga: GameAPI, pid: int) -> float:
             return tot[pid] * 2.0 / total
         return 0.0
     return 2.0 / 3
+
+
+def _terminal_value(ga: GameAPI, pid: int, depth_left: int) -> float:
+    """Search-scale value of a finished node for *pid*.
+
+    The outcome share is centred on the draw share (2/3 -> 0) and scaled by
+    WIN_VALUE, so a win dominates and a loss is worse than any evaluation.
+    *depth_left* breaks ties: quicker wins and slower losses score higher.
+    """
+    value = (_terminal_score(ga, pid) - 2.0 / 3) * WIN_VALUE
+    if value > 0:
+        return value + depth_left
+    if value < 0:
+        return value - depth_left
+    return value
 
 
 def _all_moves(ga: GameAPI):
@@ -131,7 +153,7 @@ def _minimax(
     ga: GameAPI, depth: int, alpha: float, beta: float, pid: int, history: dict
 ) -> float:
     if not ga.move_possible():
-        return _terminal_score(ga, pid)
+        return _terminal_value(ga, pid, depth)
     if depth == 0:
         return evaluate_for_pid(ga, pid)
 
@@ -253,17 +275,13 @@ def _vote_slog(ga: GameAPI, vote: bool) -> str:
 def _resolve_vote(ga: GameAPI, pid: int, depth: int) -> float:
     """Value of a state reached right after someone just cast a vote.
 
-    Note: evaluate_for_pid()'s raw score is not on the same scale as
-    _terminal_score()'s 0.0-2.0 range (it's roughly material-scale, e.g.
-    tens of points), so this "mixed outcome" branch tends to bias toward
-    declining any vote unless the position is clearly bad. This mirrors an
-    existing characteristic of _minimax()/choose_move(), which already
-    mixes evaluate_for_pid()-scored and _terminal_score()-scored branches
-    at the same tree level — not a new problem introduced here.
+    Uses _terminal_value() for an ended game, so a vote outcome compares on
+    the same scale as evaluate_for_pid() for play that resumes: a draw (0)
+    is accepted only when the position evaluates as worse than that.
     """
     if ga.voting.finished():
         if ga.resignation() or ga.draw():
-            return _terminal_score(ga, pid)
+            return _terminal_value(ga, pid, 0)
         # All 3 voted but the vote didn't end the game — play resumes.
         return evaluate_for_pid(ga, pid)
 

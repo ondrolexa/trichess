@@ -6,6 +6,21 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, "..", ".env"))
 
 
+def _secret(name):
+    """Signing key from env. Outside debug mode a missing key is fatal: a
+    shared fallback string would let anyone forge session cookies (admin is
+    user id 1), JWTs and password-reset tokens."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    debug = os.environ.get("DEBUG", "false").lower() == "true" or os.environ.get(
+        "FLASK_DEBUG", ""
+    ).lower() in ("1", "true")
+    if not debug:
+        raise RuntimeError(f"{name} must be set (see README) unless DEBUG=true")
+    return "dev-only-insecure-key"
+
+
 class Config(object):
     """
     Configuration base, for all environments.
@@ -27,12 +42,8 @@ class Config(object):
         "SQLALCHEMY_DATABASE_URI", "sqlite:///trichess.db"
     )
     BOOTSTRAP_FONTAWESOME = True
-    SECRET_KEY = os.environ.get(
-        "FLASK_SECRET_KEY", "dev-fallback-change-me-in-production"
-    )
-    JWT_SECRET_KEY = os.environ.get(
-        "JWT_SECRET_KEY", "dev-fallback-change-me-in-production"
-    )
+    SECRET_KEY = _secret("FLASK_SECRET_KEY")
+    JWT_SECRET_KEY = _secret("JWT_SECRET_KEY")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PROPAGATE_EXCEPTIONS = True
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")

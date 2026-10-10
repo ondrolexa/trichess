@@ -60,8 +60,8 @@ The application uses environment variables for configuration, loaded from a `.en
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `FLASK_SECRET_KEY` | Secret key for Flask sessions and CSRF protection | `dev-fallback-change-me-in-production` |
-| `JWT_SECRET_KEY` | Secret key for JWT token signing | `dev-fallback-change-me-in-production` |
+| `FLASK_SECRET_KEY` | Secret key for Flask sessions and CSRF protection (required unless `DEBUG=true`) | — |
+| `JWT_SECRET_KEY` | Secret key for JWT token signing (required unless `DEBUG=true`) | — |
 | `CORS_ORIGINS` | Comma-separated list of allowed CORS origins | `http://localhost:5000` |
 | `DEBUG` | Enable Flask debug mode | `false` |
 | `REDIS_URL` | Redis connection URL for the bot's background move queue (RQ) | `redis://localhost:6379/0` |

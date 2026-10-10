@@ -275,6 +275,45 @@ def _seat_map(tb):
     }
 
 
+def _accept_posted_slog(ga1, posted, poster_pid):
+    """Canonical new slog if *posted* is exactly one legal step after *ga1*
+    by *poster_pid*, else None.
+
+    Replaying a slog applies moves without any legality check, so the posted
+    slog is never trusted as-is: a vote must equal what the server itself
+    generates for the open vote, and a move must be a single appended chunk
+    that valid_moves() allows.
+    """
+    if ga1.on_move != poster_pid:
+        return None
+    if ga1.voting.needed():
+        makers = [
+            ga1.resignation_vote if ga1.voting.kind == "resign" else ga1.draw_vote
+        ]
+    else:
+        makers = [ga1.resignation_vote, ga1.draw_vote]
+    for make in makers:
+        for vote in (True, False):
+            if posted == make(vote):
+                return get_game(0, posted).slog
+    if (
+        ga1.voting.needed()
+        or len(posted) != len(ga1.slog) + 4
+        or not posted.startswith(ga1.slog)
+    ):
+        return None
+    try:
+        from_pos, to_pos, label = ga1.slog2pos(*posted[-4:])
+        from_gid = ga1.pos2gid[from_pos]
+        to_gid = ga1.pos2gid[to_pos]
+    except KeyError, ValueError:
+        return None
+    move = next((m for m in ga1.valid_moves(from_gid) if m["tgid"] == to_gid), None)
+    if move is None or bool(label) != bool(move["promotion"]):
+        return None
+    return ga1.slog + ga1.move2slog(from_pos, to_pos, label)
+
+
 def _board_summary(tb, username):
     """Dict shape shared by ActiveGames.get()'s "own"/"joined" lists."""
     ga = get_game(0, tb.slog)
@@ -974,19 +1013,16 @@ class GameBoard(Resource):
             if tb:
                 try:
                     ga1 = get_game(0, tb.slog)
-                    ga2 = get_game(0, state.slog)
                     pid = _seat_map(tb)
+                    new_slog = _accept_posted_slog(ga1, state.slog, pid[username])
                     players = {
                         0: tb.player_0,
                         1: tb.player_1,
                         2: tb.player_2,
                     }
                     board_has_bot, notify_players = _bot_notification_flags(players)
-                    poster = ga1.on_move == pid[username]
-                    voting = ga1.voting.active() or ga2.voting.active()
-                    oneadded = ga2.move_number - ga1.move_number == 1
-                    same = ga2.slog.startswith(ga1.slog)
-                    if poster and ((oneadded and same) or voting):
+                    if new_slog is not None:
+                        ga2 = get_game(0, new_slog)
                         tb.slog = ga2.slog
                         user = User.query.filter_by(
                             username=players[ga2.on_move].username

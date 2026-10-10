@@ -28,3 +28,7 @@ dev = [
     "isort>=8.0.1",
     "fakeredis>=2.26.0",
 ]
+
+[tool.black]
+line-length = 88
+target-version = ["py314"]

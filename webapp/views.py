@@ -49,7 +49,11 @@ from webapp.main import GAME
 from webapp.main import __version__ as webapp_version
 from webapp.main import app, csrf, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
-from webapp.token import verify_password_reset_token, verify_verification_token
+from webapp.token import (
+    password_fingerprint,
+    verify_password_reset_token,
+    verify_verification_token,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -681,13 +685,11 @@ def forgot():
 
 @app.route("/reset/<token>", methods=["GET", "POST"])
 def reset(token):
-    user_id = verify_password_reset_token(token)
-    if user_id is None:
+    payload = verify_password_reset_token(token)
+    user = db.session.get(User, payload[0]) if payload is not None else None
+    # A token is single-use: it carries the password fingerprint at issue time.
+    if user is None or password_fingerprint(user) != payload[1]:
         flash("Invalid or expired reset link. Please request a new one.", "danger")
-        return redirect(url_for("forgot"))
-    user = db.session.get(User, user_id)
-    if user is None:
-        flash("User not found.", "danger")
         return redirect(url_for("forgot"))
     form = ResetPasswordForm()
     if form.validate_on_submit():

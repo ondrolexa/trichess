@@ -1,7 +1,13 @@
 import time
 
 from engine import GameAPI, choose_move, choose_vote, evaluate, get_game
-from engine.bot import MIN_SOUND_DEPTH, _has_piece_under_attack, _terminal_score
+from engine.bot import (
+    MIN_SOUND_DEPTH,
+    WIN_VALUE,
+    _has_piece_under_attack,
+    _terminal_score,
+    _terminal_value,
+)
 from engine.eval import evaluate_for_pid
 
 # A real reported position (8 plies in, still within the opening book's
@@ -205,6 +211,29 @@ class TestTerminalScore:
             assert _terminal_score(ga, pid) == 2.0 / 3
 
 
+class TestTerminalValue:
+    def test_win_and_loss_dominate_any_evaluation(self):
+        base = get_game(0, NO_VOTE_SLOG)
+        s1 = base.resignation_vote(True)
+        s2 = get_game(0, s1).resignation_vote(False)
+        s3 = get_game(0, s2).resignation_vote(True)
+        ga = get_game(0, s3)
+        assert _terminal_value(ga, 2, 0) > WIN_VALUE
+        assert _terminal_value(ga, 0, 0) < -WIN_VALUE / 2
+        # quicker win (more depth left) beats a slower one, and vice versa
+        assert _terminal_value(ga, 2, 2) > _terminal_value(ga, 2, 0)
+        assert _terminal_value(ga, 0, 2) < _terminal_value(ga, 0, 0)
+
+    def test_draw_is_zero(self):
+        base = get_game(0, NO_VOTE_SLOG)
+        s1 = base.draw_vote(True)
+        s2 = get_game(0, s1).draw_vote(True)
+        s3 = get_game(0, s2).draw_vote(True)
+        ga = get_game(0, s3)
+        for pid in range(3):
+            assert _terminal_value(ga, pid, 2) == 0.0
+
+
 class TestChooseVote:
     def test_returns_none_when_no_vote_is_active(self, game):
         assert not game.voting.needed()
@@ -250,3 +279,24 @@ class TestChooseVote:
         choose_vote(ga)
         elapsed = time.perf_counter() - start
         assert elapsed < 5, f"choose_vote() took {elapsed:.2f}s"
+
+
+# Reported game: player 1 has mate in one (gid 57 -> 140) but the bot used to
+# prefer an ordinary capture, since checkmate scored 2.0 against evals ~50.
+MATE_IN_ONE_SLOG = (
+    "BNDLHBIBOCLEDNEMFDHDNFMFINIMCFFEOFMEANBMBHBIMEJGBOJKDFEFOGKCFNFMIBJBNHLHGNGLJB"
+    "KCOBKDGOIKFEICOHNHEOGNHAHBNEJAAOAJHBJBJALCENFLDEDKODNEFLNHICFEOEOCHONIAHEHOCOB"
+    "NHBNEHHHJGMEBNLIGBNINGMGLIFLHHEHMEKHAJEJBGEJODOFGNHONIKFLHKIJKKIEJBGOFFOHOFOBGC"
+    "HKDCHFOMHAICHNCMCMHKFJBJCLCMDIMJLEHDINDMEKFMHJCLAMCLCKIELDKHGKHNFIKKJHGHMNFKGDO"
+    "DNHMGNKGMHDNDMHDIDLEJDELMHLAJCMGLHJLKKDIHILHKJCOELGNKJNBLBGLGKHIHBOBNDKKLJJCJBN"
+    "ELFELHKKJBJNDOEHKKIHBHMLFLHKIILEEICLHKHFLEKICEEKHKGILFNHMHHMDIFHNJLBJJJOENDFMFL"
+    "JJNBNDOEFNHKNBOBOENGDMENOBNDNGMIHKIHHHGIMILHLJMINDJDLHMHIHHKGIGHMHMIHKJHJDEIIFL"
+    "IJHLIJBJJKGKKENDNJJFNKKKEDNDOFNHLKEJFLIKLEIJIMILJDODNJIJFLJKLEKCO"
+)
+
+
+def test_bot_plays_mate_in_one():
+    ga = get_game(0, MATE_IN_ONE_SLOG)
+    assert ga.on_move == 1
+    from_gid, m, _ = choose_move(ga)
+    assert (from_gid, m["tgid"]) == (57, 140)

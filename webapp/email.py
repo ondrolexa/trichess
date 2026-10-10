@@ -44,7 +44,7 @@ def send_verification_email(user):
 
 
 def send_password_reset_email(user):
-    token = generate_password_reset_token(user.id)
+    token = generate_password_reset_token(user)
     reset_url = url_for("reset", token=token, _external=True)
     subject = "Trichess password reset"
     body = (
