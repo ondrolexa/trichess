@@ -18,9 +18,8 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import yaml
-from flask import abort, flash, g, jsonify, redirect
+from flask import abort, flash, g, jsonify, redirect, request, session, url_for
 from flask import render_template as real_render_template
-from flask import request, session, url_for
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
@@ -45,9 +44,8 @@ from webapp.forms import (
     RegistrationForm,
     ResetPasswordForm,
 )
-from webapp.main import GAME
+from webapp.main import GAME, app, csrf, db, jwt, lm, post_notification
 from webapp.main import __version__ as webapp_version
-from webapp.main import app, csrf, db, jwt, lm, post_notification
 from webapp.models import Score, TriBoard, User
 from webapp.token import (
     password_fingerprint,

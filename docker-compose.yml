@@ -22,6 +22,42 @@ services:
     networks:
       - backend
 
+  trichess-sse:
+    build: .
+    image: ondrolexa/trichess
+    container_name: trichess-sse
+    # Board live updates (SSE) only — see sse/app.py. One process holds
+    # thousands of idle streams as coroutines on a single Redis pattern
+    # subscription; every other path stays on gunicorn in `trichess`.
+    command: uvicorn sse.app:app --host 0.0.0.0 --port 8090 --proxy-headers --forwarded-allow-ips=*
+    env_file: ".env"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SSE_DB_PATH=/code/instance/trichess.db
+    restart: unless-stopped
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # Read-only queries, but not mounted :ro — reading a WAL-mode SQLite
+    # database still needs write access to its -shm file.
+    volumes:
+      - '${PWD}/instance:/code/instance'
+    depends_on:
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.trichess-sse.entrypoints=https"
+      - "traefik.http.routers.trichess-sse.rule=Host(`test-trichess.mykuna.eu`) && Path(`/api/v1/manager/board/events`)"
+      - "traefik.http.routers.trichess-sse.priority=100"
+      - "traefik.http.routers.trichess-sse.tls=true"
+      - "traefik.http.routers.trichess-sse.tls.certresolver=http"
+      - "traefik.http.services.trichess-sse.loadbalancer.server.port=8090"
+      - "traefik.http.routers.trichess-sse.service=trichess-sse"
+    networks:
+      - backend
+
   trichess-worker:
     build: .
     image: ondrolexa/trichess
@@ -36,6 +72,11 @@ services:
     # --url requires an argument"). environment: already hardcodes the same
     # literal, so there was no real single-source-of-truth win to begin with.
     command: rq worker notifications bot --url redis://redis:6379/0
+    # A single rq worker runs one job at a time in one Python process, so it
+    # never uses more than ~1 core. Capping it at 90% of that core leaves
+    # headroom so a long bot search can't fully starve gunicorn/SSE/redis on
+    # a small host.
+    cpus: "0.9"
     env_file: ".env"
     environment:
       - REDIS_URL=redis://redis:6379/0

@@ -1667,9 +1667,10 @@ boardInfo();
 // visibly appears on both its old and new hex). boardReset() destroys the
 // stale shapes first, exactly like every other post-initial-load refresh
 // (boardSubmit(), forwardMove(), etc.) already does.
+// Served by the standalone async service in sse/app.py (SSE_URL in dev).
 const rawToken = access_token.replace(/^Bearer\s+/, "");
 const boardEvents = new EventSource(
-  `${API_URL}/api/v1/manager/board/events?id=${id}&jwt=${encodeURIComponent(rawToken)}`,
+  `${SSE_URL || API_URL}/api/v1/manager/board/events?id=${id}&jwt=${encodeURIComponent(rawToken)}`,
 );
 boardEvents.onmessage = (event) => {
   // slog_length (chars, 4 per persisted move/vote) is a monotonically

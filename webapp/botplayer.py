@@ -73,7 +73,7 @@ def run_bot_move(board_id: int) -> None:
         if tb is None or tb.status != 1:
             return
         ga = get_game(0, tb.slog)
-        move_id = f"{(ga.move_number+1):03d}"
+        move_id = f"{(ga.move_number + 1):03d}"
         players = _seat_players(tb)
         bot = players.get(ga.on_move)
         if bot is None or not bot.is_bot:

@@ -60,6 +60,11 @@ class Config(object):
     # hardcoded default — unset means nobody can mint a token until this is
     # configured in .env.
     API_TOKEN_USERS = os.environ.get("API_TOKEN_USERS", "")
+    # Base URL of the board live-update SSE service (sse/app.py). Empty means
+    # same origin — production, where Traefik routes the events path to it.
+    # Local dev runs it on its own port, e.g. http://localhost:8090 (that
+    # origin's page must then be listed in CORS_ORIGINS for the service).
+    SSE_URL = os.environ.get("SSE_URL", "").rstrip("/")
     # Google Analytics 4 measurement ID (e.g. "G-XXXXXXXXXX"). Empty disables
     # the tag entirely; it is also never rendered in debug mode or for admin.
     GA_MEASUREMENT_ID = os.environ.get("GA_MEASUREMENT_ID", "")

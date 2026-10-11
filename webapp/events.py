@@ -6,9 +6,10 @@ Deliberately Flask-independent (reads REDIS_URL straight from os.environ, no
 `current_app`/`app` import), mirroring webapp/notifications.py's shape — but
 this is pub/sub, not an RQ queue: webapp/api.py's GameBoard.post() calls
 publish_board_move() synchronously right after db.session.commit(), a
-fire-and-forget PUBLISH with no worker/job involved. The consumer is
-webapp/api.py's board_events() SSE route: one long-lived
-subscribe_board_events() generator per open browser tab.
+fire-and-forget PUBLISH with no worker/job involved. The consumer is the
+standalone async SSE service in sse/app.py (GET
+/api/v1/manager/board/events), which holds one pattern subscription per
+process and fans pings out to every open board tab.
 """
 
 import json
@@ -21,13 +22,10 @@ _redis = Redis.from_url(
     decode_responses=True,
 )
 
-# Overridable the same way GUNICORN_WORKERS/THREADS are, for ops tuning
-# against whatever idle-connection timeout sits in front (Traefik).
-HEARTBEAT_INTERVAL = float(os.environ.get("SSE_HEARTBEAT_INTERVAL", 15))
-
 
 def _channel(board_id: int) -> str:
-    """One pub/sub channel per board id."""
+    """One pub/sub channel per board id. sse/app.py subscribes to these by
+    pattern (CHANNEL_PATTERN) — keep the two formats in sync."""
     return f"trichess:board:{board_id}:moves"
 
 
@@ -43,33 +41,3 @@ def publish_board_move(board_id: int, slog_length: int) -> None:
     move/vote — without needing to trust the payload for rendering.
     """
     _redis.publish(_channel(board_id), json.dumps({"slog_length": slog_length}))
-
-
-def subscribe_board_events(
-    board_id: int, heartbeat_interval: float = HEARTBEAT_INTERVAL
-):
-    """Yield raw SSE wire chunks (strings) for one board's subscribers.
-
-    Uses pubsub.get_message(timeout=...) polling rather than the blocking
-    listen() iterator, so a periodic ": heartbeat\\n\\n" SSE comment (keeps
-    an intermediary proxy from closing an otherwise-idle connection) is
-    interleaved with real messages for free: get_message(timeout=N) blocks
-    up to N seconds waiting for a message and returns None on timeout, so
-    this loop emits a heartbeat at most every heartbeat_interval seconds
-    when idle, or a `data:` line as soon as a move/vote is published.
-    """
-    pubsub = _redis.pubsub()
-    channel = _channel(board_id)
-    pubsub.subscribe(channel)
-    try:
-        while True:
-            message = pubsub.get_message(
-                timeout=heartbeat_interval, ignore_subscribe_messages=True
-            )
-            if message is None:
-                yield ": heartbeat\n\n"
-            else:
-                yield f"data: {message['data']}\n\n"
-    finally:
-        pubsub.unsubscribe(channel)
-        pubsub.close()

@@ -8,9 +8,7 @@
 ##############################################################################
 FROM python:3.14-slim AS builder
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
 # build-essential: fallback for any dependency (e.g. PyYAML's C extension)
 # that doesn't yet ship a prebuilt wheel for a Python release this new —
@@ -29,18 +27,24 @@ RUN curl -fsSLO "$SUPERCRONIC_URL" && \
     chmod +x "$SUPERCRONIC" && \
     mv "$SUPERCRONIC" /usr/local/bin/supercronic
 
-# Isolated venv (rather than installing into system site-packages) so the
-# entire dependency set is one self-contained tree, copyable in one COPY.
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# uv (pinned) installs the locked dependency set from pyproject.toml +
+# uv.lock into an isolated venv at /opt/venv — one self-contained tree,
+# copyable into the runtime stage in one COPY. It uses the base image's own
+# Python (same path in both stages), never a downloaded one.
+COPY --from=ghcr.io/astral-sh/uv:0.12.24 /uv /uvx /bin/
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=0
 
 WORKDIR /code
 
-# Dependency manifest copied alone first so this (slow) layer only
-# reinvalidates when requirements.txt itself changes, not on every source
-# edit — application code is copied later, in the runtime stage.
-COPY requirements.txt .
-RUN pip install --no-cache-dir --no-compile -r requirements.txt
+# Dependency manifests copied alone first so this (slow) layer only
+# reinvalidates when the lockfile changes, not on every source edit —
+# application code is copied later, in the runtime stage.
+COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-install-project
 
 ##############################################################################
 # runtime — minimal final image: no compiler, no apt cache, no root.
@@ -71,6 +75,7 @@ COPY --from=builder /usr/local/bin/supercronic /usr/local/bin/supercronic
 COPY --chown=app:app ./crontab ./gunicorn_config.py ./start.sh /code/
 COPY --chown=app:app ./engine /code/engine
 COPY --chown=app:app ./webapp /code/webapp
+COPY --chown=app:app ./sse /code/sse
 
 RUN chmod +x /code/start.sh
 

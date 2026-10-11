@@ -129,7 +129,7 @@ lm = LoginManager()
 lm.init_app(app)
 lm.login_view = "login"
 
-__version__ = "0.3.5"
+__version__ = "0.4.0"
 
 
 # notifications
@@ -178,7 +178,7 @@ def resend_notification():
                 # notify next player
                 if user is not None and not user["is_bot"]:
                     logger.info(
-                        f"resend_notification: notifying {user["username"]} about game {r["id"]}"
+                        f"resend_notification: notifying {user['username']} about game {r['id']}"
                     )
                     post_notification(
                         user["username"],

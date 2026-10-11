@@ -494,8 +494,7 @@ class TestResendNotificationNeverTargetsBots:
 def _backdate_board(tb, minutes):
     db.session.execute(
         text(
-            "UPDATE triboard SET modified_at = datetime('now', :offset) "
-            "WHERE id = :id"
+            "UPDATE triboard SET modified_at = datetime('now', :offset) WHERE id = :id"
         ),
         {"offset": f"-{minutes} minute", "id": tb.id},
     )

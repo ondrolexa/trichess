@@ -1,6 +1,6 @@
 [project]
 name = "trichess"
-version = "0.3.5"
+version = "0.4.0"
 description = "A web application for 3-player chess on hexagonal board"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -21,14 +21,32 @@ dependencies = [
     "rq>=2.0.0",
     "wtforms-sqlalchemy>=0.4.2",
     "python-dotenv>=1.0.0",
+    "starlette>=1.7.0",
+    "uvicorn>=0.54.0",
 ]
 
 [dependency-groups]
 dev = [
-    "isort>=8.0.1",
     "fakeredis>=2.26.0",
+    "pytest-asyncio>=1.4.0",
+    "httpx2>=2.13.1",
+    "pytest>=9.1.1",
+    "ruff>=0.17.0",
+    "pre-commit>=4.6.2",
 ]
 
-[tool.black]
+[tool.ruff]
 line-length = 88
-target-version = ["py314"]
+target-version = "py314"
+force-exclude = true  # pre-commit passes file names explicitly; still honor excludes
+# Markdown: ruff would also reformat ```python blocks in docs, which are
+# often excerpts/fragments that don't survive formatting intact.
+extend-exclude = ["migrations", "*.md"]
+
+[tool.ruff.lint]
+# Same rules as the old flake8 call (E/F/W, same ignores) + isort ("I").
+select = ["E", "F", "W", "I"]
+ignore = ["F401", "E501", "E731", "E741", "E743", "E402"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["engine", "webapp", "sse"]

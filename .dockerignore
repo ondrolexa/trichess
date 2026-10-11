@@ -12,9 +12,6 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
-# Dependency lockfiles/managers not used by the Docker build
-uv.lock
-
 # Secrets / local env
 .env
 .env.*
@@ -25,7 +22,6 @@ instance/
 
 # Tests and dev tooling
 tests/
-requirements-dev.txt
 
 # Editor / OS cruft
 .vscode/

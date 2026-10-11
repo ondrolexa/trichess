@@ -142,6 +142,7 @@
 <script type="text/javascript">
 var access_token = "Bearer {{ access_token }}";
 var id = parseInt("{{ id }}");
+var SSE_URL = {{ config.SSE_URL|tojson }};
 const theme = JSON.parse('{{ theme|tojson }}');
 const pieces_paths = JSON.parse('{{ pieces_paths|tojson }}');
 </script>

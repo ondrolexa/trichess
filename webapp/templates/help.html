@@ -858,10 +858,10 @@
       models.py            # User, TriBoard, Score, Log
       forms.py             # WTForms for HTML routes
       views.py             # HTML routes
-      api.py               # REST API blueprint at /api/v1/*, SSE route
+      api.py               # REST API blueprint at /api/v1/*
       botplayer.py          # RQ job: compute + persist a bot's move/vote
       notifications.py      # RQ job bodies: push notifications, email
-      events.py             # Redis pub/sub publish/subscribe for SSE
+      events.py             # Redis pub/sub publish for SSE
       email.py              # SMTP email sending
       token.py              # itsdangerous signed tokens
       static/
@@ -991,14 +991,15 @@
         <p><code>webapp/events.py</code> publishes a Redis pub/sub ping (one channel per board id) whenever
           <code>GameBoard.post()</code> commits — from a real human POST or the bot's in-process re-entry into the
           same endpoint. <code>GET /api/v1/manager/board/events?id=&lt;id&gt;&amp;jwt=&lt;token&gt;</code>
-          (<code>webapp/api.py</code>'s <code>board_events()</code>) streams these as Server-Sent Events to any seated
+          (served by <code>sse/app.py</code>, a separate Starlette/uvicorn service the reverse proxy routes this one
+          path to) streams these as Server-Sent Events to any seated
           player's open board page; auth is query-string-only on this one route since the browser's
           <code>EventSource</code> API can't set custom headers.</p>
         <p><code>ondro.js</code> opens one <code>EventSource</code> per board on page load and calls
           <code>boardReset()</code> on each ping (never trusting the pushed payload for rendering, and skipping the
-          refresh if the local player has an uncommitted move/vote staged). Requires
-          <code>gunicorn_config.py</code>'s <code>worker_class = "gthread"</code> — the default <code>sync</code>
-          worker would let one open SSE connection permanently pin a whole worker process.</p>
+          refresh if the local player has an uncommitted move/vote staged). Each open tab is a coroutine in the async
+          service, sharing one Redis pattern subscription per process, so open boards never tie up gunicorn
+          threads.</p>
 
         <hr>
 
@@ -1146,30 +1147,28 @@
         <hr>
 
         <h3>Setup &amp; Development</h3>
-        <pre><code># Create virtual environment and activate it
-    python -m venv .venv
-    source .venv/bin/activate
-
-    # Install dependencies and set the environment
-    pip install -r requirements-dev.txt
+        <pre><code># Install dependencies (uv creates .venv from pyproject.toml + uv.lock)
+    uv sync
+    uv run pre-commit install
     cp .env.example .env
     # Edit .env with SECRET_KEY, JWT_SECRET_KEY, etc.
 
     # Database
-    flask --app=webapp db upgrade
+    uv run flask --app=webapp db upgrade
 
     # Run
-    flask --app=webapp --debug run
+    uv run flask --app=webapp --debug run
     # → http://localhost:5000
 
     # Migrations (after model changes)
-    flask --app=webapp db migrate -m "Description"
-    flask --app=webapp db upgrade</code></pre>
+    uv run flask --app=webapp db migrate -m "Description"
+    uv run flask --app=webapp db upgrade</code></pre>
 
-        <h4>Code Formatting</h4>
-        <p>Always run before committing:</p>
-        <pre><code>isort --profile black .
-    black --line-length=88 .</code></pre>
+        <h4>Linting &amp; Formatting</h4>
+        <p>Ruff (configured in <code>pyproject.toml</code>) runs automatically via pre-commit, and in CI before
+          every Docker image build. To run it by hand:</p>
+        <pre><code>uv run ruff check --fix .
+    uv run ruff format .</code></pre>
 
         <hr>
 
@@ -1216,7 +1215,7 @@
           <li><strong>Fork + branch</strong>: <code>git checkout -b feat/my-feature</code></li>
           <li><strong>Code style</strong>: match existing patterns — stateless API calls, slog-based state, no
             framework deps in engine</li>
-          <li><strong>Format</strong>: <code>isort</code> + <code>black</code> before commit</li>
+          <li><strong>Format</strong>: <code>ruff check --fix</code> + <code>ruff format</code> (pre-commit)</li>
           <li><strong>Schema changes</strong>: create a migration (<code>flask db migrate</code>) and wrap DDL in
             <code>PRAGMA foreign_keys=OFF/ON</code> for SQLite</li>
           <li><strong>Logging</strong>: use the custom <code>GAME</code> level (25) for game events,
@@ -1286,7 +1285,7 @@
             </tr>
             <tr>
               <td><code>webapp/api.py</code></td>
-              <td>REST API + SSE stream route</td>
+              <td>REST API</td>
             </tr>
             <tr>
               <td><code>webapp/botplayer.py</code></td>
@@ -1294,7 +1293,7 @@
             </tr>
             <tr>
               <td><code>webapp/events.py</code></td>
-              <td>SSE publish/subscribe (Redis pub/sub)</td>
+              <td>SSE ping publishing (Redis pub/sub); consumed by <code>sse/app.py</code></td>
             </tr>
             <tr>
               <td><code>webapp/static/ondro.js</code></td>

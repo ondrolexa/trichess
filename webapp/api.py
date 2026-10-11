@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 from datetime import datetime
 
-from flask import Blueprint, Response, abort, request, stream_with_context
+from flask import Blueprint
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
 from sqlalchemy import and_, func, select
@@ -11,7 +11,7 @@ from sqlalchemy.orm import aliased
 
 from engine import get_game
 from webapp.botplayer import maybe_trigger_bot
-from webapp.events import publish_board_move, subscribe_board_events
+from webapp.events import publish_board_move
 from webapp.main import GAME, db, post_notification
 from webapp.models import Score, TriBoard, User
 
@@ -1078,54 +1078,6 @@ class GameBoard(Resource):
                     managerapi.abort(417, message="An unexpected error occurred")
             else:
                 managerapi.abort(404, message="Board not found")
-
-
-@blueprint.route("/manager/board/events")
-@jwt_required(locations=["query_string"])
-def board_events():
-    """SSE stream: one ping per move/vote persisted on this board.
-
-    Auth via query-string JWT (locations=["query_string"], this route only
-    — the global JWT_TOKEN_LOCATION config is untouched, every other
-    endpoint stays header-only) because the browser's native EventSource
-    API can't set custom headers; ondro.js strips the "Bearer " prefix off
-    the page's normal JWT and appends it as ?jwt=<token>.
-
-    A raw Flask route rather than a Flask-RESTX Resource, since RESTX's
-    response marshaling doesn't fit a streaming generator — falls through
-    to Flask's normal error handling untouched by RESTX.
-
-    Same seat-membership authorization as GameBoard.get() — status 1
-    (active) or 2 (archived/just-finished, so a client already on the page
-    when the game ends still gets the final push) boards only, and only
-    for a user actually seated on it.
-    """
-    id = request.args.get("id", type=int)
-    if id is None:
-        abort(400)
-    username = get_jwt_identity()
-    user = User.query.filter_by(username=username).first()
-    if user is None:
-        abort(401)
-    user_in = TriBoard.for_player(user.id)
-    active_or_archive = db.or_(TriBoard.status == 1, TriBoard.status == 2)
-    tb = (
-        TriBoard.query.filter_by(id=id)
-        .filter(active_or_archive)
-        .filter(user_in)
-        .first()
-    )
-    if tb is None:
-        abort(404)
-
-    def gen():
-        yield ": connected\n\n"
-        yield from subscribe_board_events(id)
-
-    response = Response(stream_with_context(gen()), mimetype="text/event-stream")
-    response.headers["Cache-Control"] = "no-cache"
-    response.headers["X-Accel-Buffering"] = "no"  # Traefik: disable proxy buffering
-    return response
 
 
 board_view_fields = api.model(

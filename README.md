@@ -12,45 +12,42 @@ A web application for 3-player chess on hexagonal board. Proof of concept
 
 ## How to install
 
-Create a virtual environment and install app. Go ahead and open a terminal window. Then navigate to your
-trichess project’s root folder. Once you’re in there, run the following commands to create a fresh environment:
+Trichess uses [uv](https://docs.astral.sh/uv/) to manage Python and dependencies — install it first
+(`curl -LsSf https://astral.sh/uv/install.sh | sh`, or see the uv docs for Windows). Then, from the trichess
+project's root folder:
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+uv sync              # creates .venv with Python 3.14+ and installs app + dev dependencies from uv.lock
+uv sync --no-dev     # runtime dependencies only
 ```
 
-for Windows use Command Prompt or PowerShell:
+For development, also install the git hooks (ruff lint/format, uv.lock check, tests) once:
 ```bash
-python -m venv .venv
-.venv\Scripts\activate
+uv run pre-commit install
 ```
 
-> [!NOTE]
-> On Microsoft Windows, it may be required to set the execution policy in PowerShell for the user.
-> You can do this by issuing the following PowerShell command:
-> ```
-> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-> ```
-
-Great! You have a fresh virtual environment within your project’s folder. Now you need to install all requirements.
-
-Here’s the command that you need to run to install trichess:
-```bash
-pip install -r requirements.txt
-```
-
-For developemenmt setup, use:
-```bash
-pip install -r requirements-dev.txt
-```
+Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`; change them with `uv add <pkg>` /
+`uv add --dev <pkg>` / `uv remove <pkg>` rather than editing the lockfile.
 
 ## Running the application
 
 ```bash
-flask --app=webapp run
+uv run flask --app=webapp run
 ```
 
 The application will be available at `http://localhost:5000`.
+
+## Linting, formatting and tests
+
+```bash
+uv run ruff check --fix .    # lint (pyflakes/pycodestyle rules + import sorting)
+uv run ruff format .         # format
+uv run pytest                # tests
+```
+
+Ruff is configured in `pyproject.toml` (`[tool.ruff]`). GitHub Actions runs the same three checks on every
+pull request and push to `main`, and only builds and pushes the Docker image (which installs dependencies
+with uv from `uv.lock`) once they pass.
 
 ## For developers
 
@@ -69,6 +66,9 @@ The application uses environment variables for configuration, loaded from a `.en
 | `SINGLE_PLAYER_NOTIFICATIONS` | Send live "your turn"/"game over" push notifications for 1-human-vs-2-bots games | `false` |
 | `BOT_GAMES_REMOVAL` | Delete finished bot games (and their logs) older than this many minutes via `remove-bot-games`; `0` disables deletion | `15` |
 | `API_TOKEN_USERS` | Comma-separated allowlist of usernames who may mint an API bearer token via `POST /token` (including Swagger UI's "Authorize" dialog) | `` (empty — nobody allowed until set) |
+| `SSE_URL` | Base URL of the live-update service (`sse/app.py`) for the board page. Empty = same origin (production behind Traefik); in local dev e.g. `http://localhost:8090` | `` (same origin) |
+| `SSE_DB_PATH` | SQLite file the SSE service reads for its seat check | `instance/trichess.db` |
+| `SSE_HEARTBEAT_INTERVAL` | Seconds between SSE heartbeat comments | `15` |
 | `GA_MEASUREMENT_ID` | Google Analytics 4 measurement ID (`G-XXXXXXXXXX`). Loaded only after the visitor accepts the consent banner; never rendered in debug mode or for admin. Tracks page views and account/lobby events only, not gameplay | `` (empty — analytics disabled) |
 
 ### Security Notes
@@ -211,9 +211,9 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep)
 
 ### Live board updates (SSE)
 - `webapp/events.py` publishes a Redis pub/sub ping (one channel per board id) whenever `GameBoard.post()` (`webapp/api.py`) commits a move or vote — from a real human POST or `webapp/botplayer.py`'s in-process re-entry into that same endpoint, same code path either way.
-- `GET /api/v1/manager/board/events?id=<id>&jwt=<token>` streams these as Server-Sent Events to any seated player's open board page. `webapp/static/ondro.js` opens one on page load and refetches full state (`boardReset()`) on each ping — it never trusts the pushed payload. Auth on this one route is query-string-only (`?jwt=`, no `Bearer` prefix), since browsers' `EventSource` API can't set custom headers; every other endpoint stays header-only.
-- Requires `worker_class = "gthread"` in `gunicorn_config.py` — gunicorn's default `sync` worker would let a single open SSE connection permanently pin an entire worker process.
-- Out of scope: `webapp/static/filio.js`/`board_filio.html` (a separate board renderer) don't get this feature.
+- `GET /api/v1/manager/board/events?id=<id>&jwt=<token>` is served by a separate async service, `sse/app.py` (Starlette + uvicorn, `uvicorn sse.app:app --port 8090`; the `trichess-sse` service in `docker-compose.yml`, which Traefik routes this one path to). It streams these as Server-Sent Events to any seated player's open board page. `webapp/static/ondro.js` opens one on page load and refetches full state (`boardReset()`) on each ping — it never trusts the pushed payload. Auth on this one route is query-string-only (`?jwt=`, no `Bearer` prefix), since browsers' `EventSource` API can't set custom headers; every other endpoint stays header-only.
+- Each open tab costs one coroutine (tens of KB) rather than a gunicorn thread, and the whole service shares a single Redis pattern subscription — 1000 concurrent streams measured at about 35 MB extra RSS.
+- Local dev: run `uvicorn sse.app:app --port 8090` next to `flask run`, and set `SSE_URL=http://localhost:8090` and the Flask origin in `CORS_ORIGINS` in `.env`.
 
 ### External Services
 - Uses `ntfy.mykuna.eu` for push notifications (non-debug mode only).
@@ -223,6 +223,7 @@ Analyze gamelogs in Python
 ```python
 from webapp.main import app
 from webapp.models import Log
+
 with app.app_context():
     for row in Log.query.filter_by(level="GAME").order_by(Log.created_at).all():
         print(row.created_at, row.message, row.user.username, row.board_id)

@@ -1765,7 +1765,7 @@ window.addEventListener('orientationchange', function() {
 });
 
 const boardEvents = new EventSource(
-  `${url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
+  `${SSE_URL || url}/api/v1/manager/board/events?id=${ID}&jwt=${encodeURIComponent(TOKEN.replace(/^Bearer\s+/, ""))}`,
 );
 boardEvents.onmessage = (event) => {
   const payload = JSON.parse(event.data);

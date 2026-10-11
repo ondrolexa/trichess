@@ -90,6 +90,7 @@
 <script type="text/javascript">
 var TOKEN = "Bearer {{ access_token }}";
 var ID = parseInt("{{ id }}");
+var SSE_URL = {{ config.SSE_URL|tojson }};
 const theme = JSON.parse('{{ theme|tojson }}');
 const pieces_paths = JSON.parse('{{ pieces_paths|tojson }}');
 </script>
