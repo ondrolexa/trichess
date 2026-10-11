@@ -133,21 +133,45 @@ function buildHeaders() {
   });
 }
 
+// Authenticated fetch with no side effects. apiFetch()/apiFetchGet() below
+// additionally lock the board (AppState.ready = false) until the caller's
+// handler unlocks it — background requests (SSE token probe, resync) must use
+// this one instead, or a request nobody unlocks after leaves the board
+// ignoring every click.
+function authFetch(path, options = {}) {
+  return fetch(`${API_URL}${path}`, { ...options, headers: buildHeaders() });
+}
+
 function apiFetch(path, body) {
   AppState.ready = false;
-  return fetch(`${API_URL}${path}`, {
-    method: "POST",
-    headers: buildHeaders(),
-    body: JSON.stringify(body),
-  });
+  return authFetch(path, { method: "POST", body: JSON.stringify(body) });
 }
 
 function apiFetchGet(path) {
   AppState.ready = false;
-  return fetch(`${API_URL}${path}`, {
-    method: "GET",
-    headers: buildHeaders(),
-  });
+  return authFetch(path, { method: "GET" });
+}
+
+// The JWT is minted once per /play page load and expires after an hour, so an
+// idle tab eventually gets 401/422 on everything. Reloading re-mints it from
+// the still-valid login session (or lands on /login if that expired too).
+function reloadForFreshToken() {
+  window.location.reload();
+}
+
+function isAuthFailure(response) {
+  return response.status === 401 || response.status === 422;
+}
+
+function jsonOrReject(response) {
+  if (response.ok) {
+    return response.json();
+  }
+  if (isAuthFailure(response)) {
+    reloadForFreshToken();
+    return new Promise(() => {}); // page is reloading; settle nothing
+  }
+  return Promise.reject(response);
 }
 
 // Konva objects and events
@@ -1056,12 +1080,7 @@ function validMoves(gid) {
     view_pid: AppState.view_pid,
     gid: gid,
   })
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-      return Promise.reject(response);
-    })
+    .then(jsonOrReject)
     .then((data) => {
       AppState.gid2high[gid].visible(true);
       AppState.gid2high[gid].stroke(theme["board"]["selection"]);
@@ -1099,12 +1118,7 @@ function makeMove(gid, tgid, new_piece = "") {
     tgid: tgid,
     new_piece: new_piece,
   })
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-      return Promise.reject(response);
-    })
+    .then(jsonOrReject)
     .then((data) => {
       if (new_piece != "") {
         AppState.gid2piece[gid].data(pieces_paths["pieces"][new_piece]);
@@ -1132,12 +1146,7 @@ function voteDraw(vote) {
     view_pid: AppState.view_pid,
     vote: vote,
   })
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-      return Promise.reject(response);
-    })
+    .then(jsonOrReject)
     .then((data) => {
       AppState.slog = data.slog;
       if (AppState.slog.length >= AppState.game_slog.length) {
@@ -1163,12 +1172,7 @@ function voteResign(vote) {
     view_pid: AppState.view_pid,
     vote: vote,
   })
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-      return Promise.reject(response);
-    })
+    .then(jsonOrReject)
     .then((data) => {
       AppState.slog = data.slog;
       if (AppState.slog.length >= AppState.game_slog.length) {
@@ -1214,12 +1218,7 @@ function gameInfo(init = false, redraw = false) {
     slog: AppState.slog,
     view_pid: AppState.view_pid,
   })
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-      return Promise.reject(response);
-    })
+    .then(jsonOrReject)
     .then((data) => {
       if (init) {
         AppState.on_move = data.onmove == AppState.view_pid;
@@ -1418,12 +1417,7 @@ function gameInfo(init = false, redraw = false) {
 
 function boardInfo() {
   apiFetchGet("/api/v1/manager/board?id=" + id.toString())
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-      return Promise.reject(response);
-    })
+    .then(jsonOrReject)
     .then((data) => {
       // Create seats mappings
       let seats = [data.player_0, data.player_1, data.player_2];
@@ -1579,12 +1573,7 @@ function boardSubmit() {
   loader.style.display = "inline-block";
 
   apiFetch("/api/v1/manager/board", { id: id, slog: AppState.slog })
-    .then((response) => {
-      if (response.ok) {
-        return response.json();
-      }
-      return Promise.reject(response);
-    })
+    .then(jsonOrReject)
     .then((data) => {
       boardReset();
       AppState.on_move = false;
@@ -1597,8 +1586,15 @@ function boardSubmit() {
       submitText.textContent = "Submit";
       submit.className = "btn btn-secondary mb-2 col-12";
       loader.style.display = "none";
-      alert(`BoardSubmit error ${response.status}: ${response.statusText}`);
-      // window.location.reload();
+      AppState.ready = true;
+      if (response.status === 409) {
+        // The game moved on server-side (typically SSE pings missed while
+        // the tab was in the background) — reload the real position.
+        alert("The board was out of date and has been refreshed.");
+        boardReset();
+      } else {
+        alert(`BoardSubmit error ${response.status}: ${response.statusText}`);
+      }
     });
 }
 
@@ -1623,8 +1619,39 @@ document.addEventListener("visibilitychange", function () {
     interactive_layer.drawHit();
     pieces_layer.drawHit();
     top_layer.drawHit();
+    syncIfStale();
   }
 });
+// Mobile Safari restores pages from the back/forward cache with the SSE
+// connection dead and the JWT possibly expired — start over cleanly.
+window.addEventListener("pageshow", function (event) {
+  if (event.persisted) {
+    window.location.reload();
+  }
+});
+
+// SSE pings published while this tab's connection was down (backgrounded,
+// app switch, network change) are lost, not replayed. Catch up by comparing
+// the server's slog length with what this tab last synced.
+function syncIfStale() {
+  if (AppState.gid2hex[0] === undefined) {
+    return; // initial boardInfo() hasn't built the board yet
+  }
+  authFetch("/api/v1/manager/board?id=" + id.toString(), { method: "GET" })
+    .then(jsonOrReject)
+    .then((data) => {
+      // Same guard as boardEvents.onmessage: never wipe a staged local move.
+      if (
+        data.slog.length > AppState.server_slog.length &&
+        AppState.slog === AppState.server_slog
+      ) {
+        boardReset();
+      }
+    })
+    .catch((response) => {
+      console.error(`Sync error ${response.status}: ${response.statusText}`);
+    });
+}
 
 // ready to go
 
@@ -1665,17 +1692,29 @@ boardEvents.onmessage = (event) => {
     boardReset();
   }
 };
+let boardEventsOpened = false;
+boardEvents.onopen = () => {
+  // Every open after the first is a reconnect: catch up on missed pings.
+  if (boardEventsOpened) {
+    syncIfStale();
+  }
+  boardEventsOpened = true;
+};
 boardEvents.onerror = () => {
   // EventSource retries automatically on transient network blips, but
   // browsers never expose the failed request's HTTP status on an 'error'
   // event, so an expired JWT looks identical to a blip from here — it
   // would otherwise retry forever. Confirm with a real header-authenticated
-  // request (the same GET boardInfo() already uses) before acting: only a
-  // genuine 401/422 means the token is dead, not a network hiccup.
-  apiFetchGet("/api/v1/manager/board?id=" + id.toString()).then((response) => {
-    if (response.status === 401 || response.status === 422) {
-      boardEvents.close();
-      window.location.href = "/login";
-    }
-  });
+  // request before acting: only a genuine 401/422 means the token is dead.
+  // authFetch, not apiFetchGet: this probe must not lock the board — it
+  // fires on every dropped connection (backgrounded tab, mobile app switch)
+  // and nothing would unlock it again afterwards.
+  authFetch("/api/v1/manager/board?id=" + id.toString(), { method: "GET" })
+    .then((response) => {
+      if (isAuthFailure(response)) {
+        boardEvents.close();
+        reloadForFreshToken();
+      }
+    })
+    .catch(() => {}); // offline — EventSource keeps retrying on its own
 };
