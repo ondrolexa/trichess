@@ -995,8 +995,8 @@ class GameBoard(Resource):
         state = UpdateBoardParser.parse_args()
         username = get_jwt_identity()
         try:
-            user = User.query.filter_by(username=username).first()
-            user_in = TriBoard.for_player(user.id)
+            user1 = User.query.filter_by(username=username).first()
+            user_in = TriBoard.for_player(user1.id)
             tb = (
                 db.session.query(TriBoard)
                 .with_for_update()
@@ -1027,6 +1027,15 @@ class GameBoard(Resource):
                         user = User.query.filter_by(
                             username=players[ga2.on_move].username
                         ).first()
+                        move_id = f"{ga2.move_number:03d}"
+                        logger.log(
+                            GAME,
+                            "Move str " + move_id,
+                            extra={
+                                "user_id": user1.id,
+                                "board_id": tb.id,
+                            },
+                        )
                         endgame_kind = finalize_if_finished(
                             tb,
                             ga2,
@@ -1046,9 +1055,9 @@ class GameBoard(Resource):
                                 )
                         logger.log(
                             GAME,
-                            "Move made",
+                            "Move end " + move_id,
                             extra={
-                                "user_id": user.id,
+                                "user_id": user1.id,
                                 "board_id": tb.id,
                             },
                         )

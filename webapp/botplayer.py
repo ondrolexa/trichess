@@ -73,12 +73,18 @@ def run_bot_move(board_id: int) -> None:
         if tb is None or tb.status != 1:
             return
         ga = get_game(0, tb.slog)
+        move_id = f"{(ga.move_number+1):03d}"
         players = _seat_players(tb)
         bot = players.get(ga.on_move)
         if bot is None or not bot.is_bot:
             return
 
         try:
+            logger.log(
+                GAME,
+                "Bot str  " + move_id,
+                extra={"user_id": bot.id, "board_id": board_id},
+            )
             if ga.voting.needed():
                 vote = choose_vote(ga, depth=BOT_DEPTH)
                 if vote is None:
@@ -115,6 +121,6 @@ def run_bot_move(board_id: int) -> None:
         else:
             logger.log(
                 GAME,
-                "Bot move made",
+                "Bot end  " + move_id,
                 extra={"user_id": bot.id, "board_id": board_id},
             )
