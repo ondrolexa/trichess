@@ -87,10 +87,12 @@ class TestChooseMove:
         move = choose_move(game, depth=1)
         self._assert_legal(game, move)
 
-    def test_opening_move_uses_the_book(self, game):
+    def test_opening_move_uses_the_book(self, game, monkeypatch):
         # A fresh game's first move should come from the opening book (a
         # Pawn/Knight development move, near-instant since it skips the
         # minimax search entirely), not a search-driven Queen sortie.
+        # instance/opening_book.json is gitignored, so don't depend on it.
+        monkeypatch.setattr("engine.opening._BOOK", {0: {"FOEM": 8, "DNEM": 6}})
         start = time.perf_counter()
         move = choose_move(game)
         elapsed = time.perf_counter() - start

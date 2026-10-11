@@ -52,7 +52,9 @@ class TestBookMove:
         assert move_dict["tgid"] in targets
         assert promo_label == ""
 
-    def test_fresh_game_returns_pawn_or_knight_move(self, game):
+    def test_fresh_game_returns_pawn_or_knight_move(self, game, monkeypatch):
+        # instance/opening_book.json is gitignored, so don't depend on it.
+        monkeypatch.setattr("engine.opening._BOOK", {0: {"FOEM": 8, "DNEM": 6}})
         move = book_move(game)
         self._assert_legal(game, move)
         from_gid, _, _ = move
