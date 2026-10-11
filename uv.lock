@@ -58,15 +58,15 @@ wheels = [
 
 [[package]]
 name = "bootstrap-flask"
-version = "2.5.0"
+version = "2.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flask" },
     { name = "wtforms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/b5/24cb630ee5bc1ba8e5a5fbac3b59331af77d000df837cdb77ab69b3c4a5b/bootstrap_flask-2.5.0.tar.gz", hash = "sha256:b6e5ea1ce40616fb289c9e85d4beedd43fea2048b4032f4abc83a582db494978", size = 4534974, upload-time = "2025-05-02T15:45:48.644Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/86/bea605321c923d9b65f33434c97adaf8e39b6a76e7af081ed638f2ecf072/bootstrap_flask-2.6.0.tar.gz", hash = "sha256:2b0849f77a743e117716a75406b0312f0783658589519b0e922054bfb3102b9f", size = 4572152, upload-time = "2026-08-23T11:17:06.298Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/bd/a61a69ba3595735049f5acdcaa049a6c731be4b083dad4ae4b3a85b21e90/bootstrap_flask-2.5.0-py3-none-any.whl", hash = "sha256:dd76203fe4d46062bf1e7fd2a25aaccdc54affde9acc282f6aa4da4f4bbf2a5a", size = 4637470, upload-time = "2025-05-02T15:45:46.157Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/12/627718708a73fcc4ce713651aaad4dd91eb92e4e47b5abaea0848e4778cf/bootstrap_flask-2.6.0-py3-none-any.whl", hash = "sha256:2a0ff1df295b143020743949419c955de23ffc3465518f4bf5bac32f90deaa52", size = 4673646, upload-time = "2026-08-23T11:17:04.367Z" },
 ]
 
 [[package]]
