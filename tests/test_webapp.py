@@ -1,10 +1,12 @@
 import logging
 import re
 
+import click
+import pytest
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
-from webapp.main import db
+from webapp.main import db, dump_db
 from webapp.models import Log, TriBoard, User
 
 
@@ -384,3 +386,25 @@ class Test_Secret_Keys_Fail_Closed:
             _secret("FLASK_SECRET_KEY")
         monkeypatch.setenv("DEBUG", "true")
         assert _secret("FLASK_SECRET_KEY")
+
+
+class Test_Dump_DB:
+    def test_writes_schema_and_rows(self, app, tmp_path):
+        _create_user()
+        path = dump_db(tmp_path / "out.sql")
+        sql = path.read_text()
+        assert sql.startswith("BEGIN TRANSACTION;")
+        assert sql.rstrip().endswith("COMMIT;")
+        assert 'CREATE TABLE "user"' in sql or "CREATE TABLE user" in sql
+        assert "alice" in sql
+
+    def test_default_path_needs_a_file_backed_db(self, app):
+        with pytest.raises(click.ClickException):
+            dump_db()
+
+    def test_cli_file_option(self, app, tmp_path):
+        out = tmp_path / "cli.sql"
+        result = app.test_cli_runner().invoke(args=["dump-db", "--file", str(out)])
+        assert result.exit_code == 0, result.output
+        assert out.exists()
+        assert str(out) in result.output

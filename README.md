@@ -120,6 +120,12 @@ Rebuild `instance/opening_book.json` from finished games in the database
 flask --app=webapp build-opening-book
 ```
 
+Write a plain-SQL dump of the database (default `trichess.sql` next to
+`trichess.db`; `--file` to choose another path)
+```bash
+flask --app=webapp dump-db [--file out.sql]
+```
+
 Delete finished games with a bot player, and their logs, once older than
 `BOT_GAMES_REMOVAL` minutes (default `15`; `0` disables; see `crontab`)
 ```bash
@@ -197,6 +203,7 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep)
 - **`purge-logs`**: Delete log entries older than `--days` (default 90).
 - **`bot-sweep`**: Re-trigger any active game whose on-move seat is a bot (runs via cron — see `crontab`).
 - **`build-opening-book`**: Rebuild `instance/opening_book.json` from finished games in the database.
+- **`dump-db`**: Write a SQL dump of the database to `trichess.sql` next to `trichess.db` (or `--file`).
 - **`remove-bot-games`**: Delete finished games with a bot player, and their logs, older than `--minutes` (`BOT_GAMES_REMOVAL` env var, default `15`; `0` disables; runs every 5 minutes via cron — see `crontab`).
 
 ### Bot players

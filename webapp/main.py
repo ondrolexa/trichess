@@ -1,6 +1,7 @@
 import logging
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import click
 from flask import Flask
@@ -275,6 +276,39 @@ def build_opening_book_command():
     book = build_book(slogs)
     save_book(book, BOOK_PATH)
     click.echo(f"Wrote opening book from {len(slogs)} finished games to {BOOK_PATH}")
+
+
+def dump_db(path=None):
+    """Write a plain-SQL dump of the SQLite database to `path` (default
+    trichess.sql next to the database file) and return the path written."""
+    db_file = db.engine.url.database
+    if path is None:
+        if not db_file or db_file == ":memory:":
+            raise click.ClickException("dump-db needs a file-backed SQLite database")
+        path = Path(db_file).parent / "trichess.sql"
+    path = Path(path)
+    conn = db.engine.raw_connection()
+    try:
+        with open(path, "w") as f:
+            for line in conn.iterdump():
+                f.write(f"{line}\n")
+    finally:
+        conn.close()
+    return path
+
+
+@app.cli.command("dump-db")
+@click.option(
+    "--file",
+    "file",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Output file (default: trichess.sql next to trichess.db)",
+)
+def dump_db_command(file):
+    """Write a SQL dump of the database (default trichess.sql next to trichess.db)."""
+    path = dump_db(file)
+    click.echo(f"Dumped database to {path}")
 
 
 @app.cli.command("bot-sweep")
