@@ -1,3 +1,4 @@
 0 8 * * * cd /code && flask --app=webapp resend-notifications
 */5 * * * * cd /code && flask --app=webapp bot-sweep
 */5 * * * * cd /code && flask --app=webapp remove-bot-games
+0 */6 * * * cd /code && flask --app=webapp dump-db
