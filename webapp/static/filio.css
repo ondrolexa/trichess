@@ -33,7 +33,11 @@
     /* Viewport-relative height for desktop buttons */
     .btnbig,
     .btnwid {
-        height: 11vh !important;
+        height: 10vh !important;
+    }
+    .divmain {
+        transform: scale(0.9);
+        transform-origin: top center;
     }
 }
 

@@ -37,10 +37,11 @@ body {
 
 /* Base video styling */
 .responsive-video {
-  width: 100% !important;
-  height: 100% !important;
-  object-fit: contain !important;
-  display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    display: block;
+    object-fit: contain; /* Ensures proper scaling on Safari/iOS */
 }
 
 /* Browser support (Webkit/Safari) */

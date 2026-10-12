@@ -44,42 +44,17 @@
   <h1 class="mt-2"><strong>Demo</strong></h1>
 </section>
 <!-- Demo section-->
-<div class="container d-flex justify-content-center">
-  <!-- Row containing 3 columns side-by-side -->
-  <div class="row w-100 justify-content-center g-3 flex-nowrap">
-    <!-- Column 1 -->
-    <div class="col-4">
-      <h5 class="text-center">Features</h5>
-      <div class="media-card bg-light rounded shadow-lg overflow-hidden">
-        <!-- Landscape Video -->
-        <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
-          <source src="{{ url_for('static', filename='img/demo_features_hr.mp4') }}" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-        <!-- Portrait Video -->
-        <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
-          <source src="{{ url_for('static', filename='img/demo_features_vr.mp4') }}" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-      </div>
-    </div>
-    <!-- Column 2 -->
-    <div class="col-4">
-      <h5 class="text-center">Board</h5>
-      <div class="media-card bg-light rounded shadow-lg overflow-hidden">
-        <!-- Landscape Video -->
-        <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
-          <source src="{{ url_for('static', filename='img/demo_#30_contast_hr.mp4') }}" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-        <!-- Portrait Video -->
-        <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
-          <source src="{{ url_for('static', filename='img/demo_#30_contast_vr.mp4') }}" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
-      </div>
-    </div>
-  </div>
+<div class="media-card bg-light rounded shadow-lg overflow-hidden">
+  <!-- Landscape Video -->
+  <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
+    <source src="{{ url_for('static', filename='img/demo_#30_contast_hr.mp4') }}" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <!-- Portrait Video -->
+  <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
+    <source src="{{ url_for('static', filename='img/demo_#30_contast_vr.mp4') }}" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
 </div>
 <div class="row feature-grid text-center mb-0">
   <div class="col-md-3 mb-3">
