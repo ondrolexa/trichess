@@ -54,6 +54,14 @@ video:-webkit-full-screen {
   display: block !important;
 }
 
+/* Narrow the card itself so its frame hugs the landscape video */
+@media (min-width: 768px) {
+  .media-card {
+    width: 75%;
+    margin-inline: auto;
+  }
+}
+
 .portrait-video {
   max-width: 100%;
   max-height: 100vh;
@@ -68,7 +76,15 @@ video:-webkit-full-screen {
   }
 
   .portrait-video {
+    width: auto;
     display: block !important;
+  }
+
+  /* Shrink the card to the height-capped portrait video so the frame hugs it */
+  .media-card {
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
   }
 }
 
