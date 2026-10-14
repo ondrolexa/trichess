@@ -60,6 +60,18 @@
     </header>
     <main class="flex-shrink-0">
       {{ render_messages(dismissible=True) }}
+      {% if maintenance %}
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <div class="alert alert-warning text-center rounded-0 mb-0" role="status">
+          <strong>Maintenance mode is on.</strong> Other users see the maintenance page.
+          <a href="{{ url_for('profile') }}" class="alert-link">Turn it off on your profile</a>.
+        </div>
+        {% elif request.endpoint == 'login' %}
+        <div class="alert alert-warning text-center rounded-0 mb-0" role="status">
+          Maintenance in progress. Only administrators can sign in right now.
+        </div>
+        {% endif %}
+      {% endif %}
       <!-- Your page content -->
       {% if board is true %}
       <div class="container-fluid mt-2">

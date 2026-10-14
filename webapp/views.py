@@ -46,6 +46,7 @@ from webapp.forms import (
 )
 from webapp.main import GAME, app, csrf, db, jwt, lm, post_notification
 from webapp.main import __version__ as webapp_version
+from webapp.maintenance import is_maintenance, set_maintenance
 from webapp.models import Score, TriBoard, User
 from webapp.token import (
     password_fingerprint,
@@ -149,6 +150,7 @@ def render_template(*args, **kwargs):
         theme=theme,
         version=webapp_version,
         ga_config=_ga_config(),
+        maintenance=is_maintenance(),
     )
 
 
@@ -624,9 +626,47 @@ def admin_users():
 # === User login methods ===
 
 
+# Reachable for everyone during maintenance: assets, and logging in/out so
+# the admin can still get in (non-admins are refused at login).
+MAINTENANCE_OPEN_ENDPOINTS = {"static", "bootstrap.static", "login", "logout"}
+MAINTENANCE_MESSAGE = "Maintenance in progress. Trichess will be back soon."
+MAINTENANCE_RETRY_AFTER = {"Retry-After": "600"}
+
+
 @app.before_request
 def before_request():
     g.user = current_user
+    if request.endpoint in MAINTENANCE_OPEN_ENDPOINTS:
+        return None
+    if g.user.is_authenticated and g.user.is_admin:
+        return None
+    if not is_maintenance():
+        return None
+    # JSON for the API (board JS, bots, tokens), a page for everything else.
+    if request.path.startswith("/api/") or request.endpoint in ("token", "refresh"):
+        return jsonify(message=MAINTENANCE_MESSAGE), 503, MAINTENANCE_RETRY_AFTER
+    return (
+        render_template("maintenance.html", message=MAINTENANCE_MESSAGE),
+        503,
+        MAINTENANCE_RETRY_AFTER,
+    )
+
+
+@app.route("/admin/maintenance", methods=["POST"])
+@login_required
+def maintenance_toggle():
+    if not g.user.is_admin:
+        abort(403)
+    on = request.form.get("state") == "on"
+    set_maintenance(on)
+    logger.warning(f"Maintenance mode turned {'on' if on else 'off'} by admin")
+    flash(
+        "Maintenance mode is on: only you can use the app."
+        if on
+        else "Maintenance mode is off: the app is open again.",
+        "warning" if on else "success",
+    )
+    return redirect(url_for("profile"))
 
 
 @lm.user_loader
@@ -645,7 +685,9 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
         if user is not None and check_password_hash(user.password, form.password.data):
-            if user.active:
+            if is_maintenance() and not user.is_admin:
+                flash(MAINTENANCE_MESSAGE, "warning")
+            elif user.active:
                 g.user = user
                 login_user(user)
                 user.last_login = datetime.now(timezone.utc)

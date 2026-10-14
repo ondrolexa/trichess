@@ -16,6 +16,11 @@ from sqlalchemy import Boolean, DateTime, String, create_engine, func, inspect, 
 from sqlalchemy import select as sa_select
 
 BATCH = 1000
+# Last revision a production SQLite database ever had. Tables added after
+# the PostgreSQL switch never existed in SQLite: a source at this revision is
+# accepted, and those tables are just created empty on the target.
+LEGACY_HEAD = "f068e4f92e2a"
+POST_SQLITE_TABLES = {"setting"}
 
 
 class MigrationError(click.ClickException):
@@ -76,13 +81,15 @@ def _preflight(source, tables, head):
                 r[0]
                 for r in conn.execute(text("SELECT version_num FROM alembic_version"))
             ]
-            if versions != [head]:
+            if versions not in ([head], [LEGACY_HEAD]):
                 problems.append(
-                    f"source alembic_version {versions} != head {head!r}; run `flask db upgrade` on it first"
+                    f"source alembic_version {versions} is neither head {head!r} "
+                    f"nor {LEGACY_HEAD!r}; run `flask db upgrade` on it first"
                 )
         for table in tables:
             if table.name not in names:
-                problems.append(f"source is missing table {table.name!r}")
+                if table.name not in POST_SQLITE_TABLES:
+                    problems.append(f"source is missing table {table.name!r}")
                 continue
             src_cols = {c["name"] for c in insp.get_columns(table.name)}
             model_cols = {c.name for c in table.columns}
@@ -108,11 +115,14 @@ def _preflight(source, tables, head):
             problems.append(f"foreign key violations in source: {orphans[:10]}")
     if problems:
         raise MigrationError("Pre-flight failed:\n  - " + "\n  - ".join(problems))
+    return names
 
 
 def _fingerprint(conn, table):
     """Per-table numbers compared between source and target after the copy."""
-    cols = [func.count(), func.max(table.c.id)]
+    cols = [func.count()]
+    if "id" in table.c:
+        cols.append(func.max(table.c.id))
     if "slog" in table.c:
         cols.append(func.coalesce(func.sum(func.length(table.c.slog)), 0))
     return tuple(conn.execute(sa_select(*cols).select_from(table)).one())
@@ -140,7 +150,7 @@ def sqlite_to_postgres(app, db, sqlite_path, echo=click.echo):
     head = _alembic_head(app)
     report = {}
     try:
-        _preflight(source, tables, head)
+        source_tables = _preflight(source, tables, head)
         with source.connect() as src, target.begin() as dst:
             models.SEED_DEFAULT_USERS = False
             try:
@@ -149,8 +159,15 @@ def sqlite_to_postgres(app, db, sqlite_path, echo=click.echo):
                 models.SEED_DEFAULT_USERS = True
 
             for table in tables:
+                if table.name not in source_tables:
+                    echo(f"{table.name}: not in source, created empty")
+                    report[table.name] = (0,)
+                    continue
                 conv = _converters(table)
-                result = src.execute(text(f'SELECT * FROM "{table.name}" ORDER BY id'))
+                order = ", ".join(f'"{c.name}"' for c in table.primary_key.columns)
+                result = src.execute(
+                    text(f'SELECT * FROM "{table.name}" ORDER BY {order}')
+                )
                 copied = 0
                 while rows := result.mappings().fetchmany(BATCH):
                     batch = [

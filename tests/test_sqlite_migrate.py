@@ -11,7 +11,7 @@ from sqlalchemy import create_engine, inspect, text
 from sse import app as sse
 from webapp.main import db
 from webapp.models import Log, Score, TriBoard, User
-from webapp.sqlite_migrate import _alembic_head, sqlite_to_postgres
+from webapp.sqlite_migrate import LEGACY_HEAD, _alembic_head, sqlite_to_postgres
 
 
 @pytest.fixture
@@ -138,3 +138,21 @@ def test_sse_seat_check_on_postgres(pg, source):
     assert not sse.user_exists(db.engine, "nobody")
     assert sse.seated(db.engine, "bob", 40)
     assert not sse.seated(db.engine, "carol", 40)
+
+
+def test_accepts_legacy_sqlite_without_post_switch_tables(pg, source):
+    # A real production SQLite file stops at LEGACY_HEAD and has no `setting`.
+    engine = create_engine(f"sqlite:///{source}")
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE setting"))
+        conn.execute(
+            text("UPDATE alembic_version SET version_num = :v"), {"v": LEGACY_HEAD}
+        )
+    engine.dispose()
+    report = sqlite_to_postgres(pg, db, str(source), echo=_quiet)
+    assert report["setting"] == (0,)
+    assert report["user"][0] == 5
+    assert inspect(db.engine).has_table("setting")
+    with db.engine.connect() as conn:
+        version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+    assert version == _alembic_head(pg)

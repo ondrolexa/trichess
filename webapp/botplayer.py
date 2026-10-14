@@ -14,6 +14,7 @@ from rq import Queue
 from engine import choose_move, choose_vote, get_game
 from engine.bot import MIN_SOUND_DEPTH
 from webapp.main import GAME, app, db
+from webapp.maintenance import is_maintenance
 from webapp.models import TriBoard, User
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,9 @@ def maybe_trigger_bot(board_id: int) -> None:
     """
     from webapp.api import sweep_finalize
 
+    # Bots pause during maintenance; bot-sweep (cron) re-triggers them after.
+    if is_maintenance():
+        return
     if sweep_finalize(board_id):
         return
     tb = db.session.get(TriBoard, board_id)
@@ -69,6 +73,10 @@ def run_bot_move(board_id: int) -> None:
     duplicating GameBoard.post()'s scoring/notification/rating logic here.
     """
     with app.app_context():
+        # A job queued just before maintenance started: drop it quietly
+        # (its POST would get 503 anyway); bot-sweep re-queues it after.
+        if is_maintenance():
+            return
         tb = db.session.get(TriBoard, board_id)
         if tb is None or tb.status != 1:
             return

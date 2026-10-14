@@ -59,7 +59,6 @@ There are three compose files:
 |---|---|
 | `docker-compose.dev.yml` | PostgreSQL only, for Flask on the host |
 | `docker-compose.yml` (default) | The whole stack in containers, built from the working tree, without Traefik. App on `http://localhost:8080`, SSE on `http://localhost:8090`: `docker compose up -d --build`. The header comments explain the setup. |
-| `docker-compose.test.yml` | The stack behind Traefik on the test domain. It matches production except for the domain. |
 
 The dev and default files share `./pgdata` and both publish `127.0.0.1:5432`, so only one of them runs at a time.
 
@@ -98,7 +97,7 @@ The application uses environment variables for configuration, loaded from a `.en
 | `BOT_GAMES_REMOVAL` | Delete finished bot games (and their logs) older than this many minutes via `remove-bot-games`; `0` disables deletion | `15` |
 | `API_TOKEN_USERS` | Comma-separated allowlist of usernames who may mint an API bearer token via `POST /token` (including Swagger UI's "Authorize" dialog) | `` (empty — nobody allowed until set) |
 | `SSE_URL` | Base URL of the live-update service (`sse/app.py`) for the board page. Empty = same origin (production behind Traefik); in local dev e.g. `http://localhost:8090` | `` (same origin) |
-| `SQLALCHEMY_DATABASE_URI` | Database URL, shared by the app, worker and SSE service: `postgresql+psycopg://user:pw@host:5432/trichess` (set by the compose files) | `sqlite:///trichess.db` (tests/zero-config only) |
+| `SQLALCHEMY_DATABASE_URI` | Database URL, shared by the app, worker and SSE service: `postgresql+psycopg://user:pw@host:5432/trichess` (set by the compose files). Required: the app and SSE service refuse to start without it | — |
 | `POSTGRES_PASSWORD` | Password of the `trichess` role in the `postgres` compose service (Compose interpolates it into the URL above) | — |
 | `BACKUP_DIR` | Folder where `dump-db` writes `trichess.sql`. In compose this is `./backup`, which is also postgres' `docker-entrypoint-initdb.d` | `/backup` |
 | `SSE_HEARTBEAT_INTERVAL` | Seconds between SSE heartbeat comments | `15` |
@@ -237,6 +236,11 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep, 
 - Default admin user is auto-created with `id=1`, `username='admin'` (see `models.py` DDL).
 - Admin's profile page includes a user selector to view any player's rating chart.
 
+### Maintenance mode
+- The admin turns it on/off from the **Maintenance mode** card on their profile page (stored in the `setting` table, so every process sees it).
+- While on, every request except the admin's gets the "Maintenance in progress" page (HTTP 503 with `Retry-After`). API calls get a JSON 503, and open board pages reload into the maintenance page. Only `/login`, `/logout` and static files stay reachable, and only the admin can sign in.
+- Bots, `resend-notifications` and `bot-sweep` pause. Once it's turned off, the 5-minute `bot-sweep` resumes any bot games that are waiting.
+
 ### User Approval
 - New users have `active=False` initially and require email verification (or admin approval) to log in.
 
@@ -261,7 +265,7 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep, 
 
 ### Live board updates (SSE)
 - `webapp/events.py` publishes a Redis pub/sub ping (one channel per board id) whenever `GameBoard.post()` (`webapp/api.py`) commits a move or vote — from a real human POST or `webapp/botplayer.py`'s in-process re-entry into that same endpoint, same code path either way.
-- `GET /api/v1/manager/board/events?id=<id>&jwt=<token>` is served by a separate async service, `sse/app.py` (Starlette + uvicorn, `uvicorn sse.app:app --port 8090`; the `trichess-sse` service in `docker-compose.test.yml`, which Traefik routes this one path to). It streams these as Server-Sent Events to any seated player's open board page. `webapp/static/ondro.js` opens one on page load and refetches full state (`boardReset()`) on each ping — it never trusts the pushed payload. Auth on this one route is query-string-only (`?jwt=`, no `Bearer` prefix), since browsers' `EventSource` API can't set custom headers; every other endpoint stays header-only.
+- `GET /api/v1/manager/board/events?id=<id>&jwt=<token>` is served by a separate async service, `sse/app.py` (Starlette + uvicorn, `uvicorn sse.app:app --port 8090`; It streams these as Server-Sent Events to any seated player's open board page. `webapp/static/ondro.js` opens one on page load and refetches full state (`boardReset()`) on each ping — it never trusts the pushed payload. Auth on this one route is query-string-only (`?jwt=`, no `Bearer` prefix), since browsers' `EventSource` API can't set custom headers; every other endpoint stays header-only.
 - Each open tab costs one coroutine (tens of KB) rather than a gunicorn thread, and the whole service shares a single Redis pattern subscription — 1000 concurrent streams measured at about 35 MB extra RSS.
 - Local dev: run `uvicorn sse.app:app --port 8090` next to `flask run`, and set `SSE_URL=http://localhost:8090` and the Flask origin in `CORS_ORIGINS` in `.env`.
 

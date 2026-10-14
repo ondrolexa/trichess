@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% from "bootstrap5/utils.html" import render_icon %}
+
+{% block content %}
+  <div class="row justify-content-center my-5">
+    <div class="col-md-8 col-lg-6 text-center">
+      <div class="text-warning mb-3">{{ render_icon("tools", "4rem") }}</div>
+      <h1 class="h2">Maintenance in progress</h1>
+      <p class="lead text-muted">Trichess will be back soon. Thank you for your patience.</p>
+      <p class="text-muted small">Your games are safe and will continue right where you left them.</p>
+    </div>
+  </div>
+{% endblock %}

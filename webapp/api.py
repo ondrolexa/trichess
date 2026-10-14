@@ -251,22 +251,6 @@ def sweep_finalize(board_id):
     return True
 
 
-def _parse_ts(raw):
-    """Normalize a DateTime column value (already a datetime from the driver;
-    a string only from legacy SQLite rows) to a Python datetime."""
-    if raw is None:
-        return datetime.min
-    if isinstance(raw, datetime):
-        return raw
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
-        try:
-            return datetime.strptime(raw, fmt)
-        except ValueError:
-            continue
-    # Fallback: return epoch so ordering is still safe
-    return datetime.min
-
-
 def _seat_map(tb):
     """username -> seat index (0/1/2) for a TriBoard's three players."""
     return {
@@ -412,8 +396,7 @@ def get_rating_history():
     for row in games:
         raw_ts, p0id, p0s, p1id, p1s, p2id, p2s = row
 
-        # Normalize timestamp (string only from legacy SQLite rows)
-        ts = _parse_ts(raw_ts)
+        ts = raw_ts or datetime.min
 
         # Ensure every player appearing in a game has an initial rating
         # (handles edge cases where active=0 users still have games)

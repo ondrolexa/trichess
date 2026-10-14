@@ -56,7 +56,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     # gunicorn_config.py defaults PORT to 80, a privileged port a non-root
     # user cannot bind(). 8080 is what the app actually listens on now —
-    # docker-compose.test.yml's Traefik loadbalancer.server.port label and
     # docker-compose.yml's published port are set to match.
     PORT=8080
 

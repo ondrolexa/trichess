@@ -1,8 +1,11 @@
 # Default `docker compose up`: the whole stack in containers on this machine,
 # built from the working tree and reachable directly (no Traefik): app on
 # http://localhost:8080, live board updates (SSE) on http://localhost:8090.
-# docker-compose.test.yml is the stack behind Traefik on the test domain;
 # docker-compose.dev.yml is PostgreSQL alone for running Flask on the host.
+#
+# NOT for servers
+# This file binds the same ./pgdata as the server stack, and two postgres
+# containers on one data directory don't detect each other — it corrupts it.
 #
 #   mkdir -p pgdata backup          # once; must exist and be yours (uid 1000)
 #   docker compose up -d --build

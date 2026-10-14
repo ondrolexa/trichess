@@ -121,15 +121,6 @@ def _set_sqlite_pragma(dbapi_connection, connection_record):
         return
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
-    # WAL allows concurrent readers alongside a writer, reducing "database is
-    # locked" errors now that the RQ worker is a 2nd process writing to the
-    # same SQLite file alongside gunicorn's multiple worker processes.
-    try:
-        cursor.execute("PRAGMA journal_mode=WAL")
-    except sqlite3.OperationalError:
-        # Read-only connection (sqlite-to-postgres opens the legacy file with
-        # mode=ro) on a database not yet in WAL mode: just read it as is.
-        pass
     cursor.close()
 
 
@@ -162,9 +153,14 @@ def resend_notification():
     if app.debug:
         logger.info("Resending skipped (debug)")
         return
+    from webapp.maintenance import is_maintenance
     from webapp.models import TriBoard, User
 
     with app.app_context():
+        # Reminders would only lead players to the maintenance page.
+        if is_maintenance():
+            logger.info("Resending skipped (maintenance)")
+            return
         # modified_at holds naive UTC (server_default/onupdate now(), with the
         # postgres server pinned to timezone=UTC in docker-compose.yml).
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
@@ -394,8 +390,12 @@ def bot_sweep_command():
     """
     from webapp.api import sweep_finalize
     from webapp.botplayer import maybe_trigger_bot
+    from webapp.maintenance import is_maintenance
     from webapp.models import TriBoard
 
+    if is_maintenance():
+        click.echo("Skipped: maintenance mode is on")
+        return
     board_ids = [tb.id for tb in TriBoard.query.filter_by(status=1).all()]
     finalized = 0
     for board_id in board_ids:

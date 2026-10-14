@@ -101,6 +101,10 @@ class fetchData {
         statusCode = response.status;
         wait_msg(true);
         if (!response.ok) {
+          if (response.status === 503) {
+            location.reload(); // maintenance mode: reload shows the maintenance page
+            return;
+          }
           if (response.status === 401 || response.status === 422) {
             window.alert("Token expired!");
             location.reload();
@@ -135,6 +139,10 @@ class fetchData {
         statusCode = response.status;
         wait_msg(true);
         if (!response.ok) {
+          if (response.status === 503) {
+            location.reload(); // maintenance mode: reload shows the maintenance page
+            return;
+          }
           if (response.status === 401 || response.status === 422) {
             window.alert("Token expired!");
             location.reload();

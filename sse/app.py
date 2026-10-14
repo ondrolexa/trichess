@@ -286,15 +286,13 @@ def create_app(
     background: bool = True,
 ) -> Starlette:
     """Build the ASGI app. Keyword overrides exist for tests."""
-    # Same database URL as the Flask app (shared .env / compose env). The
-    # engine connects lazily, so building it at import costs nothing.
-    engine = create_engine(
-        db_url
-        or os.environ.get(
-            "SQLALCHEMY_DATABASE_URI", f"sqlite:///{ROOT / 'instance' / 'trichess.db'}"
-        ),
-        pool_pre_ping=True,
-    )
+    # Same database URL as the Flask app (shared .env / compose env), and
+    # equally required. The engine connects lazily, so building it at import
+    # costs nothing.
+    db_url = db_url or os.environ.get("SQLALCHEMY_DATABASE_URI")
+    if not db_url:
+        raise RuntimeError("SQLALCHEMY_DATABASE_URI must be set (see README)")
+    engine = create_engine(db_url, pool_pre_ping=True)
     jwt_secret = jwt_secret or _secret("JWT_SECRET_KEY")
     if heartbeat_interval is None:
         heartbeat_interval = float(os.environ.get("SSE_HEARTBEAT_INTERVAL", 15))

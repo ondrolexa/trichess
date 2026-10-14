@@ -167,7 +167,8 @@ function jsonOrReject(response) {
   if (response.ok) {
     return response.json();
   }
-  if (isAuthFailure(response)) {
+  // 503 = maintenance mode: reloading lands on the "back soon" page.
+  if (isAuthFailure(response) || response.status === 503) {
     reloadForFreshToken();
     return new Promise(() => {}); // page is reloading; settle nothing
   }

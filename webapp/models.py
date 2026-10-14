@@ -144,6 +144,19 @@ class Log(db.Model):
     board = db.relationship("TriBoard", backref="logs", lazy="select")
 
 
+class Setting(db.Model):  # ty: ignore
+    """Small key/value store for app-wide switches (e.g. maintenance mode).
+
+    In the database rather than in memory so every gunicorn worker, the RQ
+    worker and cron jobs see the same value.
+    """
+
+    __tablename__ = "setting"
+
+    key = db.Column(db.String(64), primary_key=True)
+    value = db.Column(db.Text, nullable=False)
+
+
 # Off only while `flask sqlite-to-postgres` builds the schema: it copies the
 # real admin/bot rows over instead.
 SEED_DEFAULT_USERS = True

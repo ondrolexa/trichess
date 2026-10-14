@@ -21,6 +21,13 @@ def _secret(name):
     return "dev-only-insecure-key"
 
 
+def _required(name):
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(f"{name} must be set (see README)")
+    return value
+
+
 class Config(object):
     """
     Configuration base, for all environments.
@@ -38,12 +45,10 @@ class Config(object):
     # real db. That exact gap made every pytest run drop/recreate tables
     # against the real instance/trichess.db, which is what was previously
     # being investigated as recurring/unexplained data loss.
-    # Production and local dev point this at PostgreSQL
-    # (postgresql+psycopg://...); the SQLite fallback only serves tests and
-    # zero-config runs.
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "SQLALCHEMY_DATABASE_URI", "sqlite:///trichess.db"
-    )
+    # Required, no fallback: a missing URL used to silently create an empty
+    # SQLite trichess.db (with a freshly seeded admin) and serve that instead
+    # of the real PostgreSQL database (postgresql+psycopg://...).
+    SQLALCHEMY_DATABASE_URI = _required("SQLALCHEMY_DATABASE_URI")
     # Drop pooled connections the server closed (e.g. a postgres restart)
     # instead of failing the next request on them.
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}

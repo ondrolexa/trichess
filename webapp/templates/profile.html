@@ -73,6 +73,38 @@
         </div>
       </div>
     </div>
+    {% if current_user.is_admin %}
+    <div class="row mt-3">
+      <div class="col-12 p-2">
+        <div class="card {{ 'border-warning' if maintenance }}">
+          <h5 class="card-header">Maintenance mode</h5>
+          <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <p class="mb-0">
+              {% if maintenance %}
+                <span class="badge text-bg-warning">On</span> Only you can use the app; everyone else
+                sees the maintenance page. Bots and cron reminders are paused.
+              {% else %}
+                <span class="badge text-bg-success">Off</span> The app is open to everyone.
+              {% endif %}
+            </p>
+            <form method="post" action="{{ url_for('maintenance_toggle') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              {% if maintenance %}
+                <input type="hidden" name="state" value="off">
+                <button type="submit" class="btn btn-success">Turn off maintenance</button>
+              {% else %}
+                <input type="hidden" name="state" value="on">
+                <button type="submit" class="btn btn-warning"
+                        onclick="return confirm('Turn on maintenance mode? Everyone except you will be locked out.')">
+                  Turn on maintenance
+                </button>
+              {% endif %}
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
     <div class="row mt-3">
       <div class="col-12 p-2">
         <div class="card">
