@@ -12,3 +12,8 @@ threads = int(os.environ.get("GUNICORN_THREADS", 8))
 timeout = 120
 preload_app = True
 worker_tmp_dir = "/dev/shm"
+# Gunicorn 26's runtime control socket (for its admin CLI) isn't used here,
+# and its default locations (/run/user/<uid>/, then ./.gunicorn) aren't
+# writable by the container's non-root user — it only logged
+# "Control server error: Permission denied" on every start.
+control_socket_disable = True
