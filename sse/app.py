@@ -23,12 +23,13 @@ import asyncio
 import contextlib
 import logging
 import os
-import sqlite3
 from pathlib import Path
 
 import jwt
 from dotenv import load_dotenv
 from redis import asyncio as aioredis
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse, Response
@@ -85,32 +86,30 @@ def decode_token(raw: str, secret: str) -> str | None:
     return sub if isinstance(sub, str) else None
 
 
-SEATED_SQL = """
-SELECT 1 FROM triboard b JOIN user u ON u.username = ?
-WHERE b.id = ? AND b.status IN (1, 2)
+# "user" quoted: a reserved word in PostgreSQL (harmless in SQLite).
+USER_EXISTS_SQL = text('SELECT 1 FROM "user" WHERE username = :username LIMIT 1')
+SEATED_SQL = text("""
+SELECT 1 FROM triboard b JOIN "user" u ON u.username = :username
+WHERE b.id = :board_id AND b.status IN (1, 2)
   AND u.id IN (b.player_0_id, b.player_1_id, b.player_2_id)
 LIMIT 1
-"""
+""")
 
 
-def user_exists(db_path: str, username: str) -> bool:
-    with contextlib.closing(_connect(db_path)) as conn:
-        row = conn.execute(
-            "SELECT 1 FROM user WHERE username = ? LIMIT 1", (username,)
-        ).fetchone()
+def user_exists(engine: Engine, username: str) -> bool:
+    with engine.connect() as conn:
+        row = conn.execute(USER_EXISTS_SQL, {"username": username}).first()
     return row is not None
 
 
-def seated(db_path: str, username: str, board_id: int) -> bool:
+def seated(engine: Engine, username: str, board_id: int) -> bool:
     """True if *username* sits at active/finished board *board_id* — the
     read-only equivalent of TriBoard.for_player() + status 1/2."""
-    with contextlib.closing(_connect(db_path)) as conn:
-        row = conn.execute(SEATED_SQL, (username, board_id)).fetchone()
+    with engine.connect() as conn:
+        row = conn.execute(
+            SEATED_SQL, {"username": username, "board_id": board_id}
+        ).first()
     return row is not None
-
-
-def _connect(db_path: str) -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
 
 
 class Broker:
@@ -280,15 +279,21 @@ async def _wait_disconnect(receive):
 def create_app(
     *,
     redis=None,
-    db_path: str | None = None,
+    db_url: str | None = None,
     jwt_secret: str | None = None,
     heartbeat_interval: float | None = None,
     allowed_origins: list[str] | None = None,
     background: bool = True,
 ) -> Starlette:
     """Build the ASGI app. Keyword overrides exist for tests."""
-    db_path = db_path or os.environ.get(
-        "SSE_DB_PATH", str(ROOT / "instance" / "trichess.db")
+    # Same database URL as the Flask app (shared .env / compose env). The
+    # engine connects lazily, so building it at import costs nothing.
+    engine = create_engine(
+        db_url
+        or os.environ.get(
+            "SQLALCHEMY_DATABASE_URI", f"sqlite:///{ROOT / 'instance' / 'trichess.db'}"
+        ),
+        pool_pre_ping=True,
     )
     jwt_secret = jwt_secret or _secret("JWT_SECRET_KEY")
     if heartbeat_interval is None:
@@ -322,10 +327,10 @@ def create_app(
             return PlainTextResponse("Bad request", 400, headers=headers)
         username = decode_token(request.query_params.get("jwt", ""), jwt_secret)
         if username is None or not await asyncio.to_thread(
-            user_exists, db_path, username
+            user_exists, engine, username
         ):
             return PlainTextResponse("Unauthorized", 401, headers=headers)
-        if not await asyncio.to_thread(seated, db_path, username, board_id):
+        if not await asyncio.to_thread(seated, engine, username, board_id):
             return PlainTextResponse("Not found", 404, headers=headers)
         headers.update({"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
         return SSEResponse(broker, board_id, headers)
@@ -349,6 +354,7 @@ def create_app(
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             await redis.aclose()
+            engine.dispose()
 
     app = Starlette(
         routes=[

@@ -1,7 +1,7 @@
 import logging
 import re
+import shutil
 
-import click
 import pytest
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
@@ -388,21 +388,35 @@ class Test_Secret_Keys_Fail_Closed:
         assert _secret("FLASK_SECRET_KEY")
 
 
+def _needs_pg_dump():
+    if db.engine.url.get_backend_name() == "postgresql" and not shutil.which("pg_dump"):
+        pytest.skip("pg_dump not installed")
+
+
 class Test_Dump_DB:
     def test_writes_schema_and_rows(self, app, tmp_path):
+        _needs_pg_dump()
         _create_user()
         path = dump_db(tmp_path / "out.sql")
         sql = path.read_text()
-        assert sql.startswith("BEGIN TRANSACTION;")
-        assert sql.rstrip().endswith("COMMIT;")
-        assert 'CREATE TABLE "user"' in sql or "CREATE TABLE user" in sql
+        assert "CREATE TABLE" in sql and '"user"' in sql
         assert "alice" in sql
 
-    def test_default_path_needs_a_file_backed_db(self, app):
-        with pytest.raises(click.ClickException):
-            dump_db()
+    def test_default_path_is_backup_dir(self, app, tmp_path, monkeypatch):
+        _needs_pg_dump()
+        monkeypatch.setitem(app.config, "BACKUP_DIR", str(tmp_path))
+        assert dump_db() == tmp_path / "trichess.sql"
+
+    def test_replaces_old_dump_without_leftovers(self, app, tmp_path):
+        _needs_pg_dump()
+        out = tmp_path / "trichess.sql"
+        out.write_text("stale")
+        dump_db(out)
+        assert out.read_text() != "stale"
+        assert [p.name for p in tmp_path.iterdir()] == ["trichess.sql"]
 
     def test_cli_file_option(self, app, tmp_path):
+        _needs_pg_dump()
         out = tmp_path / "cli.sql"
         result = app.test_cli_runner().invoke(args=["dump-db", "--file", str(out)])
         assert result.exit_code == 0, result.output

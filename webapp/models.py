@@ -3,7 +3,6 @@ import secrets
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
-from sqlalchemy import text
 from werkzeug.security import generate_password_hash
 
 from webapp.main import db
@@ -25,7 +24,7 @@ class User(db.Model):  # ty: ignore
     pieces = db.Column(db.String(16), default="default")
     active = db.Column(db.Boolean, default=True)
     is_bot = db.Column(
-        db.Boolean, nullable=False, default=False, server_default=db.text("0")
+        db.Boolean, nullable=False, default=False, server_default=db.false()
     )
     created_at = db.Column(db.DateTime, server_default=db.func.now())
     last_login = db.Column(db.DateTime)
@@ -145,19 +144,30 @@ class Log(db.Model):
     board = db.relationship("TriBoard", backref="logs", lazy="select")
 
 
+# Off only while `flask sqlite-to-postgres` builds the schema: it copies the
+# real admin/bot rows over instead.
+SEED_DEFAULT_USERS = True
+
+
 def _seed_admin_user(target, connection, **kwargs):
-    # Bound parameter, not string interpolation — the hash (e.g. "scrypt:32768:8:1$...")
-    # contains ":"/"$" characters that break a raw-DDL string (SQLite reads ":32768"
-    # as a bind-parameter marker).
+    # No explicit id: as the first row of a fresh table it gets id 1 (the
+    # hardcoded admin check) on every backend, and PostgreSQL's id sequence
+    # stays in step. Core insert, not raw SQL: "user" is a reserved word in
+    # PostgreSQL and needs quoting, which the dialect handles.
     # rating is set explicitly: User.rating's default=500.0 is a Python/ORM-side
-    # default, not a DB server_default, so a raw INSERT like this one leaves it
+    # default, not a DB server_default, so a Core insert like this one leaves it
     # NULL otherwise — breaks anywhere the template does `rating|round`.
+    if not SEED_DEFAULT_USERS:
+        return
     connection.execute(
-        text(
-            "INSERT INTO user (id, username, password, theme, board, pieces, rating) "
-            "VALUES (1, 'admin', :password, 'night', 'ondro', 'default', 500.0)"
-        ),
-        {"password": generate_password_hash(os.environ.get("ADMIN_PASSWORD", ""))},
+        target.insert().values(
+            username="admin",
+            password=generate_password_hash(os.environ.get("ADMIN_PASSWORD", "")),
+            theme="night",
+            board="ondro",
+            pieces="default",
+            rating=500.0,
+        )
     )
 
 
@@ -167,16 +177,17 @@ def _seed_bot_users(target, connection, **kwargs):
     # _seat_map() keys on username, so 2 seats with the same identity would
     # be ambiguous. Random, unrecorded password + active=False: nobody can
     # log in as these accounts even if the hash were somehow brute-forced.
+    if not SEED_DEFAULT_USERS:
+        return
     for username in ("Bot 1", "Bot 2"):
         connection.execute(
-            text(
-                "INSERT INTO user (username, password, active, is_bot, rating) "
-                "VALUES (:username, :password, 0, 1, 500.0)"
-            ),
-            {
-                "username": username,
-                "password": generate_password_hash(secrets.token_hex(32)),
-            },
+            target.insert().values(
+                username=username,
+                password=generate_password_hash(secrets.token_hex(32)),
+                active=False,
+                is_bot=True,
+                rating=500.0,
+            )
         )
 
 

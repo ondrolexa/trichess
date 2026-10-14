@@ -10,7 +10,10 @@ import os
 # config after this call will not be reflected." Without this env var, every
 # test run against the `app`/`client` fixtures was silently creating and
 # dropping tables against the real instance/trichess.db.
-os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+# TEST_DATABASE_URL opts the whole suite into a real (throwaway) PostgreSQL
+# database instead — CI runs it both ways. Its name must contain "test".
+TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")
+os.environ["SQLALCHEMY_DATABASE_URI"] = TEST_DATABASE_URL
 # webapp.configuration refuses to start without signing keys outside debug.
 os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key-not-for-production-use")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-key-not-for-production-use")
@@ -70,7 +73,7 @@ def app():
     flask_app.config.update(
         TESTING=True,
         DEBUG=True,
-        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
+        SQLALCHEMY_DATABASE_URI=TEST_DATABASE_URL,
         WTF_CSRF_ENABLED=False,
         # Never let tests touch the real SMTP/notification services configured in .env.
         MAIL_SERVER="",
@@ -78,12 +81,16 @@ def app():
     flask_app.debug = True
     with flask_app.app_context():
         # Defense-in-depth: refuse to run against anything but an in-memory
-        # db, so a future regression here fails loudly instead of silently
-        # wiping the real database again (see the os.environ note above).
-        engine_url = str(db.engine.url)
-        assert "memory" in engine_url, (
-            "Test fixture is NOT bound to an in-memory database "
-            f"(got {engine_url!r}) — refusing to run create_all()/drop_all() "
+        # db or an explicitly opted-in *test* database, so a future
+        # regression here fails loudly instead of silently wiping the real
+        # database again (see the os.environ note above).
+        url = db.engine.url
+        assert url.database == ":memory:" or (
+            url.render_as_string(hide_password=False) == TEST_DATABASE_URL
+            and "test" in (url.database or "")
+        ), (
+            "Test fixture is NOT bound to an in-memory or *test* database "
+            f"(got {url!r}) — refusing to run create_all()/drop_all() "
             "to avoid wiping real data."
         )
         db.create_all()

@@ -1,0 +1,199 @@
+# The whole stack behind Traefik on the test domain — kept identical to the
+# production compose file except for the Host(...) rules below.
+#
+# .env also needs POSTGRES_PASSWORD — URL-safe characters only (e.g.
+# `openssl rand -hex 32`), since it is spliced into SQLALCHEMY_DATABASE_URI.
+#
+# Bind mounts are relative to this file's directory (not ${PWD}, which is
+# wherever the shell happens to be, and unset under cron/systemd).
+services:
+
+  trichess:
+    build: .
+    image: ondrolexa/trichess
+    container_name: trichess
+    env_file: ".env"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:${POSTGRES_PASSWORD}@postgres:5432/trichess
+      - BACKUP_DIR=/backup
+      # Same origin: Traefik routes the events path to trichess-sse. Pinned
+      # so a dev-only SSE_URL in .env can't point board pages at localhost.
+      - SSE_URL=
+    restart: unless-stopped
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # instance/ still holds opening_book.json (and the legacy SQLite file
+    # read once by `flask sqlite-to-postgres`). backup/ is where the cron'd
+    # `flask dump-db` writes trichess.sql — the postgres service's initdb seed.
+    volumes:
+      - './instance:/code/instance'
+      - './backup:/backup'
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.trichess.entrypoints=https"
+      - "traefik.http.routers.trichess.rule=Host(`test-trichess.mykuna.eu`)"
+      - "traefik.http.routers.trichess.tls=true"
+      - "traefik.http.routers.trichess.tls.certresolver=http"
+      - "traefik.http.services.trichess.loadbalancer.server.port=8080"
+      - "traefik.http.routers.trichess.service=trichess"
+    networks:
+      - frontend
+      - backend
+
+  trichess-sse:
+    build: .
+    image: ondrolexa/trichess
+    container_name: trichess-sse
+    # Board live updates (SSE) only — see sse/app.py. One process holds
+    # thousands of idle streams as coroutines on a single Redis pattern
+    # subscription; every other path stays on gunicorn in `trichess`.
+    command: uvicorn sse.app:app --host 0.0.0.0 --port 8090 --proxy-headers --forwarded-allow-ips=*
+    env_file: ".env"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:${POSTGRES_PASSWORD}@postgres:5432/trichess
+    restart: unless-stopped
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.trichess-sse.entrypoints=https"
+      - "traefik.http.routers.trichess-sse.rule=Host(`test-trichess.mykuna.eu`) && Path(`/api/v1/manager/board/events`)"
+      - "traefik.http.routers.trichess-sse.priority=100"
+      - "traefik.http.routers.trichess-sse.tls=true"
+      - "traefik.http.routers.trichess-sse.tls.certresolver=http"
+      - "traefik.http.services.trichess-sse.loadbalancer.server.port=8090"
+      - "traefik.http.routers.trichess-sse.service=trichess-sse"
+    networks:
+      - frontend
+      - backend
+
+  trichess-worker:
+    build: .
+    image: ondrolexa/trichess
+    container_name: trichess-worker
+    # "notifications" listed first: rq drains queues in the order given, so
+    # a push/email job never sits behind an in-progress bot search (which
+    # can take up to ~30s) in the same worker.
+    # Hardcoded, not $REDIS_URL: Compose interpolates $VAR in `command:`
+    # against the *host's* shell environment, not the
+    # container's own `environment:` block below — with no host-side
+    # REDIS_URL set, that silently resolved to an empty string ("Option
+    # --url requires an argument"). environment: already hardcodes the same
+    # literal, so there was no real single-source-of-truth win to begin with.
+    command: rq worker notifications bot --url redis://redis:6379/0
+    # A single rq worker runs one job at a time in one Python process, so it
+    # never uses more than ~1 core. Capping it at 90% of that core leaves
+    # headroom so a long bot search can't fully starve gunicorn/SSE/redis on
+    # a small host.
+    cpus: "0.9"
+    env_file: ".env"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:${POSTGRES_PASSWORD}@postgres:5432/trichess
+      - PYTHONPATH=/code
+    restart: unless-stopped
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - './instance:/code/instance'
+    depends_on:
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    # No Traefik label and no HTTP server — this service only needs to
+    # reach redis, so it stays off the shared external "frontend" network.
+    networks:
+      - backend
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: trichess-postgres
+    # timezone=UTC: DateTime columns are naive UTC (server_default now()),
+    # matching what the legacy SQLite CURRENT_TIMESTAMP stored.
+    command: ["postgres", "-c", "timezone=UTC"]
+    environment:
+      - POSTGRES_DB=trichess
+      - POSTGRES_USER=trichess
+      # Interpolated by Compose from the project's .env.
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    restart: unless-stopped
+    # Runs directly as 1000:1000 (owner of ./pgdata), so the entrypoint never
+    # needs root's chown/setuid and every capability can stay dropped.
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # backup/ doubles as docker-entrypoint-initdb.d: when pgdata/ is empty
+    # (first start, or after wiping it to restore) postgres creates the
+    # database and loads backup/trichess.sql — the latest `flask dump-db`.
+    # It is ignored whenever pgdata/ already holds a database.
+    volumes:
+      - './pgdata:/var/lib/postgresql/data'
+      - './backup:/docker-entrypoint-initdb.d:ro'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trichess -d trichess"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      # Loading a large dump on first init takes a while.
+      start_period: 120s
+    # Backend-only, no published port.
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    container_name: trichess-redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # The official image's entrypoint starts as root and calls setpriv to
+    # drop to its own unprivileged "redis" user before exec'ing the server —
+    # that needs CAP_SETUID/CAP_SETGID, which cap_drop: ALL above removes.
+    # Verified in isolation: without these 2 added back, the container
+    # crash-loops with "setpriv: setresuid failed: Operation not permitted".
+    cap_add:
+      - SETUID
+      - SETGID
+    # Backend-only: no password, no published port, so keeping it off the
+    # shared external "frontend" network (which Traefik and other unrelated
+    # compose stacks also attach to) is what actually keeps it unreachable
+    # from anything but trichess/trichess-sse/trichess-worker.
+    networks:
+      - backend
+
+networks:
+  frontend:
+    name: reverse-proxy
+    external: true
+  # Not `internal: true`: trichess-worker makes real outbound calls (ntfy.sh
+  # push notifications, SMTP) that would break if this network had no
+  # gateway. The isolation win here is from the shared external "frontend"
+  # network (other tenants' containers), not from the internet.
+  backend:
+    driver: bridge

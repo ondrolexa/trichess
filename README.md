@@ -8,7 +8,7 @@ A web application for 3-player chess on hexagonal board. Proof of concept
 - **Python**: 3.14+ (see `.python-version`)
 - **Framework**: Flask with Flask-SQLAlchemy, Flask-Login, Flask-JWT-Extended, Flask-RESTX, Flask-Migrate
 - **Frontend**: Konva.js (canvas), Bootstrap 5, vanilla JavaScript
-- **Database**: SQLite
+- **Database**: PostgreSQL 17 (psycopg 3). The test suite also runs on in-memory SQLite.
 
 ## How to install
 
@@ -31,19 +31,50 @@ Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`; change th
 
 ## Running the application
 
+Local development runs Flask on the host and PostgreSQL in Docker
+(`docker-compose.dev.yml`, published on `127.0.0.1:5432` only). Put these in `.env`:
+
 ```bash
+POSTGRES_PASSWORD=devpassword
+SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:devpassword@localhost:5432/trichess
+BACKUP_DIR=./backup
+```
+
+To start from a copy of production, put its latest dump at `backup/trichess.sql` first. An empty
+database initialises itself from that file:
+
+```bash
+mkdir -p pgdata backup                          # once; the data dir must exist and be yours
+docker compose -f docker-compose.dev.yml up -d
 uv run flask --app=webapp run
 ```
 
-The application will be available at `http://localhost:5000`.
+The application will be available at `http://localhost:5000`. To re-initialise from a newer dump:
+`docker compose -f docker-compose.dev.yml down && rm -rf pgdata && mkdir pgdata`, then `up -d` again. With no dump available, create
+an empty schema instead: `uv run python initdb.py && uv run flask --app=webapp db stamp head`.
+
+There are three compose files:
+
+| File | Runs |
+|---|---|
+| `docker-compose.dev.yml` | PostgreSQL only, for Flask on the host |
+| `docker-compose.yml` (default) | The whole stack in containers, built from the working tree, without Traefik. App on `http://localhost:8080`, SSE on `http://localhost:8090`: `docker compose up -d --build`. The header comments explain the setup. |
+| `docker-compose.test.yml` | The stack behind Traefik on the test domain. It matches production except for the domain. |
+
+The dev and default files share `./pgdata` and both publish `127.0.0.1:5432`, so only one of them runs at a time.
 
 ## Linting, formatting and tests
 
 ```bash
 uv run ruff check --fix .    # lint (pyflakes/pycodestyle rules + import sorting)
 uv run ruff format .         # format
-uv run pytest                # tests
+uv run pytest                # tests (in-memory SQLite)
+TEST_DATABASE_URL=postgresql+psycopg://trichess:devpassword@localhost:5432/trichess_test uv run pytest
 ```
+
+The second form runs the suite against a throwaway PostgreSQL database, whose name must contain `test`.
+Create it first with `docker compose -f docker-compose.dev.yml exec postgres createdb -U trichess trichess_test`.
+CI runs both. The `dump-db` tests skip themselves when `pg_dump` (PostgreSQL 17 client) isn't installed.
 
 Ruff is configured in `pyproject.toml` (`[tool.ruff]`). GitHub Actions runs the same three checks on every
 pull request and push to `main`, and only builds and pushes the Docker image (which installs dependencies
@@ -67,7 +98,9 @@ The application uses environment variables for configuration, loaded from a `.en
 | `BOT_GAMES_REMOVAL` | Delete finished bot games (and their logs) older than this many minutes via `remove-bot-games`; `0` disables deletion | `15` |
 | `API_TOKEN_USERS` | Comma-separated allowlist of usernames who may mint an API bearer token via `POST /token` (including Swagger UI's "Authorize" dialog) | `` (empty — nobody allowed until set) |
 | `SSE_URL` | Base URL of the live-update service (`sse/app.py`) for the board page. Empty = same origin (production behind Traefik); in local dev e.g. `http://localhost:8090` | `` (same origin) |
-| `SSE_DB_PATH` | SQLite file the SSE service reads for its seat check | `instance/trichess.db` |
+| `SQLALCHEMY_DATABASE_URI` | Database URL, shared by the app, worker and SSE service: `postgresql+psycopg://user:pw@host:5432/trichess` (set by the compose files) | `sqlite:///trichess.db` (tests/zero-config only) |
+| `POSTGRES_PASSWORD` | Password of the `trichess` role in the `postgres` compose service (Compose interpolates it into the URL above) | — |
+| `BACKUP_DIR` | Folder where `dump-db` writes `trichess.sql`. In compose this is `./backup`, which is also postgres' `docker-entrypoint-initdb.d` | `/backup` |
 | `SSE_HEARTBEAT_INTERVAL` | Seconds between SSE heartbeat comments | `15` |
 | `GA_MEASUREMENT_ID` | Google Analytics 4 measurement ID (`G-XXXXXXXXXX`). Loaded only after the visitor accepts the consent banner; never rendered in debug mode or for admin. Tracks page views and account/lobby events only, not gameplay | `` (empty — analytics disabled) |
 
@@ -120,10 +153,17 @@ Rebuild `instance/opening_book.json` from finished games in the database
 flask --app=webapp build-opening-book
 ```
 
-Write a plain-SQL dump of the database (default `trichess.sql` next to
-`trichess.db`; `--file` to choose another path)
+Write a plain-SQL dump of the database (default `trichess.sql` in `BACKUP_DIR`, `/backup`;
+`--file` to choose another path; runs every 6 hours via cron). The postgres service loads this file
+whenever it starts with an empty data dir, which is how both a restore and local dev setup work.
 ```bash
 flask --app=webapp dump-db [--file out.sql]
+```
+
+One-time copy of the legacy SQLite database into an empty PostgreSQL database (see
+[POSTGRES_MIGRATION.md](POSTGRES_MIGRATION.md) for the production cut-over)
+```bash
+flask --app=webapp sqlite-to-postgres --sqlite instance/trichess.db
 ```
 
 Delete finished games with a bot player, and their logs, once older than
@@ -148,10 +188,12 @@ webapp/               # Flask web application
   static/             # Static assets: ondro.js, filio.js, CSS, YAML themes/pieces
   templates/          # Jinja2 HTML templates (board_ondro.html, board_filio.html, etc.)
 migrations/           # Alembic database migration scripts
-instance/             # SQLite database (trichess.db) and opening_book.json (gitignored, bind-mounted so both persist across image rebuilds)
+instance/             # opening_book.json and the legacy SQLite trichess.db (gitignored, bind-mounted)
+backup/               # trichess.sql from dump-db; postgres initdb seed (gitignored)
+pgdata/               # PostgreSQL data dir in production (gitignored)
 .env                  # Environment variables (gitignored)
 .env.example         # Template for environment variables
-crontab              # Cron job configuration (resend-notifications, bot-sweep)
+crontab              # Cron job configuration (resend-notifications, bot-sweep, remove-bot-games, dump-db)
 ```
 
 ## Key Concepts
@@ -203,7 +245,8 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep)
 - **`purge-logs`**: Delete log entries older than `--days` (default 90).
 - **`bot-sweep`**: Re-trigger any active game whose on-move seat is a bot (runs via cron — see `crontab`).
 - **`build-opening-book`**: Rebuild `instance/opening_book.json` from finished games in the database.
-- **`dump-db`**: Write a SQL dump of the database to `trichess.sql` next to `trichess.db` (or `--file`).
+- **`dump-db`**: Write a SQL dump of the database to `BACKUP_DIR/trichess.sql` (or `--file`); every 6 hours via cron.
+- **`sqlite-to-postgres`**: One-time, verified, all-or-nothing copy of the legacy SQLite database into an empty PostgreSQL database (`--sqlite PATH`).
 - **`remove-bot-games`**: Delete finished games with a bot player, and their logs, older than `--minutes` (`BOT_GAMES_REMOVAL` env var, default `15`; `0` disables; runs every 5 minutes via cron — see `crontab`).
 
 ### Bot players
@@ -218,7 +261,7 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep)
 
 ### Live board updates (SSE)
 - `webapp/events.py` publishes a Redis pub/sub ping (one channel per board id) whenever `GameBoard.post()` (`webapp/api.py`) commits a move or vote — from a real human POST or `webapp/botplayer.py`'s in-process re-entry into that same endpoint, same code path either way.
-- `GET /api/v1/manager/board/events?id=<id>&jwt=<token>` is served by a separate async service, `sse/app.py` (Starlette + uvicorn, `uvicorn sse.app:app --port 8090`; the `trichess-sse` service in `docker-compose.yml`, which Traefik routes this one path to). It streams these as Server-Sent Events to any seated player's open board page. `webapp/static/ondro.js` opens one on page load and refetches full state (`boardReset()`) on each ping — it never trusts the pushed payload. Auth on this one route is query-string-only (`?jwt=`, no `Bearer` prefix), since browsers' `EventSource` API can't set custom headers; every other endpoint stays header-only.
+- `GET /api/v1/manager/board/events?id=<id>&jwt=<token>` is served by a separate async service, `sse/app.py` (Starlette + uvicorn, `uvicorn sse.app:app --port 8090`; the `trichess-sse` service in `docker-compose.test.yml`, which Traefik routes this one path to). It streams these as Server-Sent Events to any seated player's open board page. `webapp/static/ondro.js` opens one on page load and refetches full state (`boardReset()`) on each ping — it never trusts the pushed payload. Auth on this one route is query-string-only (`?jwt=`, no `Bearer` prefix), since browsers' `EventSource` API can't set custom headers; every other endpoint stays header-only.
 - Each open tab costs one coroutine (tens of KB) rather than a gunicorn thread, and the whole service shares a single Redis pattern subscription — 1000 concurrent streams measured at about 35 MB extra RSS.
 - Local dev: run `uvicorn sse.app:app --port 8090` next to `flask run`, and set `SSE_URL=http://localhost:8090` and the Flask origin in `CORS_ORIGINS` in `.env`.
 

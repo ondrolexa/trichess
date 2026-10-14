@@ -38,9 +38,19 @@ class Config(object):
     # real db. That exact gap made every pytest run drop/recreate tables
     # against the real instance/trichess.db, which is what was previously
     # being investigated as recurring/unexplained data loss.
+    # Production and local dev point this at PostgreSQL
+    # (postgresql+psycopg://...); the SQLite fallback only serves tests and
+    # zero-config runs.
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "SQLALCHEMY_DATABASE_URI", "sqlite:///trichess.db"
     )
+    # Drop pooled connections the server closed (e.g. a postgres restart)
+    # instead of failing the next request on them.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
+    # Where `flask dump-db` writes trichess.sql. In docker-compose.yml the
+    # same host folder is the postgres container's docker-entrypoint-initdb.d,
+    # so an empty database initialises itself from the latest dump.
+    BACKUP_DIR = os.environ.get("BACKUP_DIR", "/backup")
     BOOTSTRAP_FONTAWESOME = True
     SECRET_KEY = _secret("FLASK_SECRET_KEY")
     JWT_SECRET_KEY = _secret("JWT_SECRET_KEY")

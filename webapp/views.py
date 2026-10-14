@@ -1,13 +1,13 @@
 """
-When changed update migrations
-# DEVELOPEMENT
+When models change, update migrations
+# DEVELOPMENT (against the dev PostgreSQL from docker-compose.dev.yml)
 flask --app=webapp db migrate -m "Added user verification status"
-# add op.execute("PRAGMA foreign_keys=OFF") and op.execute("PRAGMA foreign_keys=ON")
-# before and after upgrade and downgrade functions in migration script
 flask --app=webapp db upgrade
 
 # PRODUCTION
 Rerun flask --app=webapp db upgrade with production database
+(Revisions before the PostgreSQL switch are SQLite-era; databases are created
+from the models or a dump and stamped at head, never replayed from base.)
 """
 
 import hashlib
@@ -605,10 +605,12 @@ def admin_users():
                     db.session.commit()
             return redirect(url_for("admin_users"))
         else:
-            waiting = User.query.filter(User.id > 1).filter(User.active == 0).all()
+            waiting = (
+                User.query.filter(User.id > 1).filter(User.active.is_(False)).all()
+            )
             users = (
                 User.query.filter(User.id > 1)
-                .filter(User.active == 1)
+                .filter(User.active.is_(True))
                 .filter_by(is_bot=False)
                 .order_by(User.last_login.desc())
                 .all()

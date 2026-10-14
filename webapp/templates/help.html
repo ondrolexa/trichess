@@ -790,7 +790,7 @@
             </tr>
             <tr>
               <td>ORM</td>
-              <td>Flask-SQLAlchemy (SQLite, WAL mode)</td>
+              <td>Flask-SQLAlchemy (PostgreSQL 17, psycopg 3)</td>
             </tr>
             <tr>
               <td>Migrations</td>
@@ -872,8 +872,10 @@
       templates/            # Jinja2 templates
     migrations/           # Alembic migrations
     instance/
-      trichess.db          # SQLite database (auto-created)
-      opening_book.json    # Bot opening book (persisted, gitignored)</code></pre>
+      opening_book.json    # Bot opening book (persisted, gitignored)
+    backup/
+      trichess.sql         # dump-db output; postgres initdb seed (gitignored)
+    pgdata/                # PostgreSQL data dir (gitignored)</code></pre>
 
         <hr>
 
@@ -1153,8 +1155,10 @@
     cp .env.example .env
     # Edit .env with SECRET_KEY, JWT_SECRET_KEY, etc.
 
-    # Database
-    uv run flask --app=webapp db upgrade
+    # Database: PostgreSQL in Docker (empty ./pgdata initialises from ./backup/trichess.sql)
+    # .env: POSTGRES_PASSWORD, SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:...@localhost:5432/trichess
+    mkdir -p pgdata backup
+    docker compose -f docker-compose.dev.yml up -d
 
     # Run
     uv run flask --app=webapp --debug run
@@ -1200,7 +1204,12 @@
             </tr>
             <tr>
               <td><code>dump-db [--file]</code></td>
-              <td>SQL dump of the database (default <code>trichess.sql</code> next to <code>trichess.db</code>)</td>
+              <td>SQL dump of the database to <code>/backup/trichess.sql</code> (cron, every 6h); the postgres
+                service's seed when its data dir is empty</td>
+            </tr>
+            <tr>
+              <td><code>sqlite-to-postgres --sqlite</code></td>
+              <td>One-time, verified copy of the legacy SQLite database into an empty PostgreSQL</td>
             </tr>
             <tr>
               <td><code>remove-bot-games [--days]</code></td>
@@ -1220,8 +1229,8 @@
           <li><strong>Code style</strong>: match existing patterns — stateless API calls, slog-based state, no
             framework deps in engine</li>
           <li><strong>Format</strong>: <code>ruff check --fix</code> + <code>ruff format</code> (pre-commit)</li>
-          <li><strong>Schema changes</strong>: create a migration (<code>flask db migrate</code>) and wrap DDL in
-            <code>PRAGMA foreign_keys=OFF/ON</code> for SQLite</li>
+          <li><strong>Schema changes</strong>: create a migration (<code>flask db migrate</code>) against the dev
+            PostgreSQL and keep queries dialect-neutral (CI runs the tests on SQLite and PostgreSQL)</li>
           <li><strong>Logging</strong>: use the custom <code>GAME</code> level (25) for game events,
             <code>logger.error/warning</code> for operational issues — no structured JSON extras, no manual
             <code>db.session.commit()</code></li>

@@ -1,7 +1,8 @@
 """The standalone SSE service (sse/app.py).
 
-Its seat check reads the SQLite file directly, so the fixture builds a real
-temporary database from webapp.models' own metadata — a schema change that
+Its seat check queries the database directly (SQLAlchemy Core, no webapp
+import), so the fixture builds a real temporary SQLite database from
+webapp.models' own metadata — a schema change that
 breaks SEATED_SQL fails here — and tokens come from flask-jwt-extended
 itself, so the PyJWT decoding stays compatible with what /play mints.
 """
@@ -21,7 +22,7 @@ from webapp.models import TriBoard, User, db
 
 
 @pytest.fixture
-def db_path(tmp_path):
+def db_url(tmp_path):
     path = tmp_path / "trichess.db"
     engine = create_engine(f"sqlite:///{path}")
     db.metadata.create_all(engine)
@@ -44,7 +45,7 @@ def db_path(tmp_path):
                 )
             )
     engine.dispose()
-    return str(path)
+    return f"sqlite:///{path}"
 
 
 @pytest.fixture
@@ -57,10 +58,10 @@ def _token(app, username, **kwargs):
         return create_access_token(identity=username, **kwargs)
 
 
-def _client(db_path, secret, **kwargs):
+def _client(db_url, secret, **kwargs):
     application = sse.create_app(
         redis=fakeredis.FakeAsyncRedis(decode_responses=True),
-        db_path=db_path,
+        db_url=db_url,
         jwt_secret=secret,
         background=False,
         **kwargs,
@@ -101,39 +102,39 @@ class TestDecodeToken:
 
 
 class TestSeated:
-    def test_seated_on_active_and_finished(self, db_path):
-        assert sse.seated(db_path, "bob", 10)
-        assert sse.seated(db_path, "carol", 11)
+    def test_seated_on_active_and_finished(self, db_url):
+        assert sse.seated(create_engine(db_url), "bob", 10)
+        assert sse.seated(create_engine(db_url), "carol", 11)
 
-    def test_not_seated(self, db_path):
-        assert not sse.seated(db_path, "eve", 10)
+    def test_not_seated(self, db_url):
+        assert not sse.seated(create_engine(db_url), "eve", 10)
 
-    def test_waiting_board_and_unknown_board(self, db_path):
-        assert not sse.seated(db_path, "alice", 12)
-        assert not sse.seated(db_path, "alice", 999)
+    def test_waiting_board_and_unknown_board(self, db_url):
+        assert not sse.seated(create_engine(db_url), "alice", 12)
+        assert not sse.seated(create_engine(db_url), "alice", 999)
 
 
 class TestEndpointErrors:
-    def test_missing_id(self, app, db_path, secret):
-        resp = _client(db_path, secret).get(sse.EVENTS_PATH)
+    def test_missing_id(self, app, db_url, secret):
+        resp = _client(db_url, secret).get(sse.EVENTS_PATH)
         assert resp.status_code == 400
 
-    def test_bad_token(self, app, db_path, secret):
-        resp = _client(db_path, secret).get(f"{sse.EVENTS_PATH}?id=10&jwt=nope")
+    def test_bad_token(self, app, db_url, secret):
+        resp = _client(db_url, secret).get(f"{sse.EVENTS_PATH}?id=10&jwt=nope")
         assert resp.status_code == 401
 
-    def test_unknown_user(self, app, db_path, secret):
+    def test_unknown_user(self, app, db_url, secret):
         token = _token(app, "mallory")
-        resp = _client(db_path, secret).get(f"{sse.EVENTS_PATH}?id=10&jwt={token}")
+        resp = _client(db_url, secret).get(f"{sse.EVENTS_PATH}?id=10&jwt={token}")
         assert resp.status_code == 401
 
-    def test_not_seated(self, app, db_path, secret):
+    def test_not_seated(self, app, db_url, secret):
         token = _token(app, "eve")
-        resp = _client(db_path, secret).get(f"{sse.EVENTS_PATH}?id=10&jwt={token}")
+        resp = _client(db_url, secret).get(f"{sse.EVENTS_PATH}?id=10&jwt={token}")
         assert resp.status_code == 404
 
-    def test_cors_header_only_for_allowed_origin(self, app, db_path, secret):
-        client = _client(db_path, secret, allowed_origins=["http://localhost:8080"])
+    def test_cors_header_only_for_allowed_origin(self, app, db_url, secret):
+        client = _client(db_url, secret, allowed_origins=["http://localhost:8080"])
         ok = client.get(sse.EVENTS_PATH, headers={"Origin": "http://localhost:8080"})
         assert ok.headers["access-control-allow-origin"] == "http://localhost:8080"
         other = client.get(sse.EVENTS_PATH, headers={"Origin": "http://evil.test"})

@@ -1,5 +1,7 @@
+from datetime import datetime, timedelta, timezone
+
 from flask_jwt_extended import create_access_token
-from sqlalchemy import text
+from sqlalchemy import update
 from werkzeug.security import generate_password_hash
 
 from engine import GameAPI, get_game
@@ -438,14 +440,7 @@ class TestSinglePlayerNotifications:
         alice = _create_user("alice")
         tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2})
 
-        db.session.execute(
-            text(
-                "UPDATE triboard SET modified_at = datetime('now', '-2 day') "
-                "WHERE id = :id"
-            ),
-            {"id": tb.id},
-        )
-        db.session.commit()
+        _backdate_board(tb, 2 * 24 * 60)
 
         app.debug = False
         try:
@@ -473,14 +468,7 @@ class TestResendNotificationNeverTargetsBots:
         # bot-move job that got lost (e.g. a Redis restart).
         tb = _make_board(alice, {0: bot1, 1: alice, 2: bot2})
 
-        db.session.execute(
-            text(
-                "UPDATE triboard SET modified_at = datetime('now', '-2 day') "
-                "WHERE id = :id"
-            ),
-            {"id": tb.id},
-        )
-        db.session.commit()
+        _backdate_board(tb, 2 * 24 * 60)
 
         app.debug = False
         try:
@@ -492,11 +480,11 @@ class TestResendNotificationNeverTargetsBots:
 
 
 def _backdate_board(tb, minutes):
+    # Explicit value overrides modified_at's onupdate=now(); naive UTC like
+    # the server_default.
+    stamp = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=minutes)
     db.session.execute(
-        text(
-            "UPDATE triboard SET modified_at = datetime('now', :offset) WHERE id = :id"
-        ),
-        {"offset": f"-{minutes} minute", "id": tb.id},
+        update(TriBoard).where(TriBoard.id == tb.id).values(modified_at=stamp)
     )
     db.session.commit()
 

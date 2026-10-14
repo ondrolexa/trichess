@@ -13,7 +13,7 @@ MAX_BOOK_PLIES = 9
 
 # Lives in instance/ (not engine/) so it survives image rebuilds: the
 # Dockerfile only COPYs engine/, but instance/ is bind-mounted from the
-# host in docker-compose.yml, same as trichess.db.
+# host by the compose files.
 BOOK_PATH = Path(__file__).resolve().parent.parent / "instance" / "opening_book.json"
 
 _VOTE_PREFIXES = ("r", "s", "R", "S")

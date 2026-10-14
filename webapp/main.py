@@ -1,5 +1,7 @@
 import logging
 import os
+import sqlite3
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -12,7 +14,7 @@ from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf import CSRFProtect
-from sqlalchemy import event, text
+from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from werkzeug.exceptions import HTTPException
 
@@ -111,15 +113,23 @@ bs = Bootstrap5(app)  # bootstrap-flask
 db = SQLAlchemy(app)  # flask-sqlalchemy
 
 
-# Enable SQLite foreign key enforcement
+# Enable SQLite foreign key enforcement (tests and zero-config runs; a no-op
+# for PostgreSQL, which always enforces foreign keys)
 @event.listens_for(Engine, "connect")
 def _set_sqlite_pragma(dbapi_connection, connection_record):
+    if not isinstance(dbapi_connection, sqlite3.Connection):
+        return
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     # WAL allows concurrent readers alongside a writer, reducing "database is
     # locked" errors now that the RQ worker is a 2nd process writing to the
     # same SQLite file alongside gunicorn's multiple worker processes.
-    cursor.execute("PRAGMA journal_mode=WAL")
+    try:
+        cursor.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.OperationalError:
+        # Read-only connection (sqlite-to-postgres opens the legacy file with
+        # mode=ro) on a database not yet in WAL mode: just read it as is.
+        pass
     cursor.close()
 
 
@@ -152,41 +162,34 @@ def resend_notification():
     if app.debug:
         logger.info("Resending skipped (debug)")
         return
+    from webapp.models import TriBoard, User
+
     with app.app_context():
-        with db.engine.connect() as connection:
-            result = connection.execute(
-                text(
-                    "SELECT * FROM triboard WHERE status=1 AND datetime(modified_at) <= datetime('now', '-1 day');"
+        # modified_at holds naive UTC (server_default/onupdate now(), with the
+        # postgres server pinned to timezone=UTC in docker-compose.yml).
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+        boards = TriBoard.query.filter(
+            TriBoard.status == 1, TriBoard.modified_at <= cutoff
+        ).all()
+        for tb in boards:
+            slog = tb.slog or ""
+            moves = [
+                slog[i : i + 4]
+                for i in range(0, len(slog), 4)
+                if slog[i] not in ["S", "R", "r", "s"]
+            ]
+            user = db.session.get(User, getattr(tb, f"player_{len(moves) % 3}_id"))
+            # notify next player
+            if user is not None and not user.is_bot:
+                logger.info(
+                    f"resend_notification: notifying {user.username} about game {tb.id}"
                 )
-            )
-            rows = result.mappings().all()
-            for r in rows:
-                slog = r["slog"]
-                moves = [
-                    slog[i : i + 4]
-                    for i in range(0, len(slog), 4)
-                    if slog[i] not in ["S", "R", "r", "s"]
-                ]
-                onmove = f"player_{len(moves) % 3}_id"
-                user = (
-                    connection.execute(
-                        text("SELECT * FROM user WHERE id = :user_id;"),
-                        {"user_id": r[onmove]},
-                    )
-                    .mappings()
-                    .first()
+                post_notification(
+                    user.username,
+                    f"It's still your turn in game {tb.id}",
+                    "Your turn reminder",
+                    tb.id,
                 )
-                # notify next player
-                if user is not None and not user["is_bot"]:
-                    logger.info(
-                        f"resend_notification: notifying {user['username']} about game {r['id']}"
-                    )
-                    post_notification(
-                        user["username"],
-                        f"It's still your turn in game {r['id']}",
-                        "Your turn reminder",
-                        r["id"],
-                    )
 
 
 @app.cli.command("resend-notifications")
@@ -278,22 +281,70 @@ def build_opening_book_command():
     click.echo(f"Wrote opening book from {len(slogs)} finished games to {BOOK_PATH}")
 
 
-def dump_db(path=None):
-    """Write a plain-SQL dump of the SQLite database to `path` (default
-    trichess.sql next to the database file) and return the path written."""
-    db_file = db.engine.url.database
-    if path is None:
-        if not db_file or db_file == ":memory:":
-            raise click.ClickException("dump-db needs a file-backed SQLite database")
-        path = Path(db_file).parent / "trichess.sql"
-    path = Path(path)
-    conn = db.engine.raw_connection()
+def _pg_dump(url, path):
+    """pg_dump the PostgreSQL database at `url` as plain SQL into `path`.
+
+    Plain SQL without owner/privilege statements, so the postgres
+    container's docker-entrypoint-initdb.d can load it into an empty
+    database as whatever POSTGRES_USER it runs with. Credentials go through
+    libpq's env vars, never argv (visible in the process list).
+    """
+    env = dict(os.environ)
+    for var, value in (
+        ("PGHOST", url.host),
+        ("PGPORT", url.port),
+        ("PGUSER", url.username),
+        ("PGPASSWORD", url.password),
+    ):
+        if value is not None:
+            env[var] = str(value)
     try:
-        with open(path, "w") as f:
-            for line in conn.iterdump():
-                f.write(f"{line}\n")
+        subprocess.run(
+            [
+                "pg_dump",
+                "--no-owner",
+                "--no-privileges",
+                "--file",
+                str(path),
+                url.database,
+            ],
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as err:
+        raise click.ClickException(
+            "pg_dump not found (install postgresql-client)"
+        ) from err
+    except subprocess.CalledProcessError as err:
+        raise click.ClickException(f"pg_dump failed: {err.stderr.strip()}") from err
+
+
+def dump_db(path=None):
+    """Write a plain-SQL dump of the database to `path` (default trichess.sql
+    in BACKUP_DIR) and return the path written.
+
+    Written to a .tmp file first and renamed into place, so a crash mid-dump
+    never leaves a truncated *.sql where postgres' initdb would load it.
+    """
+    path = Path(path or Path(app.config["BACKUP_DIR"]) / "trichess.sql")
+    tmp = path.with_name(path.name + ".tmp")
+    url = db.engine.url
+    try:
+        if url.get_backend_name() == "postgresql":
+            _pg_dump(url, tmp)
+        else:
+            conn = db.engine.raw_connection()
+            try:
+                with open(tmp, "w") as f:
+                    for line in conn.iterdump():
+                        f.write(f"{line}\n")
+            finally:
+                conn.close()
+        os.replace(tmp, path)
     finally:
-        conn.close()
+        tmp.unlink(missing_ok=True)
     return path
 
 
@@ -303,12 +354,28 @@ def dump_db(path=None):
     "file",
     type=click.Path(dir_okay=False),
     default=None,
-    help="Output file (default: trichess.sql next to trichess.db)",
+    help="Output file (default: trichess.sql in BACKUP_DIR, /backup)",
 )
 def dump_db_command(file):
-    """Write a SQL dump of the database (default trichess.sql next to trichess.db)."""
+    """Write a SQL dump of the database (default /backup/trichess.sql)."""
     path = dump_db(file)
     click.echo(f"Dumped database to {path}")
+
+
+@app.cli.command("sqlite-to-postgres")
+@click.option(
+    "--sqlite",
+    "sqlite_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="Legacy SQLite database to copy (opened read-only)",
+)
+def sqlite_to_postgres_command(sqlite_path):
+    """One-time copy of the legacy SQLite database into the (empty)
+    PostgreSQL database — see README's cut-over runbook."""
+    from webapp.sqlite_migrate import sqlite_to_postgres
+
+    sqlite_to_postgres(app, db, sqlite_path)
 
 
 @app.cli.command("bot-sweep")

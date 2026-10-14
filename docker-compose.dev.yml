@@ -1,0 +1,37 @@
+# Local development: PostgreSQL only, for `uv run flask --app=webapp run` on
+# the host. Like production, data lives in ./pgdata, and an empty ./pgdata
+# initialises itself from ./backup/trichess.sql (copy production's latest
+# dump there).
+#   mkdir -p pgdata backup                       # once; must exist, owned by you
+#   docker compose -f docker-compose.dev.yml up -d
+# Re-initialise from a newer dump:
+#   docker compose -f docker-compose.dev.yml down && rm -rf pgdata && mkdir pgdata
+#   docker compose -f docker-compose.dev.yml up -d
+# .env then needs e.g.
+#   POSTGRES_PASSWORD=devpassword
+#   SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:devpassword@localhost:5432/trichess
+#   BACKUP_DIR=./backup
+name: trichess-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    command: ["postgres", "-c", "timezone=UTC"]
+    environment:
+      - POSTGRES_DB=trichess
+      - POSTGRES_USER=trichess
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # Your own uid (as in production's 1000:1000), so ./pgdata stays owned by
+    # you rather than the image's postgres user.
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./backup:/docker-entrypoint-initdb.d:ro
+    # Loopback only — never reachable from the network.
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trichess -d trichess"]
+      interval: 5s
+      timeout: 5s
+      retries: 12

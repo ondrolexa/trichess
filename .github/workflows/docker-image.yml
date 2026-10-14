@@ -12,6 +12,22 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    # Same major as docker-compose.yml's postgres service; the suite runs a
+    # second time against it (TEST_DATABASE_URL below).
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: trichess_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
     - name: Check out the repo
       uses: actions/checkout@v7
@@ -32,8 +48,21 @@ jobs:
     - name: Check formatting
       run: uv run ruff format --check .
 
-    - name: Test
+    - name: Test (SQLite)
       run: uv run pytest
+
+    # pg_dump must match the server's major version (17) for the dump-db tests.
+    - name: Install PostgreSQL 17 client
+      run: |
+        sudo apt-get install -y postgresql-common
+        sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+        sudo apt-get install -y postgresql-client-17
+        echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+    - name: Test (PostgreSQL)
+      run: uv run pytest
+      env:
+        TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/trichess_test
 
   build:
 

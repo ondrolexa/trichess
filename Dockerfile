@@ -56,18 +56,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH" \
     # gunicorn_config.py defaults PORT to 80, a privileged port a non-root
     # user cannot bind(). 8080 is what the app actually listens on now —
-    # docker-compose.yml's Traefik loadbalancer.server.port label is set
-    # to match.
+    # docker-compose.test.yml's Traefik loadbalancer.server.port label and
+    # docker-compose.yml's published port are set to match.
     PORT=8080
 
 WORKDIR /code
 
-# Fixed UID/GID 1000: matches docker-compose.yml's existing "1000:1000"
+# Fixed UID/GID 1000: matches the compose files' "1000:1000"
 # override and typical host-bind-mount ownership for ./instance, so the
 # image is correct standalone too. useradd/groupadd ship in the base Debian
 # image already — no apt-get needed for this.
 RUN groupadd --gid 1000 app && \
     useradd --uid 1000 --gid app --home-dir /code --shell /usr/sbin/nologin app
+
+# postgresql-client: pg_dump for `flask dump-db` (cron). Debian trixie's
+# client is 17, the same major as the postgres:17 service — a newer pg_dump
+# writes settings (e.g. transaction_timeout) an older server can't restore.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /usr/local/bin/supercronic /usr/local/bin/supercronic
@@ -76,6 +83,9 @@ COPY --chown=app:app ./crontab ./gunicorn_config.py ./start.sh /code/
 COPY --chown=app:app ./engine /code/engine
 COPY --chown=app:app ./webapp /code/webapp
 COPY --chown=app:app ./sse /code/sse
+# Alembic scripts: `flask db upgrade/current/stamp` and sqlite-to-postgres's
+# head check run inside this image.
+COPY --chown=app:app ./migrations /code/migrations
 
 RUN chmod +x /code/start.sh
 

@@ -170,3 +170,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# PostgreSQL data and dumps (docker-compose.yml)
+backup/
+pgdata/

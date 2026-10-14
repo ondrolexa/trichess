@@ -252,7 +252,8 @@ def sweep_finalize(board_id):
 
 
 def _parse_ts(raw):
-    """Parse SQLite DATETIME string to a Python datetime object."""
+    """Normalize a DateTime column value (already a datetime from the driver;
+    a string only from legacy SQLite rows) to a Python datetime."""
     if raw is None:
         return datetime.min
     if isinstance(raw, datetime):
@@ -411,7 +412,7 @@ def get_rating_history():
     for row in games:
         raw_ts, p0id, p0s, p1id, p1s, p2id, p2s = row
 
-        # Parse timestamp – SQLite stores datetimes as strings
+        # Normalize timestamp (string only from legacy SQLite rows)
         ts = _parse_ts(raw_ts)
 
         # Ensure every player appearing in a game has an initial rating
