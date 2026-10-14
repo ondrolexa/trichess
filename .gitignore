@@ -168,6 +168,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# PostgreSQL data and dumps (docker-compose.yml)
-backup/
+# PostgreSQL data (docker-compose.yml); dumps go to instance/
 pgdata/

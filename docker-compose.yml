@@ -7,14 +7,14 @@
 # This file binds the same ./pgdata as the server stack, and two postgres
 # containers on one data directory don't detect each other — it corrupts it.
 #
-#   mkdir -p pgdata backup          # once; must exist and be yours (uid 1000)
+#   mkdir -p pgdata instance        # once; must exist and be yours (uid 1000)
 #   docker compose up -d --build
 #
 # .env needs POSTGRES_PASSWORD (plus the usual secrets). The database
 # settings below override any dev values in .env.
 #
 # Database contents: an empty ./pgdata initialises itself from
-# ./backup/trichess.sql (e.g. production's latest dump). Without a dump,
+# ./instance/trichess.sql (e.g. production's latest dump). Without a dump,
 # copy the legacy SQLite database in once instead:
 #   docker compose run --rm trichess \
 #     flask --app=webapp sqlite-to-postgres --sqlite /code/instance/trichess.db
@@ -50,13 +50,11 @@ services:
     <<: *app
     environment:
       <<: *db-env
-      BACKUP_DIR: /backup
       # The board page opens its EventSource on the SSE service's own port
       # (no Traefik to route the events path on one origin).
       SSE_URL: http://localhost:8090
     volumes:
       - ./instance:/code/instance
-      - ./backup:/backup
     ports:
       - "127.0.0.1:8080:8080"
 
@@ -95,7 +93,7 @@ services:
       - ALL
     volumes:
       - ./pgdata:/var/lib/postgresql/data
-      - ./backup:/docker-entrypoint-initdb.d:ro
+      - ./instance:/docker-entrypoint-initdb.d:ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:

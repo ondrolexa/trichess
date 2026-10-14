@@ -873,7 +873,6 @@
     migrations/           # Alembic migrations
     instance/
       opening_book.json    # Bot opening book (persisted, gitignored)
-    backup/
       trichess.sql         # dump-db output; postgres initdb seed (gitignored)
     pgdata/                # PostgreSQL data dir (gitignored)</code></pre>
 
@@ -1155,9 +1154,9 @@
     cp .env.example .env
     # Edit .env with SECRET_KEY, JWT_SECRET_KEY, etc.
 
-    # Database: PostgreSQL in Docker (empty ./pgdata initialises from ./backup/trichess.sql)
+    # Database: PostgreSQL in Docker (empty ./pgdata initialises from ./instance/trichess.sql)
     # .env: POSTGRES_PASSWORD, SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:...@localhost:5432/trichess
-    mkdir -p pgdata backup
+    mkdir -p pgdata instance
     docker compose -f docker-compose.dev.yml up -d
 
     # Run
@@ -1204,7 +1203,7 @@
             </tr>
             <tr>
               <td><code>dump-db [--file]</code></td>
-              <td>SQL dump of the database to <code>/backup/trichess.sql</code> (cron, every 6h); the postgres
+              <td>SQL dump of the database to <code>instance/trichess.sql</code> (cron, every 6h); the postgres
                 service's seed when its data dir is empty</td>
             </tr>
             <tr>

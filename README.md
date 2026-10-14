@@ -37,14 +37,13 @@ Local development runs Flask on the host and PostgreSQL in Docker
 ```bash
 POSTGRES_PASSWORD=devpassword
 SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:devpassword@localhost:5432/trichess
-BACKUP_DIR=./backup
 ```
 
-To start from a copy of production, put its latest dump at `backup/trichess.sql` first. An empty
+To start from a copy of production, put its latest dump at `instance/trichess.sql` first. An empty
 database initialises itself from that file:
 
 ```bash
-mkdir -p pgdata backup                          # once; the data dir must exist and be yours
+mkdir -p pgdata instance                        # once; the data dir must exist and be yours
 docker compose -f docker-compose.dev.yml up -d
 uv run flask --app=webapp run
 ```
@@ -99,7 +98,6 @@ The application uses environment variables for configuration, loaded from a `.en
 | `SSE_URL` | Base URL of the live-update service (`sse/app.py`) for the board page. Empty = same origin (production behind Traefik); in local dev e.g. `http://localhost:8090` | `` (same origin) |
 | `SQLALCHEMY_DATABASE_URI` | Database URL, shared by the app, worker and SSE service: `postgresql+psycopg://user:pw@host:5432/trichess` (set by the compose files). Required: the app and SSE service refuse to start without it | — |
 | `POSTGRES_PASSWORD` | Password of the `trichess` role in the `postgres` compose service (Compose interpolates it into the URL above) | — |
-| `BACKUP_DIR` | Folder where `dump-db` writes `trichess.sql`. In compose this is `./backup`, which is also postgres' `docker-entrypoint-initdb.d` | `/backup` |
 | `SSE_HEARTBEAT_INTERVAL` | Seconds between SSE heartbeat comments | `15` |
 | `GA_MEASUREMENT_ID` | Google Analytics 4 measurement ID (`G-XXXXXXXXXX`). Loaded only after the visitor accepts the consent banner; never rendered in debug mode or for admin. Tracks page views and account/lobby events only, not gameplay | `` (empty — analytics disabled) |
 
@@ -152,7 +150,7 @@ Rebuild `instance/opening_book.json` from finished games in the database
 flask --app=webapp build-opening-book
 ```
 
-Write a plain-SQL dump of the database (default `trichess.sql` in `BACKUP_DIR`, `/backup`;
+Write a plain-SQL dump of the database (default `instance/trichess.sql`;
 `--file` to choose another path; runs every 6 hours via cron). The postgres service loads this file
 whenever it starts with an empty data dir, which is how both a restore and local dev setup work.
 ```bash
@@ -187,8 +185,8 @@ webapp/               # Flask web application
   static/             # Static assets: ondro.js, filio.js, CSS, YAML themes/pieces
   templates/          # Jinja2 HTML templates (board_ondro.html, board_filio.html, etc.)
 migrations/           # Alembic database migration scripts
-instance/             # opening_book.json and the legacy SQLite trichess.db (gitignored, bind-mounted)
-backup/               # trichess.sql from dump-db; postgres initdb seed (gitignored)
+instance/             # opening_book.json, the legacy SQLite trichess.db and trichess.sql from dump-db,
+                      # also postgres' initdb seed folder (gitignored, bind-mounted)
 pgdata/               # PostgreSQL data dir in production (gitignored)
 .env                  # Environment variables (gitignored)
 .env.example         # Template for environment variables
@@ -249,7 +247,7 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep, 
 - **`purge-logs`**: Delete log entries older than `--days` (default 90).
 - **`bot-sweep`**: Re-trigger any active game whose on-move seat is a bot (runs via cron — see `crontab`).
 - **`build-opening-book`**: Rebuild `instance/opening_book.json` from finished games in the database.
-- **`dump-db`**: Write a SQL dump of the database to `BACKUP_DIR/trichess.sql` (or `--file`); every 6 hours via cron.
+- **`dump-db`**: Write a SQL dump of the database to `instance/trichess.sql` (or `--file`); every 6 hours via cron.
 - **`sqlite-to-postgres`**: One-time, verified, all-or-nothing copy of the legacy SQLite database into an empty PostgreSQL database (`--sqlite PATH`).
 - **`remove-bot-games`**: Delete finished games with a bot player, and their logs, older than `--minutes` (`BOT_GAMES_REMOVAL` env var, default `15`; `0` disables; runs every 5 minutes via cron — see `crontab`).
 

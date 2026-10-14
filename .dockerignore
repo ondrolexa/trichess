@@ -19,7 +19,6 @@ venv/
 
 # Runtime data — bind-mounted at runtime, never baked into the image
 instance/
-backup/
 pgdata/
 
 # Tests and dev tooling

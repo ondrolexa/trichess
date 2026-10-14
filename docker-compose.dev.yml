@@ -1,8 +1,8 @@
 # Local development: PostgreSQL only, for `uv run flask --app=webapp run` on
 # the host. Like production, data lives in ./pgdata, and an empty ./pgdata
-# initialises itself from ./backup/trichess.sql (copy production's latest
+# initialises itself from ./instance/trichess.sql (copy production's latest
 # dump there).
-#   mkdir -p pgdata backup                       # once; must exist, owned by you
+#   mkdir -p pgdata instance                     # once; must exist, owned by you
 #   docker compose -f docker-compose.dev.yml up -d
 # Re-initialise from a newer dump:
 #   docker compose -f docker-compose.dev.yml down && rm -rf pgdata && mkdir pgdata
@@ -10,7 +10,6 @@
 # .env then needs e.g.
 #   POSTGRES_PASSWORD=devpassword
 #   SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:devpassword@localhost:5432/trichess
-#   BACKUP_DIR=./backup
 name: trichess-dev
 
 services:
@@ -26,7 +25,7 @@ services:
     user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./pgdata:/var/lib/postgresql/data
-      - ./backup:/docker-entrypoint-initdb.d:ro
+      - ./instance:/docker-entrypoint-initdb.d:ro
     # Loopback only — never reachable from the network.
     ports:
       - "127.0.0.1:5432:5432"

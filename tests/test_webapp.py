@@ -402,9 +402,9 @@ class Test_Dump_DB:
         assert "CREATE TABLE" in sql and '"user"' in sql
         assert "alice" in sql
 
-    def test_default_path_is_backup_dir(self, app, tmp_path, monkeypatch):
+    def test_default_path_is_instance_folder(self, app, tmp_path, monkeypatch):
         _needs_pg_dump()
-        monkeypatch.setitem(app.config, "BACKUP_DIR", str(tmp_path))
+        monkeypatch.setattr(app, "instance_path", str(tmp_path))
         assert dump_db() == tmp_path / "trichess.sql"
 
     def test_replaces_old_dump_without_leftovers(self, app, tmp_path):

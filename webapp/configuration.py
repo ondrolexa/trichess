@@ -52,10 +52,6 @@ class Config(object):
     # Drop pooled connections the server closed (e.g. a postgres restart)
     # instead of failing the next request on them.
     SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
-    # Where `flask dump-db` writes trichess.sql. In docker-compose.yml the
-    # same host folder is the postgres container's docker-entrypoint-initdb.d,
-    # so an empty database initialises itself from the latest dump.
-    BACKUP_DIR = os.environ.get("BACKUP_DIR", "/backup")
     BOOTSTRAP_FONTAWESOME = True
     SECRET_KEY = _secret("FLASK_SECRET_KEY")
     JWT_SECRET_KEY = _secret("JWT_SECRET_KEY")

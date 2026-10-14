@@ -319,12 +319,14 @@ def _pg_dump(url, path):
 
 def dump_db(path=None):
     """Write a plain-SQL dump of the database to `path` (default trichess.sql
-    in BACKUP_DIR) and return the path written.
+    in the instance folder) and return the path written. In the compose files
+    instance/ is also the postgres container's docker-entrypoint-initdb.d, so
+    an empty database initialises itself from the latest dump.
 
     Written to a .tmp file first and renamed into place, so a crash mid-dump
     never leaves a truncated *.sql where postgres' initdb would load it.
     """
-    path = Path(path or Path(app.config["BACKUP_DIR"]) / "trichess.sql")
+    path = Path(path or Path(app.instance_path) / "trichess.sql")
     tmp = path.with_name(path.name + ".tmp")
     url = db.engine.url
     try:
@@ -350,10 +352,10 @@ def dump_db(path=None):
     "file",
     type=click.Path(dir_okay=False),
     default=None,
-    help="Output file (default: trichess.sql in BACKUP_DIR, /backup)",
+    help="Output file (default: instance/trichess.sql)",
 )
 def dump_db_command(file):
-    """Write a SQL dump of the database (default /backup/trichess.sql)."""
+    """Write a SQL dump of the database (default instance/trichess.sql)."""
     path = dump_db(file)
     click.echo(f"Dumped database to {path}")
 
