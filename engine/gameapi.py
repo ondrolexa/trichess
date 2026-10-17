@@ -174,8 +174,7 @@ class GameAPI:
     # same traversal order, every single time. Caching it (keyed by
     # view_pid, shared across all GameAPI instances process-wide) skips
     # rebuilding that nested-loop/bounds-check/Pos-construction traversal on
-    # every GameAPI.copy() — which a minimax search calls once per node.
-    # Only gid2hex actually needs rebuilding per instance, since it holds
+    # every replay and GameAPI.copy(). Only gid2hex actually needs rebuilding per instance, since it holds
     # this specific board's Hex objects.
     _GID_ORDER_CACHE: dict = {}
 
@@ -242,10 +241,9 @@ class GameAPI:
         ga.view_pid = self.view_pid
         ga.board = self.board.copy(players=ga.players)
         ga.update_ui_mappings()
-        # position_counts intentionally omitted — copy() only backs the bot's
-        # minimax search over hypothetical positions, which never calls
-        # repetition()/endgame() (see engine/bot.py._terminal_score), so
-        # skipping it avoids a 169-cell signature scan on every search node.
+        # position_counts intentionally omitted — copy() is for exploring
+        # hypothetical moves (the bot search used to call it once per node),
+        # never for repetition()/endgame() on a real game.
         return ga
 
     @property

@@ -12,7 +12,7 @@ from redis import Redis
 from rq import Queue
 
 from engine import choose_move, choose_vote, get_game
-from engine.bot import MIN_SOUND_DEPTH
+from engine.bot import MAX_DEPTH, MIN_SOUND_DEPTH
 from webapp.main import GAME, app, db
 from webapp.maintenance import is_maintenance
 from webapp.models import TriBoard, User
@@ -31,6 +31,10 @@ if BOT_DEPTH < MIN_SOUND_DEPTH:
         "(bot would be blind to its 2nd opponent's replies) — clamping up."
     )
     BOT_DEPTH = MIN_SOUND_DEPTH
+# BOT_DEPTH always completes; with a time budget (seconds, 0 = off) the
+# search keeps deepening up to BOT_MAX_DEPTH while the budget lasts.
+BOT_TIME_LIMIT = float(os.environ.get("BOT_TIME_LIMIT", 2.0))
+BOT_MAX_DEPTH = int(os.environ.get("BOT_MAX_DEPTH", MAX_DEPTH))
 
 
 def _seat_players(tb):
@@ -103,7 +107,12 @@ def run_bot_move(board_id: int) -> None:
                     else ga.draw_vote(vote)
                 )
             else:
-                move = choose_move(ga, depth=BOT_DEPTH)
+                move = choose_move(
+                    ga,
+                    depth=BOT_DEPTH,
+                    time_limit=BOT_TIME_LIMIT or None,
+                    max_depth=BOT_MAX_DEPTH,
+                )
                 if move is None:
                     return
                 from_gid, m, promo_label = move

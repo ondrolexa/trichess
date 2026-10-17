@@ -91,7 +91,9 @@ The application uses environment variables for configuration, loaded from a `.en
 | `CORS_ORIGINS` | Comma-separated list of allowed CORS origins | `http://localhost:5000` |
 | `DEBUG` | Enable Flask debug mode, also for `flask` CLI and cron commands (no push notifications are sent) | `false` |
 | `REDIS_URL` | Redis connection URL for the bot's background move queue (RQ) | `redis://localhost:6379/0` |
-| `BOT_DEPTH` | Minimax search depth for bot moves/votes (higher = stronger but slower) | `3` |
+| `BOT_DEPTH` | Minimax search depth bot moves/votes always complete (higher = stronger but slower; minimum 3) | `3` |
+| `BOT_TIME_LIMIT` | Seconds per bot move to keep searching deeper than `BOT_DEPTH` (iterative deepening); `0` = fixed `BOT_DEPTH` | `2.0` |
+| `BOT_MAX_DEPTH` | Iterative deepening never goes deeper than this | `12` |
 | `SINGLE_PLAYER_NOTIFICATIONS` | Send live "your turn"/"game over" push notifications for 1-human-vs-2-bots games | `false` |
 | `BOT_GAMES_REMOVAL` | Delete finished bot games (and their logs) older than this many minutes via `remove-bot-games`; `0` disables deletion | `15` |
 | `API_TOKEN_USERS` | Comma-separated allowlist of usernames who may mint an API bearer token via `POST /token` (including Swagger UI's "Authorize" dialog) | `` (empty — nobody allowed until set) |

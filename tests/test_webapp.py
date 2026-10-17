@@ -1,11 +1,14 @@
 import logging
 import re
 import shutil
+from pathlib import Path
 
 import pytest
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
+import webapp
+from webapp.forms import ProfileForm
 from webapp.main import db, dump_db
 from webapp.models import Log, TriBoard, User
 
@@ -243,6 +246,29 @@ class Test_Index_Route_Redirects_By_Login_State:
         _login_as_admin(client)
         resp = client.get("/")
         assert resp.status_code == 200
+
+
+class Test_Profile_Preview:
+    def test_preview_shows_saved_settings(self, app, client):
+        user = _create_user()
+        user.board, user.theme, user.pieces = "filio", "night", "chubby"
+        db.session.commit()
+        _login(client)
+        page = client.get("/profile").get_data(as_text=True)
+        assert "previews/filio_night_chubby.jpg" in page
+        assert "Statistics" in page
+
+    def test_every_settings_combination_has_a_preview(self):
+        # The preview card builds {board}_{theme}_{pieces}.jpg from the selects.
+        previews = Path(webapp.__file__).parent / "static" / "previews"
+        missing = [
+            name
+            for board in ProfileForm.board.kwargs["choices"]
+            for theme in ProfileForm.theme.kwargs["choices"]
+            for pieces in ProfileForm.pieces.kwargs["choices"]
+            if not (previews / (name := f"{board}_{theme}_{pieces}.jpg")).is_file()
+        ]
+        assert not missing
 
 
 class Test_Anonymous_Theme_Follows_System:

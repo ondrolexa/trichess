@@ -33,37 +33,37 @@
       </script>
       <div class="col-lg p-2">
         <div class="card h-100">
-          <h5 class="card-header">Statistics</h5>
-          <div class="card-body">
-            <table class="table">
-              <tr>
-                <th scope="row">Rating</th>
-                <td>{{ '%0.2f' % rating|float }}</td>
-              </tr>
-              <tr>
-                <th scope="row">Win/Co-op/Pass/Loss</th>
-                <td>{{ stats["win"] }}/{{ stats["coop"] }}/{{ stats["pass"] }}/{{ stats["loss"] }}</td>
-              </tr>
-              <tr>
-                <th scope="row">Total score</th>
-                <td>{{ '%0.2f' % score|float }}</td>
-              </tr>
-              <tr>
-                <th scope="row">30 days score</th>
-                <td>{{ '%0.2f' % recent_score|float }}</td>
-              </tr>
-              <tr>
-                <th scope="row">Active/Finished</th>
-                <td>{{ active }}/{{ archive }}</td>
-              </tr>
-              <tr>
-                <th scope="row">Average game time</th>
-                <td>{{ avg_length }}</td>
-              </tr>
-            </table>
+          <h5 class="card-header">Preview</h5>
+          <div class="card-body text-center">
+            {% set preview = form_profile.board.data ~ '_' ~ form_profile.theme.data ~ '_' ~ form_profile.pieces.data %}
+            <img id="boardPreview" class="img-fluid rounded" style="max-height:400px"
+                 width="380" height="400"
+                 src="{{ url_for('static', filename='previews/' ~ preview ~ '.jpg') }}"
+                 alt="Board preview: {{ preview }}">
+            <p id="boardPreviewMissing" class="text-muted mb-0" hidden>No preview available</p>
           </div>
         </div>
       </div>
+      <script>
+        (function() {
+          var img = document.getElementById('boardPreview');
+          var missing = document.getElementById('boardPreviewMissing');
+          var base = {{ url_for('static', filename='previews/') | tojson }};
+          var selects = ['board', 'theme', 'pieces'].map(function(name) {
+            return document.querySelector('select[name="' + name + '"]');
+          });
+          if (!img || selects.some(function(s) { return !s; })) return;
+          img.addEventListener('load', function() { img.hidden = false; missing.hidden = true; });
+          img.addEventListener('error', function() { img.hidden = true; missing.hidden = false; });
+          selects.forEach(function(select) {
+            select.addEventListener('change', function() {
+              var name = selects.map(function(s) { return s.value; }).join('_');
+              img.src = base + name + '.jpg';
+              img.alt = 'Board preview: ' + name;
+            });
+          });
+        })();
+      </script>
       <div class="col-lg p-2">
         <div class="card h-100">
           <h5 class="card-header">Password</h5>
@@ -105,6 +105,33 @@
       </div>
     </div>
     {% endif %}
+    <div class="row mt-3">
+      <div class="col-12 p-2">
+        <div class="card">
+          <h5 class="card-header">Statistics</h5>
+          <div class="card-body">
+            {% set tiles = [
+              ("Rating", '%0.2f' % rating|float),
+              ("Total score", '%0.2f' % score|float),
+              ("30 days score", '%0.2f' % recent_score|float),
+              ("Win/Co-op/Pass/Loss", stats["win"] ~ '/' ~ stats["coop"] ~ '/' ~ stats["pass"] ~ '/' ~ stats["loss"]),
+              ("Active/Finished", active ~ '/' ~ archive),
+              ("Average game time", avg_length),
+            ] %}
+            <div class="row row-cols-1 row-cols-md-3 g-2 g-md-3">
+              {% for label, value in tiles %}
+              <div class="col">
+                <div class="border rounded p-2 h-100 d-flex justify-content-between align-items-center d-md-block text-md-center">
+                  <div class="small text-body-secondary">{{ label }}</div>
+                  <div class="fs-5 fw-semibold">{{ value }}</div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="row mt-3">
       <div class="col-12 p-2">
         <div class="card">

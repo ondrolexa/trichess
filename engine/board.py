@@ -12,6 +12,16 @@ base12 = [Pos(i, -7) for i in range(1, 7)]
 base2 = [Pos(7, i) for i in range(-7, 1)]
 base20 = [Pos(7 - i, i) for i in range(1, 7)]
 
+# Castling: (king_from, king_to) -> (rook_from, rook_to), as (q, r) tuples.
+CASTLING_ROOK_MOVES = {
+    ((-4, 7), (-6, 7)): ((-7, 7), (-5, 7)),
+    ((-4, 7), (-2, 7)): ((0, 7), (-3, 7)),
+    ((-3, -4), (-1, -6)): ((0, -7), (-2, -5)),
+    ((-3, -4), (-5, -2)): ((-7, 0), (-4, -3)),
+    ((7, -3), (7, -1)): ((7, 0), (7, -2)),
+    ((7, -3), (7, -5)): ((7, -7), (7, -4)),
+}
+
 # Precomputed attack tables for fast is_attacked().
 # Straight directions (Rook slides): the 6 edge-adjacent hex directions.
 _STRAIGHT = ((-1, 0), (0, -1), (1, -1), (1, 0), (0, 1), (-1, 1))
@@ -251,21 +261,9 @@ class Board:
         self._board[fk].piece = None
         # Check castling
         if isinstance(piece, King):
-            if pos_from == Pos(-4, 7):
-                if pos_to == Pos(-6, 7):
-                    self.move_piece(Pos(-7, 7), Pos(-5, 7), "")
-                elif pos_to == Pos(-2, 7):
-                    self.move_piece(Pos(0, 7), Pos(-3, 7), "")
-            if pos_from == Pos(-3, -4):
-                if pos_to == Pos(-1, -6):
-                    self.move_piece(Pos(0, -7), Pos(-2, -5), "")
-                elif pos_to == Pos(-5, -2):
-                    self.move_piece(Pos(-7, 0), Pos(-4, -3), "")
-            if pos_from == Pos(7, -3):
-                if pos_to == Pos(7, -1):
-                    self.move_piece(Pos(7, 0), Pos(7, -2), "")
-                elif pos_to == Pos(7, -5):
-                    self.move_piece(Pos(7, -7), Pos(7, -4), "")
+            rook = CASTLING_ROOK_MOVES.get((fk, tk))
+            if rook is not None:
+                self.move_piece(Pos(*rook[0]), Pos(*rook[1]), "")
 
     def test_move_piece(self, pos_from, pos_to):
         """Temporarily apply move and test whether own king is still safe.

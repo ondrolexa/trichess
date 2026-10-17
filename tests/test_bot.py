@@ -1,6 +1,8 @@
 import time
 
-from engine import GameAPI, choose_move, choose_vote, evaluate, get_game
+import pytest
+
+from engine import GameAPI, bot, choose_move, choose_vote, evaluate, get_game
 from engine.bot import (
     MIN_SOUND_DEPTH,
     WIN_VALUE,
@@ -144,8 +146,56 @@ class TestChooseMove:
         assert choose_move(game) is None
 
 
+class TestIterativeDeepening:
+    @pytest.fixture
+    def depths(self, monkeypatch):
+        """Depths search_root was asked for, in order; opening book off."""
+        monkeypatch.setattr(bot, "book_move", lambda ga: None)
+        calls = []
+        search_root = bot.Search.search_root
+
+        def recording(self, depth, first=None):
+            calls.append(depth)
+            return search_root(self, depth, first)
+
+        monkeypatch.setattr(bot.Search, "search_root", recording)
+        return calls
+
+    def test_sound_depth_completes_whatever_the_budget(self, depths):
+        ga = get_game(0, HANGING_QUEEN_SLOG)
+        from_gid, m, _ = choose_move(ga, time_limit=1e-9)
+        assert depths == [1, 2, 3]
+        # ...so it still doesn't hang the queen like depth 1/2 do
+        assert (ga.gid2hex[from_gid].pos.code, ga.gid2hex[m["tgid"]].pos.code) != (
+            "OD",
+            "GH",
+        )
+
+    def test_deepens_while_time_lasts(self, depths):
+        ga = get_game(0, HANGING_QUEEN_SLOG)
+        move = choose_move(ga, time_limit=600, max_depth=4)
+        TestChooseMove()._assert_legal(ga, move)
+        assert depths == [1, 2, 3, 4]
+
+    def test_stops_near_the_deadline(self, depths):
+        ga = get_game(0, HANGING_QUEEN_SLOG)
+        start = time.perf_counter()
+        move = choose_move(ga, time_limit=0.5, max_depth=12)
+        elapsed = time.perf_counter() - start
+        TestChooseMove()._assert_legal(ga, move)
+        # the floor (depth 3) may overrun a tiny budget, deeper ones may not
+        assert elapsed < 5, f"took {elapsed:.2f}s"
+        assert depths[-1] < 12
+
+    def test_does_not_mutate_input_game(self, depths):
+        ga = get_game(0, HANGING_QUEEN_SLOG)
+        choose_move(ga, time_limit=0.2)
+        assert ga.slog == HANGING_QUEEN_SLOG
+        assert get_game(0, ga.slog).pieces() == ga.pieces()
+
+
 class TestSearchDepth:
-    """_minimax alternates strictly between "root pid" and "whoever's
+    """The search alternates strictly between "root pid" and "whoever's
     actually on move" per remaining depth unit — it doesn't treat one ply as
     one opponent's turn the way 2-player minimax implicitly does. In this
     3-player game 2 different opponents move between the root pid's turns,

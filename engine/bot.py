@@ -1,10 +1,14 @@
+import time
+
 from engine.eval import evaluate_for_pid
 from engine.gameapi import GameAPI, get_game
 from engine.opening import book_move
-from engine.pieces import Pawn
+from engine.pieces import Pawn, Pos
+from engine.search import CELLS, WIN_VALUE, Position, Search, Timeout, terminal_value
 
-# _minimax alternates strictly between "the root pid" (maximizing) and
-# "whoever's actually on move" (minimizing) for each remaining depth unit —
+# The search (engine.search.Search) alternates strictly between "the root
+# pid" (maximizing) and "whoever's actually on move" (minimizing) for each
+# remaining depth unit —
 # it does NOT treat "one ply" as "one opponent's turn" the way 2-player
 # minimax implicitly does. In this 3-player game, 2 different opponents move
 # between the root pid's own turns, so depth needs at least 3 to simulate a
@@ -15,12 +19,8 @@ from engine.pieces import Pawn
 # looks completely safe, since that opponent's turn is never simulated at all.
 MIN_SOUND_DEPTH = 3
 
-# _terminal_score() returns the real outcome share (0.0-2.0), but
-# evaluate_for_pid() is material-scale (typically tens of points). Mixing the
-# two at the same tree level made a checkmate (2.0) look worse than any
-# ordinary move (~50), so the search is fed _terminal_value() instead, which
-# rescales the share far beyond any reachable evaluation.
-WIN_VALUE = 10_000.0
+# Iterative deepening never goes past this, whatever the time budget.
+MAX_DEPTH = 12
 
 
 def _terminal_score(ga: GameAPI, pid: int) -> float:
@@ -30,11 +30,11 @@ def _terminal_score(ga: GameAPI, pid: int) -> float:
     2.0, the two who accepted get 0.0. Checkmate: score = (player's checker
     count) * 2 / total checkers. Stalemate / other: each player gets 2/3.
 
-    Deliberately does not check GameAPI.repetition()/endgame(): this scores
-    hypothetical nodes from ga.copy(), never the real replayed game, and
-    the search is only MIN_SOUND_DEPTH-ish plies deep — nowhere near enough
-    to observe a real threefold repetition. Stalemate is already covered by
-    the final `return 2.0 / 3` below.
+    Used for vote decisions; the move search has its own port of the
+    checkmate/stalemate part (search.Position.terminal_score). Deliberately
+    does not check GameAPI.repetition()/endgame(): votes are resolved a few
+    plies at most, nowhere near enough to observe a real threefold
+    repetition. Stalemate is already covered by the final `return 2.0 / 3`.
     """
     if ga.draw():
         return 2.0 / 3
@@ -53,21 +53,15 @@ def _terminal_score(ga: GameAPI, pid: int) -> float:
 
 
 def _terminal_value(ga: GameAPI, pid: int, depth_left: int) -> float:
-    """Search-scale value of a finished node for *pid*.
-
-    The outcome share is centred on the draw share (2/3 -> 0) and scaled by
-    WIN_VALUE, so a win dominates and a loss is worse than any evaluation.
-    *depth_left* breaks ties: quicker wins and slower losses score higher.
-    """
-    value = (_terminal_score(ga, pid) - 2.0 / 3) * WIN_VALUE
-    if value > 0:
-        return value + depth_left
-    if value < 0:
-        return value - depth_left
-    return value
+    """Search-scale value of a finished node for *pid* (see search.WIN_VALUE)."""
+    return terminal_value(_terminal_score(ga, pid), depth_left)
 
 
 def _all_moves(ga: GameAPI):
+    """Legal moves of the player on move as (from_gid, valid_moves entry).
+
+    The search has its own move generator; this object-engine version is
+    the reference tests/test_search.py checks it against."""
     moves = []
     pid = ga.on_move
     for hex in ga.board:
@@ -114,109 +108,21 @@ def _has_piece_under_attack(ga: GameAPI) -> bool:
     return False
 
 
-def _capture_score(ga: GameAPI, from_gid: int, tgid: int) -> float:
-    """MVV-LVA: prefer capturing the most valuable victim with the least
-    valuable attacker (a Pawn taking a Queen sorts far ahead of a Queen
-    taking a Pawn) — both piece values are read directly off the board, no
-    move simulation needed."""
-    attacker = ga.gid2hex[from_gid].piece
-    victim = ga.gid2hex[tgid].piece
-    return victim.value * 10 - attacker.value
+def choose_move(
+    ga: GameAPI,
+    depth: int = MIN_SOUND_DEPTH,
+    time_limit: float | None = None,
+    max_depth: int = MAX_DEPTH,
+) -> tuple[int, dict, str] | None:
+    """Pick a move for the player on move: ``(from_gid, move, promotion)``.
 
-
-def _order_moves(ga: GameAPI, moves, history: dict | None = None):
-    """Order moves to maximize alpha-beta cutoffs: promotions, then captures
-    (MVV-LVA), then quiet moves ranked by the history heuristic.
-
-    Only ~5% of moves are captures in a typical developed position here (the
-    other ~95% are quiet moves the board's high branching factor makes
-    numerous) — MVV-LVA alone barely dents the search, since it only
-    reorders that small slice. The history heuristic (which quiet
-    (from,to) pairs have caused beta cutoffs elsewhere in *this* search,
-    scored via _minimax's cutoff bookkeeping below) is what actually orders
-    the bulk of the tree.
+    *move* has the shape of GameAPI.valid_moves() entries; gids are in
+    *ga*'s view. Without *time_limit* this is a single *depth* search.
+    With it, iterative deepening: depths up to *depth* always complete (so
+    MIN_SOUND_DEPTH's soundness holds however slow the machine), deeper
+    ones up to *max_depth* only while *time_limit* seconds last, and an
+    iteration cut off by the deadline is thrown away.
     """
-    history = history or {}
-
-    def key(item):
-        from_gid, m = item
-        if m["promotion"]:
-            return (2, 0.0)
-        if m["kind"] == "attack":
-            return (1, _capture_score(ga, from_gid, m["tgid"]))
-        return (0, history.get((from_gid, m["tgid"]), 0))
-
-    return sorted(moves, key=key, reverse=True)
-
-
-def _minimax(
-    ga: GameAPI, depth: int, alpha: float, beta: float, pid: int, history: dict
-) -> float:
-    if not ga.move_possible():
-        return _terminal_value(ga, pid, depth)
-    if depth == 0:
-        return evaluate_for_pid(ga, pid)
-
-    moves = _order_moves(ga, _all_moves(ga), history)
-
-    def record_cutoff(from_gid, tgid, m):
-        # Only quiet moves feed the history table — captures/promotions are
-        # already ordered by MVV-LVA/priority and don't need this signal.
-        if m["kind"] != "attack" and not m["promotion"]:
-            key = (from_gid, tgid)
-            history[key] = history.get(key, 0) + depth * depth
-
-    if ga.on_move == pid:
-        value = -1e18
-        for from_gid, m in moves:
-            if m["promotion"]:
-                for label in ["Q", "R", "B", "N"]:
-                    ga_copy = ga.copy()
-                    ga_copy.make_move(from_gid, m["tgid"], label)
-                    score = _minimax(ga_copy, depth - 1, alpha, beta, pid, history)
-                    if score > value:
-                        value = score
-                    alpha = max(alpha, value)
-                    if alpha >= beta:
-                        break
-            else:
-                ga_copy = ga.copy()
-                ga_copy.make_move(from_gid, m["tgid"])
-                score = _minimax(ga_copy, depth - 1, alpha, beta, pid, history)
-                if score > value:
-                    value = score
-                alpha = max(alpha, value)
-            if alpha >= beta:
-                record_cutoff(from_gid, m["tgid"], m)
-                break
-        return value
-    else:
-        value = 1e18
-        for from_gid, m in moves:
-            if m["promotion"]:
-                for label in ["Q", "R", "B", "N"]:
-                    ga_copy = ga.copy()
-                    ga_copy.make_move(from_gid, m["tgid"], label)
-                    score = _minimax(ga_copy, depth - 1, alpha, beta, pid, history)
-                    if score < value:
-                        value = score
-                    beta = min(beta, value)
-                    if alpha >= beta:
-                        break
-            else:
-                ga_copy = ga.copy()
-                ga_copy.make_move(from_gid, m["tgid"])
-                score = _minimax(ga_copy, depth - 1, alpha, beta, pid, history)
-                if score < value:
-                    value = score
-                beta = min(beta, value)
-            if alpha >= beta:
-                record_cutoff(from_gid, m["tgid"], m)
-                break
-        return value
-
-
-def choose_move(ga: GameAPI, depth: int = MIN_SOUND_DEPTH) -> tuple[int, dict]:
     if ga.voting.needed():
         # Piece moves are no-ops while a vote is pending (see
         # GameAPI.make_move), so searching them here would just churn over
@@ -229,40 +135,45 @@ def choose_move(ga: GameAPI, depth: int = MIN_SOUND_DEPTH) -> tuple[int, dict]:
         if opening is not None:
             return opening
 
-    best_score = -1e18
-    best_move = None
-    pid = ga.on_move
-    alpha = -1e18
-    beta = 1e18
+    search = Search(Position.from_game(ga))
+    if time_limit is None:
+        best = search.search_root(depth)
+    else:
+        best = _iterative_deepening(search, depth, time_limit, max_depth)
+    if best is None:
+        return None
+    i, to, promo, victim, label, _ = best
+    tgid = ga.pos2gid[Pos(*CELLS[to])]
+    move = {"tgid": tgid, "kind": "attack" if victim else "safe", "promotion": promo}
+    return ga.pos2gid[Pos(*CELLS[i])], move, label
 
-    history: dict = {}
-    moves = _order_moves(ga, _all_moves(ga), history)
 
-    for from_gid, m in moves:
-        if m["promotion"]:
-            best_promo = ""
-            best_promo_score = -1e18
-            for label in ["Q", "R", "B", "N"]:
-                ga_copy = ga.copy()
-                ga_copy.make_move(from_gid, m["tgid"], label)
-                score = _minimax(ga_copy, depth - 1, alpha, beta, pid, history)
-                if score > best_promo_score:
-                    best_promo_score = score
-                    best_promo = label
-            if best_promo_score > best_score:
-                best_score = best_promo_score
-                best_move = (from_gid, m, best_promo)
-            alpha = max(alpha, best_score)
-        else:
-            ga_copy = ga.copy()
-            ga_copy.make_move(from_gid, m["tgid"])
-            score = _minimax(ga_copy, depth - 1, alpha, beta, pid, history)
-            if score > best_score:
-                best_score = score
-                best_move = (from_gid, m, "")
-            alpha = max(alpha, best_score)
-
-    return best_move
+def _iterative_deepening(search: Search, depth: int, time_limit: float, max_depth):
+    """Search depth 1, 2, ... reusing the history table and putting the
+    previous iteration's best move first, which is what makes the deeper
+    iterations affordable."""
+    start = time.monotonic()
+    deadline = start + time_limit
+    best = None
+    durations = []
+    for d in range(1, max(depth, max_depth) + 1):
+        search.deadline = deadline if d > depth else None
+        t0 = time.monotonic()
+        try:
+            result = search.search_root(d, first=best[:4] if best else None)
+        except Timeout:
+            break
+        durations.append(time.monotonic() - t0)
+        best = result
+        if best is None or abs(best[5]) >= WIN_VALUE / 2:
+            break  # no legal move, or a forced result: deeper can't change it
+        if d >= depth:
+            # Don't start an iteration that can't finish: an aborted one is
+            # discarded, so its CPU time would be pure loss for the worker.
+            growth = max(durations[-1] / durations[-2], 2.0) if d > 1 else 2.0
+            if time.monotonic() + durations[-1] * growth > deadline:
+                break
+    return best
 
 
 def _vote_slog(ga: GameAPI, vote: bool) -> str:
