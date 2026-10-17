@@ -11,6 +11,17 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, "..", ".env"))
 
 
+def score_outcome(score, onmove, tag):
+    """Classify one Score row as "win", "coop", "pass" or "loss"."""
+    if score == 2:
+        return "win"
+    if score > 0:
+        return "coop"
+    if onmove or tag == "R":
+        return "loss"
+    return "pass"
+
+
 class User(db.Model):  # ty: ignore
     __tablename__ = "user"
 
@@ -47,15 +58,7 @@ class User(db.Model):  # ty: ignore
     def stats(self):
         stats = {"win": 0, "coop": 0, "pass": 0, "loss": 0}
         for score in self.scores:
-            if score.score == 2:
-                stats["win"] += 1
-            elif score.score > 0:
-                stats["coop"] += 1
-            else:
-                if score.onmove or score.tag == "R":
-                    stats["loss"] += 1
-                else:
-                    stats["pass"] += 1
+            stats[score_outcome(score.score, score.onmove, score.tag)] += 1
         return stats
 
     @property

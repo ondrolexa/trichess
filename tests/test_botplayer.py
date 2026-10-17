@@ -596,3 +596,88 @@ class TestRemoveBotGames:
 
         assert removed == 1
         assert db.session.get(TriBoard, tb.id) is None
+
+
+class TestPurgeStallingGames:
+    DAY = 24 * 60
+
+    def _humans(self):
+        return _create_user("alice"), _create_user("bob"), _create_user("carol")
+
+    def test_removes_stalled_active_game_and_its_logs(self, app):
+        from webapp import main
+
+        alice, bob, carol = self._humans()
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=1)
+        _backdate_board(tb, 400 * self.DAY)
+        log = Log(level="GAME", message="Game started", board_id=tb.id)
+        db.session.add(log)
+        db.session.commit()
+        board_id, log_id = tb.id, log.id
+
+        removed = main.purge_stalling_games(365)
+
+        assert removed == [board_id]
+        assert db.session.get(TriBoard, board_id) is None
+        assert db.session.get(Log, log_id) is None
+
+    def test_leaves_recent_active_game(self, app):
+        from webapp import main
+
+        alice, bob, carol = self._humans()
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=1)
+        _backdate_board(tb, 300 * self.DAY)
+
+        assert main.purge_stalling_games(365) == []
+        assert db.session.get(TriBoard, tb.id) is not None
+
+    def test_leaves_waiting_and_finished_games_regardless_of_age(self, app):
+        from webapp import main
+
+        alice, bob, carol = self._humans()
+        seats = {0: alice, 1: bob, 2: carol}
+        waiting = _make_board(alice, seats, status=0)
+        finished = _make_board(alice, seats, status=2)
+        _backdate_board(waiting, 400 * self.DAY)
+        _backdate_board(finished, 400 * self.DAY)
+
+        assert main.purge_stalling_games(365) == []
+        assert db.session.get(TriBoard, waiting.id) is not None
+        assert db.session.get(TriBoard, finished.id) is not None
+
+    def test_zero_days_disables_removal(self, app):
+        from webapp import main
+
+        alice, bob, carol = self._humans()
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=1)
+        _backdate_board(tb, 400 * self.DAY)
+
+        assert main.purge_stalling_games(0) == []
+        assert db.session.get(TriBoard, tb.id) is not None
+
+    def test_cli_dry_run_deletes_nothing(self, app):
+        alice, bob, carol = self._humans()
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=1)
+        _backdate_board(tb, 400 * self.DAY)
+
+        result = app.test_cli_runner().invoke(
+            args=["purge-stalling", "--days", "365", "--dry-run"]
+        )
+
+        assert result.exit_code == 0
+        assert "Would remove 1 stalling game(s)" in result.output
+        assert str(tb.id) in result.output
+        assert db.session.get(TriBoard, tb.id) is not None
+
+    def test_cli_removes_stalled_game(self, app):
+        alice, bob, carol = self._humans()
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=1)
+        _backdate_board(tb, 400 * self.DAY)
+        board_id = tb.id
+
+        result = app.test_cli_runner().invoke(args=["purge-stalling"])
+
+        assert result.exit_code == 0
+        assert "Removed 1 stalling game(s)" in result.output
+        db.session.expire_all()
+        assert db.session.get(TriBoard, board_id) is None

@@ -277,6 +277,67 @@ def remove_bot_games_command(minutes):
     click.echo(f"Removed {removed} finished bot game(s) older than {minutes} minutes")
 
 
+def purge_stalling_games(days, dry_run=False):
+    """Delete active games nobody has moved in for more than `days` days,
+    with their Log rows. days <= 0 disables deletion entirely.
+
+    modified_at is bumped by every committed move or vote, so an old value
+    means the player on move has stalled. Active games have no Score rows
+    yet (cleared defensively anyway, for FK safety), so nobody's rating is
+    affected. Returns the ids of the removed games — or, with dry_run, of
+    the games that would be removed, leaving the database untouched.
+    """
+    if days <= 0:
+        return []
+
+    from webapp.models import Log, Score, TriBoard
+
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
+    stalled = (
+        TriBoard.query.filter(TriBoard.status == 1, TriBoard.modified_at < cutoff)
+        .order_by(TriBoard.id)
+        .all()
+    )
+    ids = [tb.id for tb in stalled]
+    if dry_run:
+        return ids
+
+    for tb in stalled:
+        logger.info(
+            f"purge_stalling: removing game {tb.id} idle since {tb.modified_at}"
+        )
+        Score.query.filter_by(board_id=tb.id).delete()
+        Log.query.filter_by(board_id=tb.id).delete()
+        db.session.delete(tb)
+
+    db.session.commit()
+    return ids
+
+
+@app.cli.command("purge-stalling")
+@click.option(
+    "--days",
+    default=365,
+    help="Delete active games with no move for more than this many days. "
+    "0 disables deletion.",
+)
+@click.option("--dry-run", is_flag=True, help="Only list the games, delete nothing.")
+def purge_stalling_command(days, dry_run):
+    """Delete active games where the player on move stalled for --days days."""
+    ids = purge_stalling_games(days, dry_run=dry_run)
+    listed = f": {', '.join(map(str, ids))}" if ids else ""
+    if dry_run:
+        click.echo(
+            f"Would remove {len(ids)} stalling game(s) inactive for more than "
+            f"{days} days{listed}"
+        )
+    else:
+        click.echo(
+            f"Removed {len(ids)} stalling game(s) inactive for more than "
+            f"{days} days{listed}"
+        )
+
+
 @app.cli.command("build-opening-book")
 def build_opening_book_command():
     """Rebuild instance/opening_book.json from finished games in the database."""

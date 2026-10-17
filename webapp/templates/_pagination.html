@@ -1,0 +1,20 @@
+{# Prev / "page X of Y" / next links for a Flask-SQLAlchemy pagination.
+   `arg` is the page query parameter; `keep` holds other parameters to carry
+   over (e.g. the admin page's second list). Renders nothing for one page. #}
+{% macro pager(pagination, endpoint, arg="page", keep={}) %}
+{% if pagination.pages > 1 %}
+<nav aria-label="Pages">
+  <ul class="pagination pagination-sm justify-content-center my-2">
+    <li class="page-item{% if not pagination.has_prev %} disabled{% endif %}">
+      <a class="page-link" href="{{ url_for(endpoint, **dict(keep, **{arg: pagination.prev_num or 1})) }}">&laquo; Newer</a>
+    </li>
+    <li class="page-item disabled">
+      <span class="page-link">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    </li>
+    <li class="page-item{% if not pagination.has_next %} disabled{% endif %}">
+      <a class="page-link" href="{{ url_for(endpoint, **dict(keep, **{arg: pagination.next_num or pagination.pages})) }}">Older &raquo;</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+{% endmacro %}

@@ -1,4 +1,6 @@
-from engine import GameAPI, get_game
+import random
+
+from engine import GameAPI, get_game, slog_summary
 from engine.pieces import Pos
 
 
@@ -295,6 +297,59 @@ class TestSlogReplayVoting:
         ga.replay_from_slog("RAAA")  # 3 acceptances in one chunk
         assert ga.voting.finished()
         assert len(ga.voting.accepts) == 3
+
+
+def _play(slog, n, rng):
+    """Append n random legal moves to slog (replaying after each)."""
+    for _ in range(n):
+        ga = get_game(0, slog)
+        moves = [(gid, m["tgid"]) for gid in range(169) for m in ga.valid_moves(gid)]
+        ga.make_move(*rng.choice(moves))
+        slog = ga.slog
+    return slog
+
+
+def _vote(slog, kind, accepts):
+    """Cast one individual resign/draw vote per entry of accepts, in turn
+    order, replaying in between so finished votes get condensed."""
+    for accept in accepts:
+        ga = get_game(0, slog)
+        slog = ga.resignation_vote(accept) if kind == "r" else ga.draw_vote(accept)
+        slog = get_game(0, slog).slog
+    return slog
+
+
+class TestSlogSummary:
+    def test_empty_slog(self):
+        assert slog_summary("") == (0, 0, False)
+
+    def test_matches_full_replay_for_every_prefix(self):
+        rng = random.Random(7)
+        slog = _play("", 7, rng)
+        slog = _vote(slog, "r", [True, False, False])  # finished, condensed
+        slog = _play(slog, 5, rng)
+        slog = _vote(slog, "s", [True, True, False])  # finished, condensed
+        slog = _play(slog, 4, rng)
+        slog = slog + "SADA"  # set-vote chunk
+        slog = _play(slog, 2, rng)
+        slog = _vote(slog, "s", [True])  # in progress
+        assert len(slog) % 4 == 0
+        assert any(slog[i] in "RS" for i in range(0, len(slog), 4))
+
+        for k in range(0, len(slog) + 1, 4):
+            ga = get_game(0, slog[:k])
+            assert slog_summary(slog[:k]) == (
+                ga.move_number,
+                ga.on_move,
+                ga.voting.active(),
+            ), slog[:k]
+
+    def test_vote_in_progress_shifts_on_move(self):
+        slog = _vote(_play("", 3, random.Random(1)), "r", [True])
+        summary = slog_summary(slog)
+        assert summary.move_number == 3
+        assert summary.voting_active
+        assert summary.on_move == 1
 
 
 class TestMovePossible:

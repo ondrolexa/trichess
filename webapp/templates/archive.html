@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_pagination.html" import pager %}
 
 {%block content%}
 <h2>Archived games</h2>
@@ -49,4 +50,5 @@
     </tbody>
   </table>
 </div>
+{{ pager(pagination, "archive") }}
 {%endblock%}

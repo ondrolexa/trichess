@@ -171,6 +171,13 @@ Delete finished games with a bot player, and their logs, once older than
 flask --app=webapp remove-bot-games --minutes 15
 ```
 
+Delete active games where the player on move hasn't moved for more than
+`--days` days (default `365`; `0` disables; `--dry-run` only lists them; daily
+via cron)
+```bash
+flask --app=webapp purge-stalling --days 365 --dry-run
+```
+
 ## Project Structure
 
 ```
@@ -192,7 +199,7 @@ instance/             # opening_book.json, the legacy SQLite trichess.db and tri
 pgdata/               # PostgreSQL data dir in production (gitignored)
 .env                  # Environment variables (gitignored)
 .env.example         # Template for environment variables
-crontab              # Cron job configuration (resend-notifications, bot-sweep, remove-bot-games, dump-db)
+crontab              # Cron job configuration (resend-notifications, bot-sweep, remove-bot-games, purge-stalling, dump-db, build-opening-book)
 ```
 
 ## Key Concepts
@@ -252,6 +259,7 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep, 
 - **`dump-db`**: Write a SQL dump of the database to `instance/trichess.sql` (or `--file`); every 6 hours via cron.
 - **`sqlite-to-postgres`**: One-time, verified, all-or-nothing copy of the legacy SQLite database into an empty PostgreSQL database (`--sqlite PATH`).
 - **`remove-bot-games`**: Delete finished games with a bot player, and their logs, older than `--minutes` (`BOT_GAMES_REMOVAL` env var, default `15`; `0` disables; runs every 5 minutes via cron — see `crontab`).
+- **`purge-stalling`**: Delete active games, and their logs, with no move or vote for more than `--days` days (default `365`; `0` disables; `--dry-run` only lists the game ids); daily via cron at 03:30.
 
 ### Bot players
 - A game's owner can fill an empty seat with one of 2 dedicated bot accounts (`Bot 1`/`Bot 2`, `User.is_bot=True`) from the `/join` lobby.

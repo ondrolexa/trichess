@@ -1,7 +1,7 @@
 from engine.board import Board, Hex
 from engine.bot import choose_move, choose_vote
 from engine.eval import evaluate
-from engine.gameapi import GameAPI, get_game
+from engine.gameapi import GameAPI, get_game, slog_summary
 from engine.pieces import Bishop, King, Knight, Move, Pawn, Piece, Pos, Queen, Rook
 from engine.player import Player
 
@@ -20,6 +20,7 @@ __all__ = (
     "Player",
     "GameAPI",
     "get_game",
+    "slog_summary",
     "choose_move",
     "choose_vote",
     "evaluate",

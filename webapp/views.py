@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import logging
 import os
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -30,7 +31,7 @@ from flask_login import current_user, login_required, login_user, logout_user
 from markupsafe import Markup
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from engine import get_game
+from engine import slog_summary
 from webapp.api import blueprint as api
 from webapp.api import get_user_rating_history
 from webapp.botplayer import maybe_trigger_bot
@@ -47,7 +48,7 @@ from webapp.forms import (
 from webapp.main import GAME, app, csrf, db, jwt, lm, post_notification
 from webapp.main import __version__ as webapp_version
 from webapp.maintenance import is_maintenance, set_maintenance
-from webapp.models import Score, TriBoard, User
+from webapp.models import Score, TriBoard, User, score_outcome
 from webapp.token import (
     password_fingerprint,
     verify_password_reset_token,
@@ -187,11 +188,22 @@ def active_games():
     )
     # add onmove and voting attributes
     for game in active:
-        ga = get_game(0, game.slog)
-        game.onmove = ga.on_move
-        game.voting = ga.voting.active()
+        summary = slog_summary(game.slog or "")
+        game.onmove = summary.on_move
+        game.voting = summary.voting_active
     return render_template(
         "games.html", games=active, uid=g.user.id, board=g.user.board
+    )
+
+
+GAMES_PER_PAGE = 50
+
+
+def _paginate(query, arg="page"):
+    return query.paginate(
+        page=request.args.get(arg, 1, type=int),
+        per_page=GAMES_PER_PAGE,
+        error_out=False,
     )
 
 
@@ -199,30 +211,24 @@ def active_games():
 @login_required
 def archive():
     user_in = TriBoard.for_player(g.user.id)
-    archive = (
+    pagination = _paginate(
         TriBoard.query.filter_by(status=2)
         .filter(user_in)
         .order_by(TriBoard.modified_at.desc())
-        .all()
     )
-    for game in archive:
-        score_0 = Score.query.filter_by(
-            board_id=game.id, player_id=game.player_0_id
-        ).first()
-        game.player_0_score = score_0.score if score_0 is not None else 0.0
-
-        score_1 = Score.query.filter_by(
-            board_id=game.id, player_id=game.player_1_id
-        ).first()
-        game.player_1_score = score_1.score if score_1 is not None else 0.0
-
-        score_2 = Score.query.filter_by(
-            board_id=game.id, player_id=game.player_2_id
-        ).first()
-        game.player_2_score = score_2.score if score_2 is not None else 0.0
-        ga = get_game(0, game.slog)
-        game.moves = ga.move_number
-    return render_template("archive.html", games=archive, board=g.user.board)
+    games = pagination.items
+    scores = {
+        (s.board_id, s.player_id): s.score
+        for s in Score.query.filter(Score.board_id.in_([game.id for game in games]))
+    }
+    for game in games:
+        for seat in range(3):
+            player_id = getattr(game, f"player_{seat}_id")
+            setattr(game, f"player_{seat}_score", scores.get((game.id, player_id), 0.0))
+        game.moves = slog_summary(game.slog or "").move_number
+    return render_template(
+        "archive.html", games=games, pagination=pagination, board=g.user.board
+    )
 
 
 @app.route("/rating")
@@ -233,23 +239,42 @@ def rating():
         .order_by(User.rating.desc())  # .filter(User.last_login is not None)
         .all()
     )
+    # Finished games played and the latest one, per user: one grouped query
+    # per seat column, merged.
+    played = defaultdict(int)
+    last_game = {}
+    for seat in range(3):
+        column = getattr(TriBoard, f"player_{seat}_id")
+        rows = (
+            db.session.query(
+                column, db.func.count(TriBoard.id), db.func.max(TriBoard.modified_at)
+            )
+            .filter(TriBoard.status == 2, column.is_not(None))
+            .group_by(column)
+        )
+        for user_id, count, last in rows:
+            played[user_id] += count
+            if user_id not in last_game or last > last_game[user_id]:
+                last_game[user_id] = last
+    # Score sums and win/coop/pass/loss counts, per user, from one query.
+    totals = defaultdict(float)
+    counts = defaultdict(lambda: {"win": 0, "coop": 0, "pass": 0, "loss": 0})
+    for player_id, score, onmove, tag in db.session.query(
+        Score.player_id, Score.score, Score.onmove, Score.tag
+    ):
+        totals[player_id] += score
+        counts[player_id][score_outcome(score, onmove, tag)] += 1
+
     ratings = []
     pos = 1
     for user in users:
-        user.score = sum([s.score for s in user.scores])
-        user_in = TriBoard.for_player(user.id)
-        boards = (
-            TriBoard.query.filter_by(status=2)
-            .filter(user_in)
-            .order_by(TriBoard.modified_at.desc())
-        )
-        user.played_games = len(boards.all())
+        user.score = totals[user.id]
+        user.played_games = played[user.id]
         if user.played_games > 0:
-            user.last_game = boards.first().modified_at
-            user.counts = {"win": 0, "coop": 0, "pass": 0, "loss": 0}
+            user.last_game = last_game[user.id]
             user.position = pos
             pos += 1
-            user.counts = user.stats()
+            user.counts = counts[user.id]
             ratings.append(user)
     return render_template("rating.html", ratings=ratings, uid=g.user.id)
 
@@ -563,25 +588,28 @@ def admin_games():
                 .order_by(TriBoard.modified_at.desc())
                 .all()
             )
-            active = (
-                TriBoard.query.filter_by(status=1)
-                .order_by(TriBoard.modified_at.desc())
-                .all()
+            active_pages = _paginate(
+                TriBoard.query.filter_by(status=1).order_by(
+                    TriBoard.modified_at.desc()
+                ),
+                "active_page",
             )
-            archive = (
-                TriBoard.query.filter_by(status=2)
-                .order_by(TriBoard.modified_at.desc())
-                .all()
+            archive_pages = _paginate(
+                TriBoard.query.filter_by(status=2).order_by(
+                    TriBoard.modified_at.desc()
+                ),
+                "archive_page",
             )
             # add onmove attribute
-            for game in active:
-                ga = get_game(0, game.slog)
-                game.onmove = ga.on_move
-            for game in archive:
-                ga = get_game(0, game.slog)
-                game.onmove = ga.on_move
+            for game in active_pages.items + archive_pages.items:
+                game.onmove = slog_summary(game.slog or "").on_move
             return render_template(
-                "admin-games.html", available=available, active=active, archive=archive
+                "admin-games.html",
+                available=available,
+                active=active_pages.items,
+                archive=archive_pages.items,
+                active_pages=active_pages,
+                archive_pages=archive_pages,
             )
     else:
         flash("You are not admin.", "error")

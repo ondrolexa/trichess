@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 import webapp
 from webapp.forms import ProfileForm
 from webapp.main import db, dump_db
-from webapp.models import Log, TriBoard, User
+from webapp.models import Log, Score, TriBoard, User
 
 
 def _create_user(username="alice", password="password123", active=True, id=None):
@@ -462,3 +462,135 @@ class Test_Dump_DB:
         assert result.exit_code == 0, result.output
         assert out.exists()
         assert str(out) in result.output
+
+
+# Two plain opening moves (seats 0 and 1), so seat 2 is on move.
+_TWO_MOVES = "BNDLHBIB"
+
+
+def _seated_board(players, status, slog=""):
+    tb = TriBoard(
+        owner_id=players[0].id,
+        status=status,
+        slog=slog,
+        **{f"player_{i}_id": p.id for i, p in enumerate(players)},
+        **{f"player_{i}_accepted": True for i in range(3)},
+    )
+    db.session.add(tb)
+    db.session.commit()
+    return tb
+
+
+def _rows(html):
+    return re.findall(r'<th scope="row">(\d+)</th>', html)
+
+
+class TestGameLists:
+    def _players(self):
+        return [_create_user(name) for name in ("alice", "bob", "carol")]
+
+    def test_games_shows_on_move_seat_and_vote_button(self, app, client):
+        players = self._players()
+        _seated_board(players, 1, _TWO_MOVES)
+        voting = _seated_board(players, 1, _TWO_MOVES + "rXXA")
+        _login(client)
+
+        html = client.get("/games").get_data(as_text=True)
+
+        assert html.count("<strong") == 2
+        assert re.search(r"<strong[^>]*>carol", html)  # seat 2 on move
+        assert re.search(r"<strong[^>]*>alice", html)  # vote shifts it to 0
+        assert html.count(">Vote</a>") == 1
+        assert f"/play/{voting.id}" in html or f"id={voting.id}" in html
+
+    def test_archive_shows_scores_and_moves(self, app, client):
+        alice, bob, carol = self._players()
+        tb = _seated_board([alice, bob, carol], 2, _TWO_MOVES)
+        for player, score in ((alice, 2.0), (bob, 0.0)):
+            db.session.add(Score(player_id=player.id, board_id=tb.id, score=score))
+        db.session.commit()
+        _login(client)
+
+        html = client.get("/archive").get_data(as_text=True)
+
+        assert re.search(r"<strong[^>]*>alice \(2\)</strong>", html)
+        assert "<span>bob (0)</span>" in html
+        assert "<span>carol (0)</span>" in html  # no Score row
+        assert "<td>2</td>" in html  # moves
+
+    def test_archive_is_paginated(self, app, client):
+        players = self._players()
+        for _ in range(51):
+            _seated_board(players, 2)
+        _login(client)
+
+        first = client.get("/archive").get_data(as_text=True)
+        second = client.get("/archive?page=2").get_data(as_text=True)
+
+        assert len(_rows(first)) == 50
+        assert len(_rows(second)) == 1
+        assert "Page 1 of 2" in first
+        assert "page=2" in first
+
+    def test_rating_matches_per_user_values(self, app, client):
+        alice, bob, carol = self._players()
+        outcomes = [
+            {alice: (2.0, False, "N"), bob: (0.0, True, "N"), carol: (0.0, False, "N")},
+            {
+                alice: (2 / 3, False, "D"),
+                bob: (2 / 3, False, "D"),
+                carol: (2 / 3, False, "D"),
+            },
+            {
+                alice: (0.0, False, "R"),
+                bob: (2.0, False, "R"),
+                carol: (0.0, False, "N"),
+            },
+        ]
+        for result in outcomes:
+            tb = _seated_board([alice, bob, carol], 2)
+            for player, (score, onmove, tag) in result.items():
+                db.session.add(
+                    Score(
+                        player_id=player.id,
+                        board_id=tb.id,
+                        score=score,
+                        onmove=onmove,
+                        tag=tag,
+                    )
+                )
+        _seated_board([alice, bob, carol], 1)  # active: not counted
+        db.session.commit()
+        _login(client)
+
+        expected = {
+            "alice": ("2.6666666666666665", "1/1/0/1"),
+            "bob": ("2.6666666666666665", "1/1/0/1"),
+            "carol": ("0.6666666666666666", "0/1/2/0"),
+        }
+
+        html = client.get("/rating").get_data(as_text=True)
+
+        # One chunk per ranking row (the template doesn't close its <tr>s).
+        for chunk in html.split('<th scope="row">')[1:]:
+            name = re.search(r">(\w+)</(?:strong|span)>", chunk).group(1)
+            cells = re.findall(r"<td><span>(.*?)</span></td>", chunk)
+            score, counts = expected.pop(name)
+            assert cells[1:4] == [score, "3", counts], name
+        assert expected == {}
+
+    def test_admin_games_paginates_each_list(self, app, client):
+        players = self._players()
+        for _ in range(51):
+            _seated_board(players, 1, _TWO_MOVES)
+            _seated_board(players, 2)
+        _login_as_admin(client)
+
+        html = client.get("/admin-games?active_page=2&archive_page=1").get_data(
+            as_text=True
+        )
+
+        assert html.count("Page 2 of 2") == 1
+        assert html.count("Page 1 of 2") == 1
+        assert "archive_page=1" in html
+        assert "active_page=2" in html

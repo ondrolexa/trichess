@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import NamedTuple
 
 from engine.board import Board
 from engine.pieces import King, Pawn, Pos, Rook
@@ -602,3 +603,39 @@ def get_game(view_pid, slog):
     ga = GameAPI(view_pid)
     ga.replay_from_slog(slog)
     return ga
+
+
+class SlogSummary(NamedTuple):
+    move_number: int
+    on_move: int
+    voting_active: bool
+
+
+def slog_summary(slog):
+    """``move_number``, ``on_move`` and whether a vote is in progress, read
+    from the slog string alone — no board replay, so microseconds instead of
+    milliseconds. Meant for pages listing many games.
+
+    Mirrors the vote handling of ``GameAPI.replay_from_slog``; keep the two
+    in sync (tests/test_gameapi.py checks they agree).
+    """
+    voting = Voting()
+    move_number = 0
+    for q1, r1, q2, r2 in zip(slog[::4], slog[1::4], slog[2::4], slog[3::4]):
+        if voting.finished():
+            voting.clean()
+        if q1 == "r":
+            voting.resign_vote(0, r1)
+            voting.resign_vote(1, q2)
+            voting.resign_vote(2, r2)
+        elif q1 == "s":
+            voting.draw_vote(0, r1)
+            voting.draw_vote(1, q2)
+            voting.draw_vote(2, r2)
+        elif q1 == "R":
+            voting.set_resign_voting(r1, q2, r2)
+        elif q1 == "S":
+            voting.set_draw_voting(r1, q2, r2)
+        else:
+            move_number += 1
+    return SlogSummary(move_number, (move_number + voting.n_voted) % 3, voting.active())
