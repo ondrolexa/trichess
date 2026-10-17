@@ -229,6 +229,8 @@ class Test_Index_Route_Redirects_By_Login_State:
         resp = client.get("/")
         assert resp.status_code == 200
         assert b"Register" in resp.data
+        for name in ("filio_light", "filio_dark", "ondro_light", "ondro_dark"):
+            assert f"img/demo_{name}.mp4".encode() in resp.data
 
     def test_logged_in_non_admin_redirects_to_active_games(self, app, client):
         _create_user()
@@ -241,6 +243,18 @@ class Test_Index_Route_Redirects_By_Login_State:
         _login_as_admin(client)
         resp = client.get("/")
         assert resp.status_code == 200
+
+
+class Test_Anonymous_Theme_Follows_System:
+    def test_anonymous_page_follows_prefers_color_scheme(self, client):
+        resp = client.get("/")
+        assert b"matchMedia(" in resp.data
+
+    def test_logged_in_user_keeps_own_theme(self, app, client):
+        _create_user()
+        _login(client)
+        resp = client.get("/help")
+        assert b"matchMedia(" not in resp.data
 
 
 class Test_DBHandler_Commits_Log_Rows:

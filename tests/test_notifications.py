@@ -18,6 +18,24 @@ class TestPostNotification:
             app.debug = True
 
 
+class TestDebugUnderFlaskCli:
+    def test_cli_keeps_debug_from_config(self, app, monkeypatch):
+        # The flask CLI sets app.debug from FLASK_DEBUG after loading the app;
+        # DEBUG=true must survive that (cron'd resend-notifications).
+        from flask.cli import ScriptInfo
+
+        monkeypatch.delenv("FLASK_DEBUG", raising=False)
+        monkeypatch.setitem(app.config, "DEBUG", True)
+        main._mirror_debug_for_cli()
+        ScriptInfo(create_app=lambda: app).load_app()
+        assert app.debug is True
+
+    def test_resend_notifications_cli_skips_in_debug(self, app):
+        result = app.test_cli_runner().invoke(args=["resend-notifications"])
+        assert result.exit_code == 0, result.output
+        assert len(main.notification_queue) == 0
+
+
 class TestSendEmail:
     def test_skipped_when_mail_server_unset(self, app):
         # The `app` fixture runs with MAIL_SERVER="".

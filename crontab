@@ -2,3 +2,4 @@
 */5 * * * * cd /code && flask --app=webapp bot-sweep
 */5 * * * * cd /code && flask --app=webapp remove-bot-games
 0 */6 * * * cd /code && flask --app=webapp dump-db
+0 3 * * 0 cd /code && flask --app=webapp build-opening-book

@@ -49,43 +49,33 @@ video:-webkit-full-screen {
     object-fit: contain !important;
 }
 
-/* Default state (Tablets and Desktops - screens >= 768px): Show landscape, hide portrait */
-.landscape-video {
-  display: block !important;
-}
-
-/* Narrow the card itself so its frame hugs the landscape video */
-@media (min-width: 768px) {
+/* Demo video (index.html picks the file): lg+ narrows the card to 75% */
+@media (min-width: 992px) {
   .media-card {
     width: 75%;
     margin-inline: auto;
   }
 }
 
-.portrait-video {
-  max-width: 100%;
-  max-height: 100vh;
-  margin: 0 auto;
-  display: none !important;
-}
-
-/* Mobile state (Screens < 768px): Hide landscape, show portrait */
-@media (max-width: 767.98px) {
-  .landscape-video {
-    display: none !important;
-  }
-
-  .portrait-video {
+/* Below lg: cap the video at the screen height and shrink the card to it,
+   so the frame hugs the video */
+@media (max-width: 991.98px) {
+  #demo-video {
     width: auto;
-    display: block !important;
+    max-height: 100vh;
   }
 
-  /* Shrink the card to the height-capped portrait video so the frame hugs it */
   .media-card {
     width: fit-content;
     max-width: 100%;
     margin-inline: auto;
   }
+}
+
+/* The logo is mostly near-black: invert it on dark themes, keeping red red */
+[data-bs-theme="dark"] .landscape-logo,
+[data-bs-theme="dark"] .portrait-logo {
+  filter: invert(1) hue-rotate(180deg);
 }
 
 .landscape-logo {

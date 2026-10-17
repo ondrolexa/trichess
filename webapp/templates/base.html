@@ -10,6 +10,18 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon_light.ico') }}" media="(prefers-color-scheme: light)">
     <!-- Loaded when system is in Dark Mode -->
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon_dark.ico') }}" media="(prefers-color-scheme: dark)">
+    {% if not current_user.is_authenticated %}
+    <script>
+      // Not logged in: follow the OS light/dark setting, live.
+      (() => {
+        const dark = window.matchMedia("(prefers-color-scheme: dark)");
+        const apply = () =>
+          document.documentElement.setAttribute("data-bs-theme", dark.matches ? "dark" : "light");
+        apply();
+        dark.addEventListener("change", apply);
+      })();
+    </script>
+    {% endif %}
     {{ bootstrap.load_css() }}
     <link rel="stylesheet" href="{{ url_for('static', filename='common.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">

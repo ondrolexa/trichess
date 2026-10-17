@@ -70,6 +70,18 @@ CORS(app, origins=allowed_origins, supports_credentials=True)
 # Configuration of application, see configuration.py, choose one and uncomment.
 app.config.from_object("webapp.configuration.Config")
 
+
+def _mirror_debug_for_cli():
+    """The flask CLI resets app.debug from FLASK_DEBUG alone after importing
+    the app, which silently dropped DEBUG=true for cron'd commands (e.g.
+    resend-notifications sent real pushes). Mirror DEBUG into FLASK_DEBUG;
+    an explicit FLASK_DEBUG still wins."""
+    if app.config["DEBUG"]:
+        os.environ.setdefault("FLASK_DEBUG", "1")
+
+
+_mirror_debug_for_cli()
+
 # CSRF protection for cookie/session-authenticated HTML form routes. The /api/v1/*
 # blueprint and the /token view are bearer-JWT-only (no cookies involved) and are
 # exempted from it in views.py where they're registered.

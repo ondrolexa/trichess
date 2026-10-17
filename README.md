@@ -89,7 +89,7 @@ The application uses environment variables for configuration, loaded from a `.en
 | `FLASK_SECRET_KEY` | Secret key for Flask sessions and CSRF protection (required unless `DEBUG=true`) | — |
 | `JWT_SECRET_KEY` | Secret key for JWT token signing (required unless `DEBUG=true`) | — |
 | `CORS_ORIGINS` | Comma-separated list of allowed CORS origins | `http://localhost:5000` |
-| `DEBUG` | Enable Flask debug mode | `false` |
+| `DEBUG` | Enable Flask debug mode, also for `flask` CLI and cron commands (no push notifications are sent) | `false` |
 | `REDIS_URL` | Redis connection URL for the bot's background move queue (RQ) | `redis://localhost:6379/0` |
 | `BOT_DEPTH` | Minimax search depth for bot moves/votes (higher = stronger but slower) | `3` |
 | `SINGLE_PLAYER_NOTIFICATIONS` | Send live "your turn"/"game over" push notifications for 1-human-vs-2-bots games | `false` |
@@ -246,7 +246,7 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep, 
 - **`resend-notifications`**: Send turn reminders for games inactive >24h (runs via cron — see `crontab`).
 - **`purge-logs`**: Delete log entries older than `--days` (default 90).
 - **`bot-sweep`**: Re-trigger any active game whose on-move seat is a bot (runs via cron — see `crontab`).
-- **`build-opening-book`**: Rebuild `instance/opening_book.json` from finished games in the database.
+- **`build-opening-book`**: Rebuild `instance/opening_book.json` from finished games in the database; weekly via cron (Sunday 03:00).
 - **`dump-db`**: Write a SQL dump of the database to `instance/trichess.sql` (or `--file`); every 6 hours via cron.
 - **`sqlite-to-postgres`**: One-time, verified, all-or-nothing copy of the legacy SQLite database into an empty PostgreSQL database (`--sqlite PATH`).
 - **`remove-bot-games`**: Delete finished games with a bot player, and their logs, older than `--minutes` (`BOT_GAMES_REMOVAL` env var, default `15`; `0` disables; runs every 5 minutes via cron — see `crontab`).

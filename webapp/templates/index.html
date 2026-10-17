@@ -28,9 +28,8 @@
 {% block content %}
 <section class="hero">
   {% if current_user.is_authenticated %}
+  {# Only the admin sees this page logged in (players are redirected to /games). #}
   <h1>Welcome back, {{ current_user.username }}!</h1>
-  <p class="lead text-body-secondary">Ready for your next move?</p>
-  <a class="btn btn-primary btn-lg mt-2" href="{{ url_for('active_games') }}">Continue to your games</a>
   {% else %}
   <img class="mt-3 mx-auto d-block img-fluid landscape-logo" src="{{ url_for('static', filename='img/logo_trichess.svg') }}" alt="SVG image">
   <img class="mt-3 mx-auto d-block img-fluid portrait-logo" src="{{ url_for('static', filename='img/logo_trichess.svg') }}" alt="SVG image">
@@ -44,17 +43,33 @@
   <h1 class="mt-2"><strong>Demo</strong></h1>
 </section>
 <!-- Demo section-->
-<div class="media-card bg-light rounded shadow-lg overflow-hidden">
-  <!-- Landscape Video -->
-  <video controls class="responsive-video landscape-video" autoplay loop muted playsinline>
-    <source src="{{ url_for('static', filename='img/demo_hr.mp4') }}" type="video/mp4">
+<div class="media-card rounded-4 overflow-hidden">
+  <video id="demo-video" controls class="responsive-video" autoplay loop muted playsinline
+         data-filio-light="{{ url_for('static', filename='img/demo_filio_light.mp4') }}"
+         data-filio-dark="{{ url_for('static', filename='img/demo_filio_dark.mp4') }}"
+         data-ondro-light="{{ url_for('static', filename='img/demo_ondro_light.mp4') }}"
+         data-ondro-dark="{{ url_for('static', filename='img/demo_ondro_dark.mp4') }}">
     Your browser does not support the video tag.
   </video>
-  <!-- Portrait Video -->
-  <video controls class="responsive-video portrait-video" autoplay loop muted playsinline>
-    <source src="{{ url_for('static', filename='img/demo_vr.mp4') }}" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
+  <script>
+    // lg+ shows the filio board, smaller screens the ondro board, each in the
+    // active Bootstrap theme. Only that one file is fetched; re-picked when the
+    // breakpoint or the theme (OS light/dark switch) changes.
+    (() => {
+      const video = document.getElementById("demo-video");
+      const html = document.documentElement;
+      const lg = window.matchMedia("(min-width: 992px)");
+      const pick = () => {
+        const board = lg.matches ? "filio" : "ondro";
+        const mode = html.getAttribute("data-bs-theme") === "dark" ? "Dark" : "Light";
+        const src = video.dataset[board + mode];
+        if (video.getAttribute("src") !== src) video.src = src;
+      };
+      pick();
+      lg.addEventListener("change", pick);
+      new MutationObserver(pick).observe(html, { attributes: true, attributeFilter: ["data-bs-theme"] });
+    })();
+  </script>
 </div>
 <div class="row feature-grid text-center mb-0">
   <div class="col-md-3 mb-3">
