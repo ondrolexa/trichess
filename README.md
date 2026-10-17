@@ -101,7 +101,7 @@ The application uses environment variables for configuration, loaded from a `.en
 | `SQLALCHEMY_DATABASE_URI` | Database URL, shared by the app, worker and SSE service: `postgresql+psycopg://user:pw@host:5432/trichess` (set by the compose files). Required: the app and SSE service refuse to start without it | — |
 | `POSTGRES_PASSWORD` | Password of the `trichess` role in the `postgres` compose service (Compose interpolates it into the URL above) | — |
 | `SSE_HEARTBEAT_INTERVAL` | Seconds between SSE heartbeat comments | `15` |
-| `GA_MEASUREMENT_ID` | Google Analytics 4 measurement ID (`G-XXXXXXXXXX`). Loaded only after the visitor accepts the consent banner; never rendered in debug mode or for admin. Tracks page views and account/lobby events only, not gameplay | `` (empty — analytics disabled) |
+| `GA_MEASUREMENT_ID` | Google Analytics 4 measurement ID (`G-XXXXXXXXXX`). Loaded only after the visitor accepts the consent banner; never rendered in debug mode or for admin. Tracks page views, account/lobby events and gameplay milestones only (game start, first move, votes, game end; never moves or positions), from both board renderers | `` (empty — analytics disabled) |
 
 ### Security Notes
 - **Always change the default secret keys in production**.

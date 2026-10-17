@@ -1371,6 +1371,7 @@ function Step_2_setplayers(idata) {
   );
 }
 function Step_5_game_info() {
+  window.trichessGame?.submitted(B.slog);
   F.fetchPOST(
     url + "/api/v1/game/info",
     { slog: B.slog, view_pid: B.view_player },
@@ -1387,6 +1388,7 @@ function Step_4_set_votedraw(idata) {
   );
 }
 function Step_3_setelim_board_and_draw(idata) {
+  window.trichessGame?.info(idata);
   B.set(idata);
   B.draw_tile();
   B.draw_pieces();
@@ -1618,6 +1620,7 @@ function Click_OK() {
       url + "/api/v1/manager/board",
       { id: ID, slog: B.getSlog() },
       function () {
+        window.trichessGame?.submitted(B.getSlog());
         F.semaforwait_green()
       },
     );

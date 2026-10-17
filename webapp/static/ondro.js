@@ -1215,12 +1215,16 @@ function showVoteModal(kind, vote_results) {
 }
 
 function gameInfo(init = false, redraw = false) {
+  const slog = AppState.slog;
   apiFetch("/api/v1/game/info", {
-    slog: AppState.slog,
+    slog: slog,
     view_pid: AppState.view_pid,
   })
     .then(jsonOrReject)
     .then((data) => {
+      // Analytics only for the committed position: a local, not yet
+      // submitted move that ends the game may still be taken back.
+      if (slog === AppState.server_slog) window.trichessGame?.info(data);
       if (init) {
         AppState.on_move = data.onmove == AppState.view_pid;
       }
@@ -1576,6 +1580,7 @@ function boardSubmit() {
   apiFetch("/api/v1/manager/board", { id: id, slog: AppState.slog })
     .then(jsonOrReject)
     .then((data) => {
+      window.trichessGame?.submitted(AppState.slog);
       boardReset();
       AppState.on_move = false;
       AppState.ready = true;

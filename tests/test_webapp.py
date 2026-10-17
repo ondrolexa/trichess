@@ -384,6 +384,65 @@ class Test_Google_Analytics:
         html = client.get("/help").get_data(as_text=True)
         assert '"name": "game_create"' in html
 
+    def _ga_game(self, html):
+        import json
+
+        match = re.search(r"window\.TRICHESS_GA = (\{.*?\});\n", html)
+        assert match is not None
+        return json.loads(match.group(1))["game"]
+
+    @pytest.mark.parametrize("renderer", ["ondro", "filio"])
+    def test_play_page_carries_game_context(self, app, client, monkeypatch, renderer):
+        self._enable(app, monkeypatch)
+        alice = _create_user()
+        alice.board = renderer
+        bot1 = User.query.filter_by(username="Bot 1").first()
+        bot2 = User.query.filter_by(username="Bot 2").first()
+        # alice in seat 1: one move made (seat 0), so she hasn't moved yet.
+        tb = _seated_board([bot1, alice, bot2], 1, "BNDL")
+        _login(client)
+
+        game = self._ga_game(client.get(f"/play/{tb.id}").get_data(as_text=True))
+
+        assert game == {"opponents": "bots", "renderer": renderer, "has_moved": False}
+
+        tb.slog = "BNDLHBIB"  # seat 1 has moved now
+        db.session.commit()
+        game = self._ga_game(client.get(f"/play/{tb.id}").get_data(as_text=True))
+        assert game["has_moved"] is True
+
+    def test_play_page_opponents_mixed_and_humans(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        alice = _create_user()
+        bob = _create_user("bob")
+        carol = _create_user("carol")
+        bot1 = User.query.filter_by(username="Bot 1").first()
+        mixed = _seated_board([alice, bob, bot1], 1)
+        humans = _seated_board([alice, bob, carol], 1)
+        _login(client)
+
+        html = client.get(f"/play/{mixed.id}").get_data(as_text=True)
+        assert self._ga_game(html)["opponents"] == "mixed"
+        html = client.get(f"/play/{humans.id}").get_data(as_text=True)
+        assert self._ga_game(html)["opponents"] == "humans"
+
+    def test_game_start_event_when_last_seat_filled(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        _create_user()
+        _login(client)
+        client.get("/help")  # drain the login event
+        client.post("/join", data={"seat": "Seat 1"})
+        board = TriBoard.query.one()
+        client.post("/join", data={"board": board.id, "fill_bot": "1"})
+        html = client.get("/help").get_data(as_text=True)
+        assert '"name": "game_start"' not in html
+
+        client.post("/join", data={"board": board.id, "fill_bot": "2"})
+        html = client.get("/help").get_data(as_text=True)
+        assert db.session.get(TriBoard, board.id).status == 1
+        assert '"name": "game_start"' in html
+        assert '"opponents": "bots"' in html
+
     def test_no_events_queued_when_unconfigured(self, app, client, monkeypatch):
         monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", "")
         _create_user()

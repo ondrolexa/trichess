@@ -1,7 +1,9 @@
 // Google Analytics 4 with an opt-in consent banner (Consent Mode v2, "basic"
 // implementation): gtag.js is not loaded at all until the visitor accepts.
 // Page config comes from window.TRICHESS_GA, set by templates/_analytics.html.
-// Gameplay is intentionally not tracked — it is logged server-side.
+// Gameplay is tracked only as milestones (first move, votes, game end) via
+// window.trichessGame, which both board renderers call — never moves or
+// positions; the full record is logged server-side.
 (function () {
   const cfg = window.TRICHESS_GA;
   if (!cfg) return;
@@ -116,6 +118,57 @@
     load();
   } else if (consent !== "denied") {
     showBanner();
+  }
+
+  // Board page hooks, called by ondro.js and filio.js alike (with optional
+  // chaining: this file isn't loaded when analytics is off). Events are sent
+  // only once gtag is loaded, i.e. after consent.
+  const game = cfg.game;
+  if (game) {
+    const common = { opponents: game.opponents, renderer: game.renderer };
+    let startedUnfinished = null; // finished state at the page's first /info
+    let endSent = false;
+    let hasMoved = game.has_moved;
+
+    function send(name, params) {
+      if (loaded) gtag("event", name, Object.assign({}, common, params));
+    }
+
+    function movesBucket(n) {
+      if (n < 10) return "<10";
+      if (n < 30) return "10-29";
+      if (n < 60) return "30-59";
+      return "60+";
+    }
+
+    window.trichessGame = {
+      // Every /api/v1/game/info response. game_end fires once, and only if
+      // this page first saw the game unfinished: reopening a finished game,
+      // or stepping through its history, never re-sends it.
+      info(data) {
+        if (startedUnfinished === null) startedUnfinished = !data.finished;
+        if (data.finished && startedUnfinished && !endSent) {
+          endSent = true;
+          send("game_end", {
+            endgame: data.endgame,
+            moves_bucket: movesBucket(data.move_number),
+          });
+        }
+      },
+      // After a successful board submit; the last slog chunk tells a move
+      // from a draw (s/S) or resign (r/R) vote.
+      submitted(slog) {
+        const tag = slog.slice(-4, -3);
+        if (tag === "s" || tag === "S") {
+          send("vote_cast", { kind: "draw" });
+        } else if (tag === "r" || tag === "R") {
+          send("vote_cast", { kind: "resign" });
+        } else if (tag && !hasMoved) {
+          hasMoved = true;
+          send("first_move", {});
+        }
+      },
+    };
   }
 
   const settings = document.getElementById("cookieSettings");

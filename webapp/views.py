@@ -89,8 +89,20 @@ def track_event(name, **params):
     session["ga_events"] = events[-10:]
 
 
-def _ga_config():
-    """Per-page GA4 settings for _analytics.html, or None to omit the tag."""
+def _opponents(tb):
+    """Board make-up for analytics: "bots" (2 bot seats), "mixed" (1) or
+    "humans" — a browser viewer is always human, so it's their opponents."""
+    bots = sum(
+        1 for p in (tb.player_0, tb.player_1, tb.player_2) if p is not None and p.is_bot
+    )
+    return {2: "bots", 1: "mixed"}.get(bots, "humans")
+
+
+def _ga_config(game=None):
+    """Per-page GA4 settings for _analytics.html, or None to omit the tag.
+
+    `game` is the board page's context for analytics.js's trichessGame hooks.
+    """
     events = session.pop("ga_events", [])
     if not app.config["GA_MEASUREMENT_ID"] or app.debug:
         return None
@@ -103,6 +115,7 @@ def _ga_config():
         "user_id": None,
         "user_properties": {"logged_in": "yes" if authenticated else "no"},
         "events": events,
+        "game": game,
     }
     if authenticated:
         # Opaque, stable per-user id: never the username/email or raw db id.
@@ -143,6 +156,7 @@ def render_template(*args, **kwargs):
         theme = yaml.safe_load(f)
     if "board" not in kwargs:
         kwargs["board"] = False
+    ga_game = kwargs.pop("ga_game", None)
 
     return real_render_template(
         *args,
@@ -150,7 +164,7 @@ def render_template(*args, **kwargs):
         navailable=navailable,
         theme=theme,
         version=webapp_version,
-        ga_config=_ga_config(),
+        ga_config=_ga_config(ga_game),
         maintenance=is_maintenance(),
     )
 
@@ -390,6 +404,7 @@ def available_games():
             elif fill_bot is None and seat in ("0", "1", "2"):
                 track_event("game_join", seat=int(seat))
             if board.status == 1:
+                track_event("game_start", opponents=_opponents(board))
                 maybe_trigger_bot(board.id)
             return redirect(url_for("available_games"))
 
@@ -451,12 +466,21 @@ def play(id):
         with open(pieces_file) as f:
             pieces_paths = yaml.safe_load(f)
         template = "board_ondro.html" if g.user.board == "ondro" else "board_filio.html"
+        seat = next(i for i in range(3) if getattr(tb, f"player_{i}_id") == g.user.id)
+        ga_game = {
+            "opponents": _opponents(tb),
+            "renderer": "ondro" if g.user.board == "ondro" else "filio",
+            # Seats move in order 0, 1, 2, so seat s has moved once more
+            # than s moves were made.
+            "has_moved": slog_summary(tb.slog or "").move_number > seat,
+        }
         return render_template(
             template,
             id=id,
             access_token=access_token,
             pieces_paths=pieces_paths,
             board=True,
+            ga_game=ga_game,
         )
     else:
         flash("You have no access to this game", "error")
