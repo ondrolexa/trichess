@@ -77,6 +77,10 @@ def app():
         DEBUG=True,
         SQLALCHEMY_DATABASE_URI=TEST_DATABASE_URL,
         WTF_CSRF_ENABLED=False,
+        # Config picks https outside DEBUG (read from env at import, so CI
+        # without .env gets it). The test client then sends https requests,
+        # and Flask-WTF's SSL-strict check rejects them for lacking a Referer.
+        PREFERRED_URL_SCHEME="http",
         # Never let tests touch the real SMTP/notification services configured in .env.
         MAIL_SERVER="",
     )
