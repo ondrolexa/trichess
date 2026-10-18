@@ -997,6 +997,15 @@ class GameBoard(Resource):
             if tb:
                 try:
                     ga1 = get_game(0, tb.slog)
+                    move_id = f"{ga1.move_number:03d}"
+                    logger.log(
+                        GAME,
+                        "Move.str " + move_id,
+                        extra={
+                            "user_id": user1.id,
+                            "board_id": tb.id,
+                        },
+                    )
                     pid = _seat_map(tb)
                     new_slog = _accept_posted_slog(ga1, state.slog, pid[username])
                     players = {
@@ -1011,15 +1020,6 @@ class GameBoard(Resource):
                         user = User.query.filter_by(
                             username=players[ga2.on_move].username
                         ).first()
-                        move_id = f"{ga2.move_number:03d}"
-                        logger.log(
-                            GAME,
-                            "Move str " + move_id,
-                            extra={
-                                "user_id": user1.id,
-                                "board_id": tb.id,
-                            },
-                        )
                         endgame_kind = finalize_if_finished(
                             tb,
                             ga2,
