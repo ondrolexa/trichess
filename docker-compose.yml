@@ -15,9 +15,9 @@
 #
 # Database contents: an empty ./pgdata initialises itself from
 # ./instance/trichess.sql (e.g. production's latest dump). Without a dump,
-# copy the legacy SQLite database in once instead:
+# create an empty schema instead:
 #   docker compose run --rm trichess \
-#     flask --app=webapp sqlite-to-postgres --sqlite /code/instance/trichess.db
+#     sh -c 'python -c "from webapp import app, db; app.app_context().push(); db.create_all()" && flask --app=webapp db stamp head'
 #
 # Shares ./pgdata with docker-compose.dev.yml. Both publish 127.0.0.1:5432,
 # so only one of them can run at a time — two servers on one data directory

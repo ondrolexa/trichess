@@ -168,7 +168,7 @@ lm = LoginManager()
 lm.init_app(app)
 lm.login_view = "login"
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 
 # notifications
@@ -456,27 +456,6 @@ def dump_db_command(file):
     """Write a SQL dump of the database (default instance/trichess.sql)."""
     path = dump_db(file)
     click.echo(f"Dumped database to {path}")
-
-
-@app.cli.command("sqlite-to-postgres")
-@click.option(
-    "--sqlite",
-    "sqlite_path",
-    required=True,
-    type=click.Path(exists=True, dir_okay=False),
-    help="Legacy SQLite database to copy (opened read-only)",
-)
-def sqlite_to_postgres_command(sqlite_path):
-    """One-time copy of the legacy SQLite database into the (empty)
-    PostgreSQL database — see README's cut-over runbook."""
-    from webapp.api import rebuild_ratings
-    from webapp.sqlite_migrate import sqlite_to_postgres
-
-    sqlite_to_postgres(app, db, sqlite_path)
-    # The legacy file has no rating_history; derive it (and the ratings).
-    players = rebuild_ratings()
-    db.session.commit()
-    click.echo(f"Rebuilt ratings and rating history for {players} player(s)")
 
 
 @app.cli.command("rebuild-ratings")

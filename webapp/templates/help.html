@@ -823,7 +823,7 @@
             </tr>
             <tr>
               <td>Live updates</td>
-              <td>Server-Sent Events over Redis pub/sub (ondro.js only)</td>
+              <td>Server-Sent Events over Redis pub/sub, served by the standalone <code>sse/app.py</code> (both renderers)</td>
             </tr>
             <tr>
               <td>Config</td>
@@ -836,6 +836,10 @@
             <tr>
               <td>Game engine</td>
               <td>Pure Python in <code>engine/</code> package (no framework deps)</td>
+            </tr>
+            <tr>
+              <td>Database</td>
+              <td>PostgreSQL 17 in production and dev; the test suite also runs on in-memory SQLite</td>
             </tr>
           </tbody>
         </table>
@@ -850,12 +854,15 @@
       board.py            # Board + Hex classes
       pieces.py           # Pos, Move, Piece hierarchy
       player.py           # Per-player direction vectors
-      bot.py               # Minimax bot move/vote selection
-      opening.py           # Opening book (instance/opening_book.json)
+      eval.py             # Position evaluation (bot leaf heuristic)
+      search.py           # Fast alpha-beta search on a compact board
+      bot.py              # Bot move/vote selection (book, then search)
+      opening.py          # Opening book (instance/opening_book.json)
     webapp/               # Flask application
       main.py             # App factory, DBHandler, CLI commands
       configuration.py    # Config from env vars
-      models.py            # User, TriBoard, Score, Log
+      models.py            # User, TriBoard, Score, RatingHistory, Log, Setting
+      maintenance.py       # Maintenance-mode flag
       forms.py             # WTForms for HTML routes
       views.py             # HTML routes
       api.py               # REST API blueprint at /api/v1/*
@@ -870,11 +877,16 @@
         themes/              # 6 YAML color themes
         pieces/              # 3 YAML piece sets (SVG paths)
       templates/            # Jinja2 templates
+    sse/app.py            # Live-update service (Starlette/uvicorn, no webapp import)
+    tests/                # pytest suite
+    scripts/              # bench_bot and other tooling
     migrations/           # Alembic migrations
     instance/
       opening_book.json    # Bot opening book (persisted, gitignored)
       trichess.sql         # dump-db output; postgres initdb seed (gitignored)
-    pgdata/                # PostgreSQL data dir (gitignored)</code></pre>
+    pgdata/                # PostgreSQL data dir (gitignored)
+    crontab                # Scheduled CLI commands in the trichess container
+    docker-compose*.yml    # dev database / local stack / production-style stack</code></pre>
 
         <hr>
 
@@ -982,9 +994,13 @@
           (<code>board_has_bot</code> guard in <code>GameBoard.post()</code>). Live push notifications are further
           gated by <code>SINGLE_PLAYER_NOTIFICATIONS</code> (default <code>false</code>) specifically for the
           1-human-vs-2-bots case; <code>resend_notification()</code>'s 24h-stale-game reminder always ignores that
-          flag and never targets a bot account. <code>remove-bot-games</code> CLI command (cron, monthly;
-          <code>BOT_GAMES_REMOVAL</code> days, default <code>0</code> = disabled) deletes old finished bot games and
-          their logs.</p>
+          flag and never targets a bot account. <code>remove-bot-games</code> CLI command (cron, every 5 min;
+          <code>BOT_GAMES_REMOVAL</code> minutes, default <code>15</code>, <code>0</code> disables) deletes old
+          finished bot games and their logs.</p>
+        <p>Search strength: <code>BOT_DEPTH</code> (default 3, never below 3) always completes;
+          <code>BOT_TIME_LIMIT</code> seconds (default 2.0, <code>0</code> = fixed depth) let iterative deepening go
+          further, up to <code>BOT_MAX_DEPTH</code> (default 12). Benchmark: <code>uv run python -m
+          scripts.bench_bot</code>.</p>
 
         <hr>
 
@@ -996,11 +1012,16 @@
           path to) streams these as Server-Sent Events to any seated
           player's open board page; auth is query-string-only on this one route since the browser's
           <code>EventSource</code> API can't set custom headers.</p>
-        <p><code>ondro.js</code> opens one <code>EventSource</code> per board on page load and calls
-          <code>boardReset()</code> on each ping (never trusting the pushed payload for rendering, and skipping the
-          refresh if the local player has an uncommitted move/vote staged). Each open tab is a coroutine in the async
+        <p>Both renderers open one <code>EventSource</code> per board on page load and refetch the full state on
+          each ping, never trusting the pushed payload: <code>ondro.js</code> calls <code>boardReset()</code>
+          (skipping pings at or below its synced slog length, and resyncing whenever the stream reconnects),
+          <code>filio.js</code> calls <code>Click_Refresh()</code>. Each open tab is a coroutine in the async
           service, sharing one Redis pattern subscription per process, so open boards never tie up gunicorn
-          threads.</p>
+          threads — 1000 concurrent streams measured at about 35 MB extra RSS. After a lost Redis subscription is
+          restored the service closes every stream so browsers reconnect and resync.</p>
+        <p>Local dev: run <code>uv run uvicorn sse.app:app --port 8090 --no-access-log</code> next to
+          <code>flask run</code>, and set <code>SSE_URL=http://localhost:8090</code> and the Flask origin in
+          <code>CORS_ORIGINS</code> in <code>.env</code>.</p>
 
         <hr>
 
@@ -1016,7 +1037,8 @@
           <li><code>is_bot</code> (bool) — <code>Bot 1</code>/<code>Bot 2</code>, seeded at DB creation,
             <code>active=False</code>, unrecorded random password</li>
           <li><code>rating</code> (float, default 500.0, multi-player Elo)</li>
-          <li>Admin auto-created on first run with id=1, username=<code>admin</code></li>
+          <li>Admin auto-created with the table: id=1, username=<code>admin</code>, password from
+            <code>ADMIN_PASSWORD</code></li>
         </ul>
 
         <h4>TriBoard</h4>
@@ -1032,6 +1054,16 @@
             (<code>N</code>=checkmate, <code>D</code>=draw, <code>R</code>=resignation, <code>S</code>=stalemate,
             <code>T</code>=threefold repetition), <code>onmove</code> (bool)</li>
           <li>Never created for a board with any bot seat</li>
+        </ul>
+
+        <h4>RatingHistory</h4>
+        <ul>
+          <li>Each player's rating after each rated game (profile chart), written when the game finishes</li>
+        </ul>
+
+        <h4>Setting</h4>
+        <ul>
+          <li>Key/value table shared by all processes; holds the maintenance-mode flag</li>
         </ul>
 
         <h4>Log</h4>
@@ -1064,7 +1096,7 @@
             <tr>
               <td><code>/manager/board</code></td>
               <td>POST</td>
-              <td>Submit move — <strong>row-locked</strong> with <code>with_for_update()</code>; publishes the SSE
+              <td>Submit move — <strong>row-locked</strong> with <code>with_for_update(key_share=True)</code>; publishes the SSE
                 ping and triggers the next bot if applicable</td>
             </tr>
             <tr>
@@ -1114,8 +1146,10 @@
         <h4>Multi-Player Elo</h4>
         <pre><code>e_i = 10^(rating_i / L) / sum(10^(rating_j / L) for j in 0..2)
     rating_i += K * (actual_score_i - e_i)</code></pre>
-        <p>K=9.0, L=400.0. Ratings are recalculated on each game finish by replaying ALL finished, non-bot games
-          chronologically.</p>
+        <p>K=9.0, L=400.0, starting rating 500. Each finished rated game is applied incrementally under row locks on
+          its three players (<code>record_game_rating()</code>) and appended to <code>RatingHistory</code>.
+          <code>flask rebuild-ratings</code> replays every rated game from scratch — the repair path, also run when
+          the admin deletes a rated game.</p>
 
         <hr>
 
@@ -1127,7 +1161,7 @@
           <li><code>board == "ondro"</code> → <code>board_ondro.html</code> + <code>ondro.js</code> (Konva.js with
             scene graph, animations, touch support, live SSE updates)</li>
           <li><code>board == "filio"</code> → <code>board_filio.html</code> + <code>filio.js</code> (raw Canvas 2D,
-            simpler, no live updates yet)</li>
+            simpler; live updates refresh the whole board)</li>
         </ul>
         <p>Both consume the same API and support the same interactions.</p>
 
@@ -1148,34 +1182,231 @@
         <hr>
 
         <h3>Setup &amp; Development</h3>
-        <pre><code># Install dependencies (uv creates .venv from pyproject.toml + uv.lock)
-    uv sync
-    uv run pre-commit install
-    cp .env.example .env
-    # Edit .env with SECRET_KEY, JWT_SECRET_KEY, etc.
+        <p>Dependencies are declared in <code>pyproject.toml</code> and pinned in <code>uv.lock</code>; change them
+          with <code>uv add</code>/<code>uv add --dev</code>/<code>uv remove</code>, never by editing the lockfile.
+          Local development runs Flask on the host and PostgreSQL in Docker (<code>docker-compose.dev.yml</code>,
+          published on <code>127.0.0.1:5432</code> only).</p>
+        <pre><code>uv sync                     # .venv with app + dev deps (uv sync --no-dev: runtime only)
+    uv run pre-commit install   # ruff check/format, uv.lock check, pytest on every commit
 
-    # Database: PostgreSQL in Docker (empty ./pgdata initialises from ./instance/trichess.sql)
-    # .env: POSTGRES_PASSWORD, SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:...@localhost:5432/trichess
-    mkdir -p pgdata instance
+    # .env: POSTGRES_PASSWORD=devpassword
+    #       SQLALCHEMY_DATABASE_URI=postgresql+psycopg://trichess:devpassword@localhost:5432/trichess
+    #       DEBUG=true
+    mkdir -p pgdata instance    # once; must exist and be yours (uid 1000)
     docker compose -f docker-compose.dev.yml up -d
+    uv run flask --app=webapp --debug run          # → http://localhost:5000
 
-    # Run
-    uv run flask --app=webapp --debug run
-    # → http://localhost:5000
+    # Bots, notifications and live updates also need Redis plus:
+    uv run rq worker notifications bot --url $REDIS_URL
+    uv run uvicorn sse.app:app --port 8090 --no-access-log</code></pre>
+        <p><strong>Database contents.</strong> An empty <code>pgdata/</code> initialises itself from
+          <code>instance/trichess.sql</code> (production's latest <code>dump-db</code>), since
+          <code>instance/</code> is postgres' <code>docker-entrypoint-initdb.d</code> — keep no other
+          <code>*.sql</code>/<code>*.sh</code> files there. To re-initialise from a newer dump:
+          <code>docker compose -f docker-compose.dev.yml down &amp;&amp; rm -rf pgdata &amp;&amp; mkdir pgdata</code>,
+          then <code>up -d</code>. Without a dump, create an empty schema:
+          <code>uv run python initdb.py &amp;&amp; uv run flask --app=webapp db stamp head</code>.</p>
 
-    # Migrations (after model changes)
-    uv run flask --app=webapp db migrate -m "Description"
-    uv run flask --app=webapp db upgrade</code></pre>
+        <h4>Compose files</h4>
+        <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Runs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>docker-compose.dev.yml</code></td>
+              <td>PostgreSQL only, for Flask on the host</td>
+            </tr>
+            <tr>
+              <td><code>docker-compose.yml</code></td>
+              <td>Whole stack built from the working tree, no Traefik: app on <code>:8080</code>, SSE on
+                <code>:8090</code> (<code>docker compose up -d --build</code>)</td>
+            </tr>
+            <tr>
+              <td><code>docker-compose.test.yml</code></td>
+              <td>Whole stack behind Traefik on the test domain — same as production but the domain</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <p>The dev and default files share <code>./pgdata</code> and both publish <code>127.0.0.1:5432</code>, so
+          only one runs at a time. The <code>trichess</code> container's <code>start.sh</code> runs
+          <code>flask db upgrade</code> before cron and gunicorn, so a deploy applies new migrations itself;
+          <code>docker compose run … &lt;cmd&gt;</code> replaces that CMD and skips it.</p>
 
-        <h4>Linting &amp; Formatting</h4>
-        <p>Ruff (configured in <code>pyproject.toml</code>) runs automatically via pre-commit, and in CI before
-          every Docker image build. To run it by hand:</p>
+        <h4>Migrations</h4>
+        <pre><code>uv run flask --app=webapp db migrate -m "Description of changes"
+    uv run flask --app=webapp db upgrade
+    uv run flask --app=webapp db downgrade</code></pre>
+        <p>The base revision creates no tables: new databases come from <code>db.create_all()</code>
+          (<code>initdb.py</code>) or a dump, then <code>flask db stamp head</code>.</p>
+
+        <h4>Linting, Formatting &amp; Tests</h4>
         <pre><code>uv run ruff check --fix .
-    uv run ruff format .</code></pre>
+    uv run ruff format .
+    uv run pytest                # in-memory SQLite, fake Redis — no services needed
+    TEST_DATABASE_URL=postgresql+psycopg://trichess:devpassword@localhost:5432/trichess_test uv run pytest</code></pre>
+        <p>The second form runs the suite on a throwaway PostgreSQL database whose name must contain
+          <code>test</code>; create it with <code>docker compose -f docker-compose.dev.yml exec postgres createdb -U
+          trichess trichess_test</code>. The <code>dump-db</code> tests skip without a PostgreSQL 17
+          <code>pg_dump</code>. GitHub Actions runs ruff and both test variants on every pull request and push to
+          <code>main</code>, and builds and pushes the Docker image only once they pass.</p>
+
+        <hr>
+
+        <h3>Configuration</h3>
+        <p>All settings come from environment variables, loaded from <code>.env</code> by
+          <code>python-dotenv</code> and read once at import time (<code>webapp/configuration.py</code>).</p>
+        <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Variable</th>
+              <th>Description</th>
+              <th>Default</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>FLASK_SECRET_KEY</code></td>
+              <td>Flask sessions and CSRF protection; required unless <code>DEBUG=true</code></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>JWT_SECRET_KEY</code></td>
+              <td>JWT signing, shared with the SSE service; required unless <code>DEBUG=true</code></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>ADMIN_PASSWORD</code></td>
+              <td>Password of the admin account seeded when the <code>user</code> table is created</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>SQLALCHEMY_DATABASE_URI</code></td>
+              <td>Database URL shared by app, worker and SSE service, e.g. <code>postgresql+psycopg://trichess:pw@host:5432/trichess</code> (set by the compose files); required</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>POSTGRES_PASSWORD</code></td>
+              <td>Password of the <code>trichess</code> role in the compose <code>postgres</code> service</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>DEBUG</code></td>
+              <td>Flask debug mode, also for <code>flask</code> CLI and cron commands; no push notifications are sent</td>
+              <td><code>false</code></td>
+            </tr>
+            <tr>
+              <td><code>CORS_ORIGINS</code></td>
+              <td>Comma-separated allowed CORS origins (app and SSE service)</td>
+              <td><code>http://localhost:5000</code></td>
+            </tr>
+            <tr>
+              <td><code>REDIS_URL</code></td>
+              <td>Redis for the RQ queues and SSE pub/sub</td>
+              <td><code>redis://localhost:6379/0</code></td>
+            </tr>
+            <tr>
+              <td><code>BOT_DEPTH</code></td>
+              <td>Search depth bot moves/votes always complete (minimum 3)</td>
+              <td><code>3</code></td>
+            </tr>
+            <tr>
+              <td><code>BOT_TIME_LIMIT</code></td>
+              <td>Seconds per bot move to keep deepening past <code>BOT_DEPTH</code>; <code>0</code> = fixed depth</td>
+              <td><code>2.0</code></td>
+            </tr>
+            <tr>
+              <td><code>BOT_MAX_DEPTH</code></td>
+              <td>Iterative deepening never goes deeper</td>
+              <td><code>12</code></td>
+            </tr>
+            <tr>
+              <td><code>SINGLE_PLAYER_NOTIFICATIONS</code></td>
+              <td>Live push notifications for 1-human-vs-2-bots games</td>
+              <td><code>false</code></td>
+            </tr>
+            <tr>
+              <td><code>BOT_GAMES_REMOVAL</code></td>
+              <td><code>remove-bot-games</code> deletes finished bot games older than this many minutes; <code>0</code> disables</td>
+              <td><code>15</code></td>
+            </tr>
+            <tr>
+              <td><code>TRUSTED_PROXY_HOPS</code></td>
+              <td>Reverse proxies whose <code>X-Forwarded-*</code> headers are trusted (Traefik: <code>1</code>). Needed behind TLS for <code>https://</code> email links and real client IPs in rate limits; keep <code>0</code> when clients reach the app directly</td>
+              <td><code>0</code></td>
+            </tr>
+            <tr>
+              <td><code>RATELIMIT_STORAGE_URI</code></td>
+              <td>Login/sign-up rate-limit counters (falls back to per-process memory if unreachable)</td>
+              <td><code>REDIS_URL</code></td>
+            </tr>
+            <tr>
+              <td><code>RATELIMIT_ENABLED</code></td>
+              <td><code>false</code> turns the login/sign-up rate limits off</td>
+              <td><code>true</code></td>
+            </tr>
+            <tr>
+              <td><code>API_TOKEN_USERS</code></td>
+              <td>Comma-separated usernames allowed to mint an API token via <code>POST /token</code> (incl. Swagger UI); browser play doesn't need it</td>
+              <td>empty (nobody)</td>
+            </tr>
+            <tr>
+              <td><code>SSE_URL</code></td>
+              <td>Base URL of the live-update service for the board page; empty = same origin (behind Traefik)</td>
+              <td>empty</td>
+            </tr>
+            <tr>
+              <td><code>SSE_HEARTBEAT_INTERVAL</code></td>
+              <td>Seconds between SSE heartbeat comments</td>
+              <td><code>15</code></td>
+            </tr>
+            <tr>
+              <td><code>GA_MEASUREMENT_ID</code></td>
+              <td>Google Analytics 4 ID; loaded only after the visitor accepts the consent banner, never in debug mode or for admin. Tracks page views, account/lobby events and gameplay milestones, never moves</td>
+              <td>empty (off)</td>
+            </tr>
+            <tr>
+              <td><code>MAIL_SERVER, MAIL_PORT, MAIL_USE_TLS, MAIL_USERNAME, MAIL_PASSWORD, MAIL_DEFAULT_SENDER</code></td>
+              <td>Outgoing SMTP for verification and password-reset email; empty <code>MAIL_SERVER</code> disables email</td>
+              <td>port <code>587</code>, TLS on</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <h4>Security notes</h4>
+        <ul>
+          <li>Use long random secret keys in production, and <code>DEBUG=false</code>.</li>
+          <li>Restrict <code>CORS_ORIGINS</code> to trusted domains.</li>
+          <li>Keep <code>API_TOKEN_USERS</code> to trusted accounts — it gates direct API access, not browser play
+            (every logged-in player gets their own token server-side for the board).</li>
+          <li>Set <code>TRUSTED_PROXY_HOPS</code> only when a proxy really sits in front, or clients can spoof their
+            address.</li>
+        </ul>
+
+        <hr>
+
+        <h3>Background Jobs</h3>
+        <ul>
+          <li>Redis (<code>REDIS_URL</code>) and one worker: <code>rq worker notifications bot</code> — two queues in
+            priority order, so a slow bot search never delays a notification (see <code>trichess-worker</code> in
+            <code>docker-compose.yml</code>).</li>
+          <li><code>webapp/notifications.py</code>: ntfy.sh push notifications (<code>post_notification</code>) and
+            SMTP email (<code>send_email</code>) are queued instead of blocking the request. The wrappers keep their
+            synchronous "is this configured" checks; send failures are logged in the worker.</li>
+          <li>Push notifications go to <code>ntfy.mykuna.eu</code>, never in debug mode.</li>
+        </ul>
 
         <hr>
 
         <h3>CLI Commands</h3>
+        <p>Run as <code>uv run flask --app=webapp &lt;command&gt;</code>; the scheduled ones are in
+          <code>crontab</code>.</p>
         <div class="table-responsive">
         <table class="table">
           <thead>
@@ -1187,37 +1418,60 @@
           <tbody>
             <tr>
               <td><code>resend-notifications</code></td>
-              <td>Turn reminders for games inactive &gt;24h (cron, daily)</td>
-            </tr>
-            <tr>
-              <td><code>purge-logs [--days]</code></td>
-              <td>Delete old log entries (default 90 days)</td>
+              <td>Turn reminders for games whose player on move has been idle &gt;24h (cron, daily 08:00)</td>
             </tr>
             <tr>
               <td><code>bot-sweep</code></td>
-              <td>Re-trigger any active game whose on-move seat is a bot (cron, every 5 min)</td>
+              <td>Re-trigger any active game waiting on a bot, and finalize active games already in a game-over position (cron, every 5 min)</td>
             </tr>
             <tr>
-              <td><code>build-opening-book</code></td>
-              <td>Rebuild <code>instance/opening_book.json</code> from finished games (cron, weekly)</td>
+              <td><code>remove-bot-games [--minutes]</code></td>
+              <td>Delete finished bot games and their logs older than <code>BOT_GAMES_REMOVAL</code> minutes (cron, every 5 min)</td>
+            </tr>
+            <tr>
+              <td><code>purge-stalling [--days] [--dry-run]</code></td>
+              <td>Delete active games with no move or vote for more than <code>--days</code> (default 365; <code>0</code> disables) and their logs (cron, daily 03:30)</td>
             </tr>
             <tr>
               <td><code>dump-db [--file]</code></td>
-              <td>SQL dump of the database to <code>instance/trichess.sql</code> (cron, every 6h); the postgres
-                service's seed when its data dir is empty</td>
+              <td>Plain-SQL dump to <code>instance/trichess.sql</code>, written atomically (cron, every 6h); the postgres service's seed when its data dir is empty</td>
             </tr>
             <tr>
-              <td><code>sqlite-to-postgres --sqlite</code></td>
-              <td>One-time, verified copy of the legacy SQLite database into an empty PostgreSQL</td>
+              <td><code>build-opening-book</code></td>
+              <td>Rebuild <code>instance/opening_book.json</code> from finished games (cron, Sunday 03:00)</td>
             </tr>
             <tr>
-              <td><code>remove-bot-games [--days]</code></td>
-              <td>Delete finished bot games and their logs older than <code>BOT_GAMES_REMOVAL</code> days (default 0
-                = disabled; cron, monthly)</td>
+              <td><code>purge-logs [--days]</code></td>
+              <td>Delete log entries older than <code>--days</code> (default 90)</td>
+            </tr>
+            <tr>
+              <td><code>rebuild-ratings</code></td>
+              <td>Recompute every rating and the rating history from all rated games (repair)</td>
             </tr>
           </tbody>
         </table>
         </div>
+
+        <hr>
+
+        <h3>Admin &amp; Maintenance</h3>
+        <ul>
+          <li>Admin is a hardcoded check (<code>g.user.id == 1</code>) in <code>views.py</code>, not a role column.
+            The admin's profile page has a user selector for any player's rating chart and the maintenance-mode
+            toggle.</li>
+          <li>New users start with <code>active=False</code> until they verify their email or the admin approves
+            them.</li>
+          <li>Removing a user deletes an account with no games, otherwise anonymises it (<code>[deleted
+            &lt;id&gt;]</code>, no email, unusable password, inactive) so games and ratings stay consistent.
+            Deleting a game also deletes its scores, logs and rating history, and rebuilds ratings if it was
+            rated.</li>
+          <li><strong>Maintenance mode</strong> (<code>setting</code> table, so every process sees it): every request
+            but the admin's gets a 503 "Maintenance in progress" page with <code>Retry-After</code> (JSON 503 under
+            <code>/api/</code>), and open board pages reload into it. Only login, logout and static files stay
+            reachable, and only the admin can sign in. Bots, <code>resend-notifications</code> and
+            <code>bot-sweep</code> pause; once it's off, the next <code>bot-sweep</code> resumes waiting bot
+            games.</li>
+        </ul>
 
         <hr>
 
@@ -1240,10 +1494,8 @@
 
         <h4>What Needs Help</h4>
         <ul>
-          <li>Test coverage for the webapp layer (the engine already has a pytest suite)</li>
           <li>Additional themes and piece sets</li>
           <li>Accessibility improvements</li>
-          <li>Live (SSE) updates for the filio renderer</li>
           <li>Game replay/analysis mode</li>
         </ul>
 
@@ -1255,9 +1507,20 @@
           <li><code>DBHandler</code> (logging.Handler) writes all GAME+ level records to the <code>log</code> table
           </li>
           <li>Attached to root logger — catches all child loggers (views, api, email)</li>
-          <li>Logs are in the caller's transaction (no auto-commit — may be lost on rollback)</li>
-          <li>CLI command: <code>flask --app=webapp purge-logs --days 90</code></li>
+          <li>Writes on its own connection and transaction, so a log line survives the request's rollback. Row
+            locks taken in a request must therefore be <code>FOR NO KEY UPDATE</code>
+            (<code>with_for_update(key_share=True)</code>), or a log row referencing the locked row deadlocks on
+            PostgreSQL.</li>
+          <li><code>GAME</code> records game creation, moves and completion with <code>user_id</code>/<code>board_id</code></li>
+          <li>Cleanup: <code>flask --app=webapp purge-logs --days 90</code></li>
         </ul>
+        <p>Reading game logs from Python:</p>
+        <pre><code>from webapp.main import app
+    from webapp.models import Log
+
+    with app.app_context():
+        for row in Log.query.filter_by(level="GAME").order_by(Log.created_at).all():
+            print(row.created_at, row.message, row.user_id, row.board_id)</code></pre>
 
         <hr>
 

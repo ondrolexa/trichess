@@ -59,7 +59,9 @@ def _secret(name):
         "FLASK_DEBUG", ""
     ).lower() in ("1", "true")
     if not debug:
-        raise RuntimeError(f"{name} must be set (see README) unless DEBUG=true")
+        raise RuntimeError(
+            f"{name} must be set (see Help → For developers → Configuration) unless DEBUG=true"
+        )
     return "dev-only-insecure-key"
 
 
@@ -297,7 +299,9 @@ def create_app(
     # costs nothing.
     db_url = db_url or os.environ.get("SQLALCHEMY_DATABASE_URI")
     if not db_url:
-        raise RuntimeError("SQLALCHEMY_DATABASE_URI must be set (see README)")
+        raise RuntimeError(
+            "SQLALCHEMY_DATABASE_URI must be set (see Help → For developers → Configuration)"
+        )
     engine = create_engine(db_url, pool_pre_ping=True)
     jwt_secret = jwt_secret or _secret("JWT_SECRET_KEY")
     if heartbeat_interval is None:

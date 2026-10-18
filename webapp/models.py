@@ -178,11 +178,6 @@ class Setting(db.Model):  # ty: ignore
     value = db.Column(db.Text, nullable=False)
 
 
-# Off only while `flask sqlite-to-postgres` builds the schema: it copies the
-# real admin/bot rows over instead.
-SEED_DEFAULT_USERS = True
-
-
 def _seed_admin_user(target, connection, **kwargs):
     # No explicit id: as the first row of a fresh table it gets id 1 (the
     # hardcoded admin check) on every backend, and PostgreSQL's id sequence
@@ -191,8 +186,6 @@ def _seed_admin_user(target, connection, **kwargs):
     # rating is set explicitly: User.rating's default=500.0 is a Python/ORM-side
     # default, not a DB server_default, so a Core insert like this one leaves it
     # NULL otherwise — breaks anywhere the template does `rating|round`.
-    if not SEED_DEFAULT_USERS:
-        return
     connection.execute(
         target.insert().values(
             username="admin",
@@ -211,8 +204,6 @@ def _seed_bot_users(target, connection, **kwargs):
     # _seat_map() keys on username, so 2 seats with the same identity would
     # be ambiguous. Random, unrecorded password + active=False: nobody can
     # log in as these accounts even if the hash were somehow brute-forced.
-    if not SEED_DEFAULT_USERS:
-        return
     for username in ("Bot 1", "Bot 2"):
         connection.execute(
             target.insert().values(

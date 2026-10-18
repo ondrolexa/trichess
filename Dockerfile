@@ -82,8 +82,7 @@ COPY --chown=app:app ./crontab ./gunicorn_config.py ./start.sh /code/
 COPY --chown=app:app ./engine /code/engine
 COPY --chown=app:app ./webapp /code/webapp
 COPY --chown=app:app ./sse /code/sse
-# Alembic scripts: `flask db upgrade/current/stamp` and sqlite-to-postgres's
-# head check run inside this image.
+# Alembic scripts: `flask db upgrade/current/stamp` run inside this image.
 COPY --chown=app:app ./migrations /code/migrations
 
 RUN chmod +x /code/start.sh

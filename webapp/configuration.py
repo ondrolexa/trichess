@@ -17,14 +17,18 @@ def _secret(name):
         "FLASK_DEBUG", ""
     ).lower() in ("1", "true")
     if not debug:
-        raise RuntimeError(f"{name} must be set (see README) unless DEBUG=true")
+        raise RuntimeError(
+            f"{name} must be set (see Help → For developers → Configuration) unless DEBUG=true"
+        )
     return "dev-only-insecure-key"
 
 
 def _required(name):
     value = os.environ.get(name)
     if not value:
-        raise RuntimeError(f"{name} must be set (see README)")
+        raise RuntimeError(
+            f"{name} must be set (see Help → For developers → Configuration)"
+        )
     return value
 
 

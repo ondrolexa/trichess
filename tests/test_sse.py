@@ -258,3 +258,29 @@ class TestListenRedis:
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+
+
+def test_seat_check_on_postgres(app):
+    """The same seat-check SQL against the real backend; SQLite's loose
+    typing (0/1 booleans) can hide what PostgreSQL rejects."""
+    if db.engine.url.get_backend_name() != "postgresql":
+        pytest.skip("needs TEST_DATABASE_URL pointing at PostgreSQL")
+    alice = User(username="alice", password="x", active=True)
+    bob = User(username="bob", password="x", active=False)
+    db.session.add_all([alice, bob])
+    db.session.flush()
+    board = TriBoard(
+        owner_id=alice.id,
+        player_0_id=alice.id,
+        player_1_id=bob.id,
+        player_2_id=2,
+        status=1,
+    )
+    db.session.add(board)
+    db.session.commit()
+    assert sse.user_exists(db.engine, alice.id)
+    assert sse.user_exists(db.engine, 2)  # Bot 1 plays while inactive
+    assert not sse.user_exists(db.engine, bob.id)
+    assert not sse.user_exists(db.engine, 999999)
+    assert sse.seated(db.engine, bob.id, board.id)
+    assert not sse.seated(db.engine, 1, board.id)  # admin isn't seated
