@@ -1368,7 +1368,7 @@
             </tr>
             <tr>
               <td><code>GA_MEASUREMENT_ID</code></td>
-              <td>Google Analytics 4 ID; loaded only after the visitor accepts the consent banner, never in debug mode or for admin. Tracks page views, account/lobby events and gameplay milestones, never moves</td>
+              <td>Google Analytics 4 ID; loaded only after the visitor accepts the consent banner, never in debug mode or for admin. See <em>Analytics</em> below</td>
               <td>empty (off)</td>
             </tr>
             <tr>
@@ -1401,6 +1401,84 @@
             synchronous "is this configured" checks; send failures are logged in the worker.</li>
           <li>Push notifications go to <code>ntfy.mykuna.eu</code>, never in debug mode.</li>
         </ul>
+
+        <hr>
+
+        <h3>Analytics</h3>
+        <p>GA4 only with <code>GA_MEASUREMENT_ID</code> set, never in debug mode or for the admin, and only after the
+          visitor accepts the consent banner. Lobby and account events are queued in the session by
+          <code>views.track_event()</code> and sent by the next rendered page; board events come from
+          <code>static/analytics.js</code> through the <code>window.trichessGame</code> hooks both renderers call.
+          Moves and positions are never sent.</p>
+        <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>When</th>
+              <th>Parameters</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>login</code>, <code>sign_up</code>, <code>email_verified</code></td>
+              <td>Account actions</td>
+              <td><code>method</code> (login, sign_up)</td>
+            </tr>
+            <tr>
+              <td><code>game_created</code></td>
+              <td>New game in the lobby</td>
+              <td><code>seat</code></td>
+            </tr>
+            <tr>
+              <td><code>game_join</code>, <code>bot_seat_added</code></td>
+              <td>A player or bot takes a seat</td>
+              <td><code>seat</code></td>
+            </tr>
+            <tr>
+              <td><code>game_cancelled</code></td>
+              <td>Owner deletes a game still waiting for players</td>
+              <td><code>wait_time</code> (minutes since creation)</td>
+            </tr>
+            <tr>
+              <td><code>game_started</code></td>
+              <td>The last seat is filled (sent by whoever filled it)</td>
+              <td><code>type</code> (humans / mixed / bots), <code>wait_time</code> (minutes since creation)</td>
+            </tr>
+            <tr>
+              <td><code>first_move</code>, <code>vote_cast</code></td>
+              <td>Player's first move; draw or resign vote</td>
+              <td><code>type</code>, <code>renderer</code>, <code>kind</code></td>
+            </tr>
+            <tr>
+              <td><code>game_completed</code></td>
+              <td>Once per game and browser: when the board shows the game ending, or when a player first opens it
+                within 7 days of its end</td>
+              <td><code>endgame</code>, <code>type</code>, <code>renderer</code>, <code>duration</code> (minutes),
+                <code>total_turns</code>, <code>placement</code> (1st/2nd/3rd, ties share), <code>points</code>
+                (of 2)</td>
+            </tr>
+            <tr>
+              <td><code>view_archive</code></td>
+              <td>First page of <code>/archive</code>, or a finished game opened on the board</td>
+              <td><code>context</code> (list / game)</td>
+            </tr>
+            <tr>
+              <td><code>profile_pref_change</code></td>
+              <td>Theme, board or piece set changed</td>
+              <td><code>field</code>, <code>pref_value</code></td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <p><strong>User properties</strong> (set on every page): <code>logged_in</code>, and for logged-in players
+          <code>board_renderer</code>, <code>ui_theme</code>, <code>piece_set</code>, <code>elo_class</code>
+          (Novice &lt;525, Intermediate 525–599, Advanced 600+) and <code>games_played_tier</code> (rated games:
+          0, 1-5, 6-20, 21-50, 51+; bot games never count). Thresholds are constants next to
+          <code>views._ga_config()</code>.</p>
+        <p>GA4 admin setup: register <code>wait_time</code>, <code>duration</code>, <code>total_turns</code> and
+          <code>points</code> as custom metrics, the other parameters and the user properties as custom dimensions
+          (event- and user-scoped respectively) — unregistered ones don't show in reports.</p>
 
         <hr>
 
@@ -1595,12 +1673,15 @@
           game events. A session cookie keeps you logged in. These are required for Trichess to work.</p>
         <h3>Analytics (optional)</h3>
         <p>With your consent, we use <strong>Google Analytics</strong> to see how visitors find and use the site —
-          which pages are visited, and account/lobby actions such as signing up, logging in, or creating and joining
-          games. It is <strong>never</strong> loaded before you click <em>Accept</em>.</p>
+          which pages are visited, account/lobby actions such as signing up, logging in, or creating and joining
+          games, and game milestones such as a game starting, your first move, a draw or resign vote, and how a
+          finished game ended (its length and your placing). It is <strong>never</strong> loaded before you click
+          <em>Accept</em>.</p>
         <ul>
           <li>No usernames or email addresses are sent; logged-in visitors are identified only by an anonymous,
             one-way hashed id.</li>
-          <li>Moves and in-game actions are not sent to Google.</li>
+          <li>Individual moves and board positions are not sent to Google. Your rating and number of games are
+            sent only as broad bands (e.g. "Intermediate", "6-20 games").</li>
           <li>Advertising features and Google signals are turned off.</li>
           <li>Password-reset and verification links are masked before anything is sent.</li>
         </ul>

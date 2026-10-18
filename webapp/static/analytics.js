@@ -1,9 +1,10 @@
 // Google Analytics 4 with an opt-in consent banner (Consent Mode v2, "basic"
 // implementation): gtag.js is not loaded at all until the visitor accepts.
 // Page config comes from window.TRICHESS_GA, set by templates/_analytics.html.
-// Gameplay is tracked only as milestones (first move, votes, game end) via
-// window.trichessGame, which both board renderers call — never moves or
-// positions; the full record is logged server-side.
+// Gameplay is tracked only as milestones (first move, votes, game_completed,
+// opening a finished game) via window.trichessGame, which both board
+// renderers call — never moves or positions; the full record is logged
+// server-side. Lobby/account events are queued server-side (views.track_event).
 (function () {
   const cfg = window.TRICHESS_GA;
   if (!cfg) return;
@@ -125,7 +126,9 @@
   // only once gtag is loaded, i.e. after consent.
   const game = cfg.game;
   if (game) {
-    const common = { opponents: game.opponents, renderer: game.renderer };
+    const common = { type: game.type, renderer: game.renderer };
+    const pageOpened = Date.now();
+    const completedKey = "ga_completed_" + game.board_id;
     let startedUnfinished = null; // finished state at the page's first /info
     let endSent = false;
     let hasMoved = game.has_moved;
@@ -134,26 +137,57 @@
       if (loaded) gtag("event", name, Object.assign({}, common, params));
     }
 
-    function movesBucket(n) {
-      if (n < 10) return "<10";
-      if (n < 30) return "10-29";
-      if (n < 60) return "30-59";
-      return "60+";
+    // game_completed goes out once per game and browser, whether this page
+    // saw the game end or opened it shortly afterwards.
+    function completionReported() {
+      try {
+        return localStorage.getItem(completedKey) !== null;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function markCompletionReported() {
+      try {
+        localStorage.setItem(completedKey, "1");
+      } catch (e) {
+        // Storage blocked: a later visit may report it again.
+      }
+    }
+
+    // Rank by score out of 2.0; ties share the better place (a draw is 1st
+    // for everyone, a 2/0/0 checkmate 1st, 2nd, 2nd).
+    function placement(scores, seat) {
+      const own = Number(scores[seat]) || 0;
+      const above = [0, 1, 2].filter((s) => (Number(scores[s]) || 0) > own + 1e-9).length;
+      return ["1st", "2nd", "3rd"][above];
     }
 
     window.trichessGame = {
-      // Every /api/v1/game/info response. game_end fires once, and only if
-      // this page first saw the game unfinished: reopening a finished game,
-      // or stepping through its history, never re-sends it.
+      // Every /api/v1/game/info response for the committed position.
       info(data) {
-        if (startedUnfinished === null) startedUnfinished = !data.finished;
-        if (data.finished && startedUnfinished && !endSent) {
-          endSent = true;
-          send("game_end", {
-            endgame: data.endgame,
-            moves_bucket: movesBucket(data.move_number),
-          });
+        if (startedUnfinished === null) {
+          startedUnfinished = !data.finished;
+          if (data.finished) send("view_archive", { context: "game" });
         }
+        if (!data.finished || endSent) return;
+        // Seen ending here, or a recently finished game opened for the
+        // first time; stepping through history or old games never count.
+        if (!startedUnfinished && !game.finished_recently) return;
+        endSent = true;
+        if (!loaded || completionReported()) return;
+        const duration = startedUnfinished
+          ? game.started_minutes_ago + Math.floor((Date.now() - pageOpened) / 60000)
+          : game.duration;
+        const scores = data.score || {};
+        send("game_completed", {
+          endgame: data.endgame,
+          duration: duration,
+          total_turns: data.move_number,
+          placement: placement(scores, game.seat),
+          points: Math.round((Number(scores[game.seat]) || 0) * 100) / 100,
+        });
+        markCompletionReported();
       },
       // After a successful board submit; the last slog chunk tells a move
       // from a draw (s/S) or resign (r/R) vote.

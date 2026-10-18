@@ -1,6 +1,7 @@
 import logging
 import re
 import shutil
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -375,14 +376,107 @@ class Test_Google_Analytics:
         second = client.get("/help").get_data(as_text=True)
         assert '"name": "login"' not in second
 
-    def test_game_create_event_queued(self, app, client, monkeypatch):
+    def test_game_created_event_queued(self, app, client, monkeypatch):
         self._enable(app, monkeypatch)
         _create_user()
         _login(client)
         client.get("/help")  # drain the login event
-        client.post("/join", data={"seat": "Seat 1"})
+        client.post("/join", data={"seat": "Seat 2"})
         html = client.get("/help").get_data(as_text=True)
-        assert '"name": "game_create"' in html
+        assert '"name": "game_created", "params": {"seat": 1}' in html
+
+    def test_game_cancelled_event_carries_wait_time(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        _create_user()
+        _login(client)
+        client.post("/join", data={"seat": "Seat 1"})
+        board = TriBoard.query.one()
+        board.created_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+            minutes=42, seconds=5
+        )
+        db.session.commit()
+        client.get("/help")  # drain login/game_created
+        client.post("/join", data={"delete": board.id})
+        html = client.get("/help").get_data(as_text=True)
+        assert db.session.get(TriBoard, board.id) is None
+        assert '"name": "game_cancelled", "params": {"wait_time": 42}' in html
+
+    def test_view_archive_event_on_first_page_only(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        _create_user()
+        _login(client)
+        client.get("/help")  # drain the login event
+        html = client.get("/archive").get_data(as_text=True)
+        assert '"name": "view_archive", "params": {"context": "list"}' in html
+        html = client.get("/archive?page=2").get_data(as_text=True)
+        assert "view_archive" not in html
+
+    def _user_properties(self, html):
+        import json
+
+        match = re.search(r"window\.TRICHESS_GA = (\{.*?\});\n", html)
+        assert match is not None
+        return json.loads(match.group(1))["user_properties"]
+
+    @pytest.mark.parametrize(
+        "rating, elo_class",
+        [
+            (480.0, "Novice"),
+            (524.9, "Novice"),
+            (525.0, "Intermediate"),
+            (599.9, "Intermediate"),
+            (600.0, "Advanced"),
+        ],
+    )
+    def test_elo_class_user_property(self, app, client, monkeypatch, rating, elo_class):
+        self._enable(app, monkeypatch)
+        user = _create_user()
+        user.rating = rating
+        db.session.commit()
+        _login(client)
+        props = self._user_properties(client.get("/help").get_data(as_text=True))
+        assert props["elo_class"] == elo_class
+
+    @pytest.mark.parametrize(
+        "rated, tier",
+        [(0, "0"), (1, "1-5"), (5, "1-5"), (6, "6-20"), (21, "21-50"), (51, "51+")],
+    )
+    def test_games_played_tier_counts_rated_games(
+        self, app, client, monkeypatch, rated, tier
+    ):
+        self._enable(app, monkeypatch)
+        alice = _create_user()
+        bob = _create_user("bob")
+        carol = _create_user("carol")
+        for _ in range(rated):
+            tb = _seated_board([alice, bob, carol], 2)
+            db.session.add(
+                Score(player_id=alice.id, board_id=tb.id, score=2.0, tag="N")
+            )
+        # A finished bot game has no Score rows, so it never counts.
+        bot1 = User.query.filter_by(username="Bot 1").first()
+        bot2 = User.query.filter_by(username="Bot 2").first()
+        _seated_board([alice, bot1, bot2], 2)
+        db.session.commit()
+        _login(client)
+        props = self._user_properties(client.get("/help").get_data(as_text=True))
+        assert props["games_played_tier"] == tier
+
+    def test_profile_user_properties(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        user = _create_user()
+        user.pieces, user.theme, user.board = "chubby", "night", "filio"
+        db.session.commit()
+        _login(client)
+        props = self._user_properties(client.get("/help").get_data(as_text=True))
+        assert props == {
+            "logged_in": "yes",
+            "board_renderer": "filio",
+            "ui_theme": "night",
+            "piece_set": "chubby",
+            "elo_class": "Novice",
+            "games_played_tier": "0",
+        }
 
     def _ga_game(self, html):
         import json
@@ -404,7 +498,16 @@ class Test_Google_Analytics:
 
         game = self._ga_game(client.get(f"/play/{tb.id}").get_data(as_text=True))
 
-        assert game == {"opponents": "bots", "renderer": renderer, "has_moved": False}
+        assert game == {
+            "board_id": tb.id,
+            "seat": 1,
+            "type": "bots",
+            "renderer": renderer,
+            "has_moved": False,
+            "started_minutes_ago": 0,
+            "duration": None,
+            "finished_recently": False,
+        }
 
         tb.slog = "BNDLHBIB"  # seat 1 has moved now
         db.session.commit()
@@ -422,9 +525,29 @@ class Test_Google_Analytics:
         _login(client)
 
         html = client.get(f"/play/{mixed.id}").get_data(as_text=True)
-        assert self._ga_game(html)["opponents"] == "mixed"
+        assert self._ga_game(html)["type"] == "mixed"
         html = client.get(f"/play/{humans.id}").get_data(as_text=True)
-        assert self._ga_game(html)["opponents"] == "humans"
+        assert self._ga_game(html)["type"] == "humans"
+
+    def test_play_page_finished_game_completion_context(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        players = [_create_user(n) for n in ("alice", "bob", "carol")]
+        recent = _seated_board(players, 2)
+        old = _seated_board(players, 2)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        recent.started_at = now - timedelta(hours=2)
+        recent.modified_at = now - timedelta(hours=1)
+        old.started_at = now - timedelta(days=30)
+        old.modified_at = now - timedelta(days=29)
+        db.session.commit()
+        _login(client)
+
+        game = self._ga_game(client.get(f"/play/{recent.id}").get_data(as_text=True))
+        assert game["finished_recently"] is True
+        assert game["duration"] == 60
+        game = self._ga_game(client.get(f"/play/{old.id}").get_data(as_text=True))
+        assert game["finished_recently"] is False
+        assert game["duration"] == 24 * 60
 
     def test_game_start_event_when_last_seat_filled(self, app, client, monkeypatch):
         self._enable(app, monkeypatch)
@@ -435,13 +558,13 @@ class Test_Google_Analytics:
         board = TriBoard.query.one()
         client.post("/join", data={"board": board.id, "fill_bot": "1"})
         html = client.get("/help").get_data(as_text=True)
-        assert '"name": "game_start"' not in html
+        assert '"name": "game_started"' not in html
 
         client.post("/join", data={"board": board.id, "fill_bot": "2"})
         html = client.get("/help").get_data(as_text=True)
         assert db.session.get(TriBoard, board.id).status == 1
-        assert '"name": "game_start"' in html
-        assert '"opponents": "bots"' in html
+        assert '"name": "game_started"' in html
+        assert '"type": "bots", "wait_time": 0' in html
 
     def test_no_events_queued_when_unconfigured(self, app, client, monkeypatch):
         monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", "")

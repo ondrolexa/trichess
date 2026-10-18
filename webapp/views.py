@@ -84,14 +84,29 @@ def track_event(name, **params):
     Account/lobby actions all end in a redirect, so the event rides the
     session to the page that follows and is sent from the browser — under
     the visitor's own consent state, no server-side Measurement Protocol
-    needed. Gameplay is deliberately not tracked here (it's in the Log
-    table). Only non-identifying params belong in **params.
+    needed. In-game milestones are sent by analytics.js from the board
+    page instead. Only non-identifying params belong in **params.
     """
     if not app.config["GA_MEASUREMENT_ID"]:
         return
     events = session.get("ga_events", [])
     events.append({"name": name, "params": params})
     session["ga_events"] = events[-10:]
+
+
+def _minutes_since(ts):
+    """Whole minutes from naive-UTC *ts* to now (GA `wait_time`)."""
+    if ts is None:
+        return 0
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    return max(0, int((now - ts).total_seconds() // 60))
+
+
+def _game_minutes(tb):
+    """Whole minutes from a finished game's start to its last move."""
+    if tb.started_at is None or tb.modified_at is None:
+        return 0
+    return max(0, int((tb.modified_at - tb.started_at).total_seconds() // 60))
 
 
 def _opponents(tb):
@@ -101,6 +116,20 @@ def _opponents(tb):
         1 for p in (tb.player_0, tb.player_1, tb.player_2) if p is not None and p.is_bot
     )
     return {2: "bots", 1: "mixed"}.get(bots, "humans")
+
+
+# GA user properties: rating classes (ratings start at 500, K=9) and rated
+# games played; bot games are casual and never counted.
+ELO_CLASSES = ((600, "Advanced"), (525, "Intermediate"), (0, "Novice"))
+GAMES_PLAYED_TIERS = ((51, "51+"), (21, "21-50"), (6, "6-20"), (1, "1-5"), (0, "0"))
+
+# A finished game opened this soon after its end still reports
+# game_completed to a player who wasn't watching when it ended.
+LATE_COMPLETION_WINDOW = timedelta(days=7)
+
+
+def _classify(value, classes):
+    return next(label for threshold, label in classes if value >= threshold)
 
 
 def _ga_config(game=None):
@@ -129,8 +158,14 @@ def _ga_config(game=None):
             f"ga-user-{g.user.id}".encode(),
             hashlib.sha256,
         ).hexdigest()[:32]
-        config["user_properties"]["board_renderer"] = g.user.board or ""
-        config["user_properties"]["ui_theme"] = g.user.theme or ""
+        rated_games = Score.query.filter_by(player_id=g.user.id).count()
+        config["user_properties"].update(
+            board_renderer=g.user.board or "",
+            ui_theme=g.user.theme or "",
+            piece_set=g.user.pieces or "",
+            elo_class=_classify(g.user.rating or 0, ELO_CLASSES),
+            games_played_tier=_classify(rated_games, GAMES_PLAYED_TIERS),
+        )
     return config
 
 
@@ -261,6 +296,8 @@ def archive():
             player_id = getattr(game, f"player_{seat}_id")
             setattr(game, f"player_{seat}_score", scores.get((game.id, player_id), 0.0))
         game.moves = slog_summary(game.slog or "").move_number
+    if request.args.get("page", 1, type=int) == 1:
+        track_event("view_archive", context="list")
     return render_template(
         "archive.html", games=games, pagination=pagination, board=g.user.board
     )
@@ -332,8 +369,10 @@ def available_games():
                     if p is not None and p != g.user.id
                 ]
                 if not others:
+                    wait_time = _minutes_since(board.created_at)
                     db.session.delete(board)
                     db.session.commit()
+                    track_event("game_cancelled", wait_time=wait_time)
             return redirect(url_for("available_games"))
 
         board_id = request.form.get("board", type=int)
@@ -410,7 +449,11 @@ def available_games():
             else:
                 track_event("game_join", seat=int(seat_str))
             if board.status == 1:
-                track_event("game_start", opponents=_opponents(board))
+                track_event(
+                    "game_started",
+                    type=_opponents(board),
+                    wait_time=_minutes_since(board.created_at),
+                )
                 maybe_trigger_bot(board.id)
             return redirect(url_for("available_games"))
 
@@ -445,7 +488,7 @@ def available_games():
                     "board_id": board.id,
                 },
             )
-            track_event("game_create")
+            track_event("game_created", seat=int(form.seat.data[-1]) - 1)
             flash("Game created successfuly!", "success")
             return redirect(url_for("available_games"))
 
@@ -473,12 +516,25 @@ def play(id):
             pieces_paths = yaml.safe_load(f)
         template = "board_ondro.html" if g.user.board == "ondro" else "board_filio.html"
         seat = next(i for i in range(3) if getattr(tb, f"player_{i}_id") == g.user.id)
+        finished = tb.status == 2
         ga_game = {
-            "opponents": _opponents(tb),
+            "board_id": tb.id,
+            "seat": seat,
+            "type": _opponents(tb),
             "renderer": "ondro" if g.user.board == "ondro" else "filio",
             # Seats move in order 0, 1, 2, so seat s has moved once more
             # than s moves were made.
             "has_moved": slog_summary(tb.slog or "").move_number > seat,
+            # game_completed's duration: minutes since the start while the
+            # game runs; start to last move once it's over.
+            "started_minutes_ago": _minutes_since(tb.started_at),
+            "duration": _game_minutes(tb) if finished else None,
+            # A finished game seen for the first time soon after its end
+            # still reports game_completed (once per browser).
+            "finished_recently": finished
+            and tb.modified_at is not None
+            and tb.modified_at
+            > datetime.now(timezone.utc).replace(tzinfo=None) - LATE_COMPLETION_WINDOW,
         }
         return render_template(
             template,
