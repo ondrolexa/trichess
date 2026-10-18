@@ -72,7 +72,7 @@ class TestGameBoardPostPublishesEvent:
                     break
 
         with app.test_request_context():
-            token = create_access_token(identity=alice.username)
+            token = create_access_token(identity=str(alice.id))
 
         resp = client.post(
             "/api/v1/manager/board",

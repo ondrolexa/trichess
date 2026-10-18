@@ -146,6 +146,6 @@ var SSE_URL = {{ config.SSE_URL|tojson }};
 const theme = JSON.parse('{{ theme|tojson }}');
 const pieces_paths = JSON.parse('{{ pieces_paths|tojson }}');
 </script>
-<script src="https://unpkg.com/konva@10/konva.min.js"></script>
+<script src="https://unpkg.com/konva@10.9.0/konva.min.js" integrity="sha384-kGDb2kUnEhYjAl3UvL4+8M2sJgvB8pxKW4g0i+VX4pTgboU1nKUgIEywbstD/3CC" crossorigin="anonymous"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='ondro.js') }}"></script>
 {% endblock %}

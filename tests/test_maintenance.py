@@ -62,10 +62,10 @@ def test_admin_can_log_in(app, client):
 
 
 def test_api_gets_json_503(app, client):
-    _create_user()
+    alice = _create_user()
     set_maintenance(True)
     with app.test_request_context():
-        token = create_access_token(identity="alice")
+        token = create_access_token(identity=str(alice.id))
     resp = client.get(
         "/api/v1/game/info?slog=&view_pid=0",
         headers={"Authorization": f"Bearer {token}"},

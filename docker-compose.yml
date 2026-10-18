@@ -60,7 +60,8 @@ services:
 
   trichess-sse:
     <<: *app
-    command: uvicorn sse.app:app --host 0.0.0.0 --port 8090
+    # --no-access-log: the stream URL carries the user's JWT (?jwt=).
+    command: uvicorn sse.app:app --host 0.0.0.0 --port 8090 --no-access-log
     environment:
       <<: *db-env
       # Cross-origin from the app's page: allow exactly that origin.

@@ -1,6 +1,7 @@
 """Board live-update stream: ``GET /api/v1/manager/board/events?id=&jwt=``.
 
-Run with ``uvicorn sse.app:app --port 8090``. The reverse proxy (Traefik)
+Run with ``uvicorn sse.app:app --port 8090 --no-access-log`` (the URL carries
+the user's JWT, which an access log would write to disk). The reverse proxy (Traefik)
 routes only this path here; every other request stays on gunicorn.
 
 Why a separate async service: under gunicorn's gthread worker every open
@@ -14,7 +15,7 @@ whole process shares a single Redis pattern subscription:
 
 Auth matches the old Flask route: the page's JWT in the ``jwt`` query
 parameter (EventSource can't set headers), checked with the same
-JWT_SECRET_KEY, plus one read-only SQL lookup that the user is seated at
+JWT_SECRET_KEY (`sub` is the user id), plus one read-only SQL lookup that the user is seated at
 that board (status 1 active or 2 finished, so a tab open when the game ends
 still gets the final ping).
 """
@@ -73,9 +74,9 @@ def board_id_from_channel(channel: str) -> int | None:
         return None
 
 
-def decode_token(raw: str, secret: str) -> str | None:
-    """Username from a flask-jwt-extended access token, or None if invalid,
-    expired, or not an access token."""
+def decode_token(raw: str, secret: str) -> int | None:
+    """User id (the `sub` claim) from a flask-jwt-extended access token, or
+    None if invalid, expired, not an access token, or not an id."""
     try:
         claims = jwt.decode(raw, secret, algorithms=["HS256"])
     except jwt.PyJWTError:
@@ -83,31 +84,36 @@ def decode_token(raw: str, secret: str) -> str | None:
     if claims.get("type") != "access":
         return None
     sub = claims.get("sub")
-    return sub if isinstance(sub, str) else None
+    if not isinstance(sub, str) or not sub.isdigit():
+        return None
+    return int(sub)
 
 
-# "user" quoted: a reserved word in PostgreSQL (harmless in SQLite).
-USER_EXISTS_SQL = text('SELECT 1 FROM "user" WHERE username = :username LIMIT 1')
+# "user" quoted: a reserved word in PostgreSQL (harmless in SQLite). Same rule
+# as the Flask app's token lookup (views.jwt_user): active users and bots.
+USER_EXISTS_SQL = text(
+    'SELECT 1 FROM "user" WHERE id = :user_id AND (active OR is_bot) LIMIT 1'
+)
 SEATED_SQL = text("""
-SELECT 1 FROM triboard b JOIN "user" u ON u.username = :username
-WHERE b.id = :board_id AND b.status IN (1, 2)
-  AND u.id IN (b.player_0_id, b.player_1_id, b.player_2_id)
+SELECT 1 FROM triboard
+WHERE id = :board_id AND status IN (1, 2)
+  AND :user_id IN (player_0_id, player_1_id, player_2_id)
 LIMIT 1
 """)
 
 
-def user_exists(engine: Engine, username: str) -> bool:
+def user_exists(engine: Engine, user_id: int) -> bool:
     with engine.connect() as conn:
-        row = conn.execute(USER_EXISTS_SQL, {"username": username}).first()
+        row = conn.execute(USER_EXISTS_SQL, {"user_id": user_id}).first()
     return row is not None
 
 
-def seated(engine: Engine, username: str, board_id: int) -> bool:
-    """True if *username* sits at active/finished board *board_id* — the
+def seated(engine: Engine, user_id: int, board_id: int) -> bool:
+    """True if user *user_id* sits at active/finished board *board_id* — the
     read-only equivalent of TriBoard.for_player() + status 1/2."""
     with engine.connect() as conn:
         row = conn.execute(
-            SEATED_SQL, {"username": username, "board_id": board_id}
+            SEATED_SQL, {"user_id": user_id, "board_id": board_id}
         ).first()
     return row is not None
 
@@ -323,12 +329,10 @@ def create_app(
             board_id = int(request.query_params["id"])
         except KeyError, ValueError:
             return PlainTextResponse("Bad request", 400, headers=headers)
-        username = decode_token(request.query_params.get("jwt", ""), jwt_secret)
-        if username is None or not await asyncio.to_thread(
-            user_exists, engine, username
-        ):
+        user_id = decode_token(request.query_params.get("jwt", ""), jwt_secret)
+        if user_id is None or not await asyncio.to_thread(user_exists, engine, user_id):
             return PlainTextResponse("Unauthorized", 401, headers=headers)
-        if not await asyncio.to_thread(seated, engine, username, board_id):
+        if not await asyncio.to_thread(seated, engine, user_id, board_id):
             return PlainTextResponse("Not found", 404, headers=headers)
         headers.update({"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
         return SSEResponse(broker, board_id, headers)

@@ -309,7 +309,7 @@ class TestBotGamesAreCasual:
         tb = _make_board(alice, {0: alice, 1: bob, 2: bot1}, slog=s2)
         s3 = get_game(0, s2).draw_vote(True)  # simulate the bot accepting too
         with app.test_request_context():
-            token = create_access_token(identity=bot1.username)
+            token = create_access_token(identity=str(bot1.id))
 
         resp = client.post(
             "/api/v1/manager/board",
@@ -363,7 +363,7 @@ class TestSinglePlayerNotifications:
         assert ga.on_move == 0
 
         with app.test_request_context():
-            token = create_access_token(identity=bot2.username)
+            token = create_access_token(identity=str(bot2.id))
         resp = client.post(
             "/api/v1/manager/board",
             json={"id": tb.id, "slog": ga.slog},
@@ -391,7 +391,7 @@ class TestSinglePlayerNotifications:
         _move_for_pid(ga, 2)
 
         with app.test_request_context():
-            token = create_access_token(identity=bot2.username)
+            token = create_access_token(identity=str(bot2.id))
         resp = client.post(
             "/api/v1/manager/board",
             json={"id": tb.id, "slog": ga.slog},
@@ -417,7 +417,7 @@ class TestSinglePlayerNotifications:
         _move_for_pid(ga, 0)
 
         with app.test_request_context():
-            token = create_access_token(identity=alice.username)
+            token = create_access_token(identity=str(alice.id))
         resp = client.post(
             "/api/v1/manager/board",
             json={"id": tb.id, "slog": ga.slog},
@@ -681,3 +681,54 @@ class TestPurgeStallingGames:
         assert "Removed 1 stalling game(s)" in result.output
         db.session.expire_all()
         assert db.session.get(TriBoard, board_id) is None
+
+
+class TestBotJobDedup:
+    def test_one_job_per_board_and_turn(self, app):
+        from webapp import botplayer
+
+        bot1, bot2 = _bots()
+        alice = _create_user("alice")
+        tb = _make_board(alice, {0: bot1, 1: alice, 2: bot2})
+
+        botplayer.maybe_trigger_bot(tb.id)
+        botplayer.maybe_trigger_bot(tb.id)  # e.g. bot-sweep while still queued
+
+        assert len(botplayer.bot_queue) == 1
+        assert botplayer.bot_queue.jobs[0].id == f"bot-{tb.id}-0"
+
+    def test_next_turn_gets_its_own_job(self, app):
+        from webapp import botplayer
+
+        bot1, bot2 = _bots()
+        alice = _create_user("alice")
+        tb = _make_board(alice, {0: bot1, 1: bot2, 2: alice})
+        botplayer.maybe_trigger_bot(tb.id)
+        ga = get_game(0, "")
+        ga.make_move(166, ga.valid_moves(166)[0]["tgid"])
+        tb.slog = ga.slog  # seat 1 (bot 2) on move now
+        db.session.commit()
+
+        botplayer.maybe_trigger_bot(tb.id)
+
+        assert [j.id for j in botplayer.bot_queue.jobs] == [
+            f"bot-{tb.id}-0",
+            f"bot-{tb.id}-4",
+        ]
+
+    def test_finished_job_does_not_block_a_retry(self, app):
+        from rq.job import JobStatus
+
+        from webapp import botplayer
+
+        bot1, bot2 = _bots()
+        alice = _create_user("alice")
+        tb = _make_board(alice, {0: bot1, 1: alice, 2: bot2})
+        botplayer.maybe_trigger_bot(tb.id)
+        job = botplayer.bot_queue.jobs[0]
+        botplayer.bot_queue.remove(job)  # the worker took it and it failed
+        job.set_status(JobStatus.FAILED)
+
+        botplayer.maybe_trigger_bot(tb.id)
+
+        assert len(botplayer.bot_queue) == 1

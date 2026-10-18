@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import logging
 import os
+import secrets
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -24,7 +25,7 @@ from flask import render_template as real_render_template
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
-    get_jwt_identity,
+    get_current_user,
     jwt_required,
 )
 from flask_login import current_user, login_required, login_user, logout_user
@@ -33,9 +34,13 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from engine import slog_summary
 from webapp.api import blueprint as api
-from webapp.api import get_user_rating_history
+from webapp.api import get_user_rating_history, rebuild_ratings
 from webapp.botplayer import maybe_trigger_bot
-from webapp.email import send_password_reset_email, send_verification_email
+from webapp.email import (
+    send_account_exists_email,
+    send_password_reset_email,
+    send_verification_email,
+)
 from webapp.forms import (
     ForgotPasswordForm,
     LoginForm,
@@ -45,10 +50,10 @@ from webapp.forms import (
     RegistrationForm,
     ResetPasswordForm,
 )
-from webapp.main import GAME, app, csrf, db, jwt, lm, post_notification
+from webapp.main import GAME, app, csrf, db, jwt, limiter, lm, post_notification
 from webapp.main import __version__ as webapp_version
 from webapp.maintenance import is_maintenance, set_maintenance
-from webapp.models import Score, TriBoard, User, score_outcome
+from webapp.models import Log, RatingHistory, Score, TriBoard, User, score_outcome
 from webapp.token import (
     password_fingerprint,
     verify_password_reset_token,
@@ -172,6 +177,22 @@ def render_template(*args, **kwargs):
 @jwt.expired_token_loader
 def expired_token_response(jwt_header, jwt_payload):
     return jsonify({"message": "Token has expired"}), 401
+
+
+@jwt.user_lookup_loader
+def jwt_user(jwt_header, jwt_payload):
+    """The User a token's `sub` (the user id) names; None -> 401.
+
+    Tokens from before ids were used (a username), and tokens of removed
+    users, resolve to None. Bots are inactive accounts but play via tokens.
+    """
+    try:
+        user = db.session.get(User, int(jwt_payload["sub"]))
+    except KeyError, TypeError, ValueError:
+        return None
+    if user is None or not (user.active or user.is_bot):
+        return None
+    return user
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -317,64 +338,49 @@ def available_games():
 
         board_id = request.form.get("board", type=int)
         if board_id is not None:
-            board = TriBoard.query.filter_by(id=board_id).first()
+            board = (
+                db.session.query(TriBoard)
+                # Concurrent joins of the same game serialise here. FOR NO KEY
+                # UPDATE: the "Game started" log row may reference it meanwhile.
+                .with_for_update(key_share=True)
+                .filter_by(id=board_id, status=0)
+                .first()
+            )
             seat = request.form.get("seat")
             fill_bot = request.form.get("fill_bot")
             if board is None:
-                flash("Game not found", "error")
+                flash("Game not found or already started", "error")
                 return redirect(url_for("available_games"))
+            seat_str = fill_bot if fill_bot is not None else seat
+            if seat_str not in ("0", "1", "2"):
+                flash("Invalid seat", "error")
+                return redirect(url_for("available_games"))
+            column = f"player_{seat_str}_id"
+            if getattr(board, column) is not None:
+                flash("Seat already taken", "error")
+                return redirect(url_for("available_games"))
+            seated = {board.player_0_id, board.player_1_id, board.player_2_id} - {None}
             if fill_bot is not None:
                 if board.owner_id != g.user.id:
                     flash("Only the game owner can add a bot", "error")
                     return redirect(url_for("available_games"))
-                taken = {board.player_0_id, board.player_1_id, board.player_2_id}
-                bot = (
+                newcomer = (
                     User.query.filter_by(is_bot=True)
-                    .filter(User.id.notin_({i for i in taken if i is not None}))
+                    .filter(User.id.notin_(seated))
                     .first()
                 )
-                if bot is None:
+                if newcomer is None:
                     flash("No bot account available", "error")
                     return redirect(url_for("available_games"))
-                match fill_bot:
-                    case "0":
-                        if board.player_0_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available_games"))
-                        board.player_0_id = bot.id
-                        board.player_0_accepted = True
-                    case "1":
-                        if board.player_1_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available_games"))
-                        board.player_1_id = bot.id
-                        board.player_1_accepted = True
-                    case "2":
-                        if board.player_2_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available_games"))
-                        board.player_2_id = bot.id
-                        board.player_2_accepted = True
             else:
-                match seat:
-                    case "0":
-                        if board.player_0_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available_games"))
-                        board.player_0_id = g.user.id
-                        board.player_0_accepted = True
-                    case "1":
-                        if board.player_1_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available_games"))
-                        board.player_1_id = g.user.id
-                        board.player_1_accepted = True
-                    case "2":
-                        if board.player_2_id is not None:
-                            flash("Seat already taken", "error")
-                            return redirect(url_for("available_games"))
-                        board.player_2_id = g.user.id
-                        board.player_2_accepted = True
+                # One seat per player: two seats for one user would map to a
+                # single seat in the game (api._seat_map) and stall it.
+                if g.user.id in seated:
+                    flash("You already have a seat in this game", "warning")
+                    return redirect(url_for("available_games"))
+                newcomer = g.user
+            setattr(board, column, newcomer.id)
+            setattr(board, f"player_{seat_str}_accepted", True)
             if (
                 (board.player_0_id is not None)
                 and (board.player_1_id is not None)
@@ -399,10 +405,10 @@ def available_games():
                         board.id,
                     )
             db.session.commit()
-            if fill_bot in ("0", "1", "2"):
-                track_event("bot_seat_added", seat=int(fill_bot))
-            elif fill_bot is None and seat in ("0", "1", "2"):
-                track_event("game_join", seat=int(seat))
+            if fill_bot is not None:
+                track_event("bot_seat_added", seat=int(seat_str))
+            else:
+                track_event("game_join", seat=int(seat_str))
             if board.status == 1:
                 track_event("game_start", opponents=_opponents(board))
                 maybe_trigger_bot(board.id)
@@ -455,7 +461,7 @@ def available_games():
 @app.route("/play/<int:id>")
 @login_required
 def play(id):
-    access_token = create_access_token(identity=g.user.username)
+    access_token = create_access_token(identity=str(g.user.id))
     user_in = TriBoard.for_player(g.user.id)
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
@@ -594,6 +600,62 @@ def help():
 # === Admin section ===
 
 
+def delete_game(board):
+    """Delete a game with everything that references it. A rated game's
+    points and rating changes go with it: ratings are recomputed. The caller
+    commits."""
+    rated = Score.query.filter_by(board_id=board.id).count() > 0
+    Score.query.filter_by(board_id=board.id).delete()
+    Log.query.filter_by(board_id=board.id).delete()
+    RatingHistory.query.filter_by(board_id=board.id).delete()
+    db.session.delete(board)
+    if rated:
+        rebuild_ratings()
+
+
+def remove_user(user):
+    """Remove an account. One with games is anonymised instead of deleted, so
+    games, scores and ratings stay consistent: its name, email and password
+    are scrubbed and it can never log in again. It leaves the games still
+    waiting for players (a game it waited in alone is deleted). The caller
+    commits."""
+    for board in TriBoard.query.filter_by(status=0).filter(
+        TriBoard.for_player(user.id)
+    ):
+        for seat in range(3):
+            if getattr(board, f"player_{seat}_id") == user.id:
+                setattr(board, f"player_{seat}_id", None)
+                setattr(board, f"player_{seat}_accepted", False)
+        others = [
+            p
+            for p in (board.player_0_id, board.player_1_id, board.player_2_id)
+            if p is not None
+        ]
+        if not others:
+            delete_game(board)
+        elif board.owner_id == user.id:
+            board.owner_id = others[0]
+    db.session.flush()
+    in_games = (
+        TriBoard.query.filter(
+            TriBoard.for_player(user.id) | (TriBoard.owner_id == user.id)
+        ).count()
+        or Score.query.filter_by(player_id=user.id).count()
+        or RatingHistory.query.filter_by(user_id=user.id).count()
+    )
+    if in_games:
+        # Brackets and spaces fail RegistrationForm's username rule, so no
+        # one can have registered this name first.
+        user.username = f"[deleted {user.id}]"
+        user.email = None
+        user.email_verified = False
+        user.password = generate_password_hash(secrets.token_hex(32))
+        user.active = False
+    else:
+        Log.query.filter_by(user_id=user.id).delete()
+        db.session.delete(user)
+
+
 @app.route("/admin-games", methods=["GET", "POST"])
 @login_required
 def admin_games():
@@ -601,9 +663,9 @@ def admin_games():
         if request.method == "POST":
             delete = request.form.get("delete", type=int)
             if delete is not None:
-                board = TriBoard.query.filter_by(id=delete).first()
+                board = db.session.get(TriBoard, delete)
                 if board is not None:
-                    db.session.delete(board)
+                    delete_game(board)
                     db.session.commit()
                 return redirect(url_for("admin_games"))
         else:
@@ -653,9 +715,9 @@ def admin_users():
                     user.active = True
                     db.session.commit()
             elif delete is not None:
-                user = User.query.filter_by(id=delete).first()
-                if user is not None:
-                    db.session.delete(user)
+                user = db.session.get(User, delete)
+                if user is not None and not user.is_admin and not user.is_bot:
+                    remove_user(user)
                     db.session.commit()
             return redirect(url_for("admin_users"))
         else:
@@ -726,7 +788,20 @@ def load_user(id):
     return db.session.get(User, int(id))
 
 
+LOGIN_FAILED = Markup(
+    'Invalid username or password. <a href="/forgot">Forgot password?</a>'
+)
+_DUMMY_HASH = generate_password_hash(secrets.token_hex(16))
+
+
+def _login_name():
+    """Rate-limit key for guessing one account's password from many IPs."""
+    return "login:" + (request.form.get("username") or "").lower()
+
+
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute;50 per hour", methods=["POST"])
+@limiter.limit("20 per hour", methods=["POST"], key_func=_login_name)
 def login():
     if g.user is not None and g.user.is_authenticated:
         if g.user.is_admin:
@@ -736,7 +811,11 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
-        if user is not None and check_password_hash(user.password, form.password.data):
+        # A hash check either way, so an unknown name doesn't answer faster.
+        password_ok = check_password_hash(
+            user.password if user is not None else _DUMMY_HASH, form.password.data
+        )
+        if user is not None and password_ok:
             if is_maintenance() and not user.is_admin:
                 flash(MAINTENANCE_MESSAGE, "warning")
             elif user.active:
@@ -751,18 +830,15 @@ def login():
                 else:
                     return redirect(url_for("active_games"))
             else:
-                flash("Invalid username or password", "danger")
-        elif user is not None:
-            flash(
-                Markup('Wrong password. <a href="/forgot">Forgot password?</a>'),
-                "danger",
-            )
+                flash(LOGIN_FAILED, "danger")
         else:
-            flash("Invalid username or password", "danger")
+            # Same message whether or not the username exists.
+            flash(LOGIN_FAILED, "danger")
     return render_template("login.html", form=form)
 
 
 @app.route("/forgot", methods=["GET", "POST"])
+@limiter.limit("5 per minute;20 per hour", methods=["POST"])
 def forgot():
     form = ForgotPasswordForm()
     if form.validate_on_submit():
@@ -796,6 +872,7 @@ def reset(token):
 
 @app.route("/token", methods=["POST"])
 @csrf.exempt
+@limiter.limit("10 per minute;50 per hour")
 def token():
     """Issue a JWT for username+password credentials.
 
@@ -820,8 +897,8 @@ def token():
     if username in allowed:
         user = User.query.filter_by(username=username).first()
         if user is not None and check_password_hash(user.password, password):
-            access_token = create_access_token(identity=username)
-            refresh_token = create_refresh_token(identity=username)
+            access_token = create_access_token(identity=str(user.id))
+            refresh_token = create_refresh_token(identity=str(user.id))
             return jsonify(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -834,11 +911,8 @@ def token():
 @jwt_required(refresh=True)
 @csrf.exempt
 def refresh():
-    username = get_jwt_identity()
-    if username:
-        access_token = create_access_token(identity=username)
-        return jsonify(access_token=access_token)
-    return abort(404)
+    user = get_current_user()
+    return jsonify(access_token=create_access_token(identity=str(user.id)))
 
 
 @app.route("/logout/")
@@ -848,17 +922,57 @@ def logout():
     return redirect(url_for("index"))
 
 
+def _abandoned_signup(user):
+    """A sign-up whose verification link (24 h) expired unused."""
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    return (
+        not user.active
+        and not user.email_verified
+        and not user.is_bot
+        and user.email is not None  # anonymised accounts keep their name
+        and user.created_at is not None
+        and user.created_at < cutoff
+        and not TriBoard.query.filter(TriBoard.for_player(user.id)).count()
+    )
+
+
+def _flash_registered(email_queued):
+    if email_queued:
+        flash(
+            "Registration successful! Check your email for the verification link.",
+            "success",
+        )
+    else:
+        flash(
+            "Account created but verification email failed to send. "
+            "You can contact admin for approval.",
+            "warning",
+        )
+
+
 @app.route("/register", methods=["GET", "POST"])
+@limiter.limit("5 per minute;20 per hour", methods=["POST"])
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
-        if User.query.filter_by(username=form.username.data, active=True).first():
+        existing = User.query.filter_by(username=form.username.data).first()
+        if existing is not None and _abandoned_signup(existing):
+            # A sign-up never verified in time doesn't hold its name forever.
+            Log.query.filter_by(user_id=existing.id).delete()
+            db.session.delete(existing)
+            db.session.flush()
+            existing = None
+        if existing is not None:
+            # Usernames are public (ratings page), so saying so leaks nothing.
             flash("Username already in use. Try another one.", "warning")
             return redirect(url_for("register"))
 
-        if User.query.filter_by(email=form.email.data).first():
-            flash("Email already registered. Please use a different email.", "warning")
-            return redirect(url_for("register"))
+        owner = User.query.filter_by(email=form.email.data).first()
+        if owner is not None:
+            # Same answer as a new sign-up, so the form doesn't reveal which
+            # emails have accounts; the address's owner is told instead.
+            _flash_registered(send_account_exists_email(owner))
+            return redirect(url_for("index"))
 
         hashed_password = generate_password_hash(form.password.data)
         new_user = User(
@@ -873,17 +987,7 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         track_event("sign_up", method="email")
-        if send_verification_email(new_user):
-            flash(
-                "Registration successful! Check your email for the verification link.",
-                "success",
-            )
-        else:
-            flash(
-                "Account created but verification email failed to send. "
-                "You can contact admin for approval.",
-                "warning",
-            )
+        _flash_registered(send_verification_email(new_user))
         return redirect(url_for("index"))
     return render_template("register.html", form=form)
 
@@ -895,8 +999,9 @@ def verify(token):
         flash("Invalid or expired verification link.", "danger")
         return redirect(url_for("index"))
     user = db.session.get(User, user_id)
-    if user is None:
-        flash("User not found.", "danger")
+    if user is None or user.email is None or user.is_bot:
+        # email None: an anonymised (removed) account, never to be reopened.
+        flash("Invalid or expired verification link.", "danger")
         return redirect(url_for("index"))
     if user.active:
         if user.email_verified:
@@ -906,19 +1011,6 @@ def verify(token):
             db.session.commit()
             flash("New email verified!", "success")
     else:
-        if (
-            User.query.filter_by(username=user.username, active=True)
-            .filter(User.id != user.id)
-            .first()
-        ):
-            flash(
-                "This username has already been activated by another user. "
-                "Please register again with a different username.",
-                "warning",
-            )
-            db.session.delete(user)
-            db.session.commit()
-            return redirect(url_for("login"))
         user.active = True
         user.email_verified = True
         db.session.commit()

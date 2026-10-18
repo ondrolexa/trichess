@@ -26,7 +26,8 @@ class User(db.Model):  # ty: ignore
     __tablename__ = "user"
 
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(64))
+    # Unique: JWTs carry the id, but seats, the lobby and logins name users.
+    username = db.Column(db.String(64), unique=True)
     password = db.Column(db.String(500))
     email = db.Column(db.String(120), unique=True)
     email_verified = db.Column(db.Boolean, default=False)
@@ -129,6 +130,23 @@ class Score(db.Model):  # ty: ignore
     score = db.Column(db.Float)
     tag = db.Column(db.String(1), default="N")
     onmove = db.Column(db.Boolean, default=False)
+
+
+class RatingHistory(db.Model):  # ty: ignore
+    """A player's rating right after each rated game, for the profile chart.
+
+    Written incrementally when a game finishes (api.record_game_rating);
+    `flask rebuild-ratings` recomputes it, and User.rating, from all games.
+    """
+
+    __tablename__ = "rating_history"
+    __table_args__ = (db.Index("ix_rating_history_user", "user_id", "created_at"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    board_id = db.Column(db.Integer, db.ForeignKey("triboard.id"), nullable=True)
+    rating = db.Column(db.Float, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
 
 
 class Log(db.Model):

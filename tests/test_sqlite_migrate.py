@@ -134,10 +134,13 @@ def test_failure_mid_copy_rolls_everything_back(pg, source):
 
 def test_sse_seat_check_on_postgres(pg, source):
     sqlite_to_postgres(pg, db, str(source), echo=_quiet)
-    assert sse.user_exists(db.engine, "alice")
-    assert not sse.user_exists(db.engine, "nobody")
-    assert sse.seated(db.engine, "bob", 40)
-    assert not sse.seated(db.engine, "carol", 40)
+    # Ids from the source fixture: alice 7 (active), bob 9 (inactive), Bot 1 2.
+    assert sse.user_exists(db.engine, 7)
+    assert sse.user_exists(db.engine, 2)  # bots play while inactive
+    assert not sse.user_exists(db.engine, 9)
+    assert not sse.user_exists(db.engine, 999999)
+    assert sse.seated(db.engine, 9, 40)
+    assert not sse.seated(db.engine, 1, 40)  # admin isn't at board 40
 
 
 def test_accepts_legacy_sqlite_without_post_switch_tables(pg, source):

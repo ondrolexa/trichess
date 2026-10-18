@@ -20,7 +20,7 @@ BATCH = 1000
 # the PostgreSQL switch never existed in SQLite: a source at this revision is
 # accepted, and those tables are just created empty on the target.
 LEGACY_HEAD = "f068e4f92e2a"
-POST_SQLITE_TABLES = {"setting"}
+POST_SQLITE_TABLES = {"setting", "rating_history"}
 
 
 class MigrationError(click.ClickException):

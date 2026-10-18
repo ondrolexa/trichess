@@ -79,6 +79,22 @@ class Config(object):
     # Google Analytics 4 measurement ID (e.g. "G-XXXXXXXXXX"). Empty disables
     # the tag entirely; it is also never rendered in debug mode or for admin.
     GA_MEASUREMENT_ID = os.environ.get("GA_MEASUREMENT_ID", "")
+    # Reverse proxies in front of the app (Traefik: 1). Their X-Forwarded-For/
+    # -Proto/-Host headers are trusted only with this set, so behind TLS the
+    # app sees https (email links, cookies) and the client's real IP (rate
+    # limits). Keep 0 where clients reach gunicorn directly, or anyone could
+    # spoof their address.
+    TRUSTED_PROXY_HOPS = int(os.environ.get("TRUSTED_PROXY_HOPS", 0))
+    # Scheme for links built outside a request (CLI, worker).
+    PREFERRED_URL_SCHEME = "http" if DEBUG else "https"
+    # Login/sign-up rate limits (Flask-Limiter) live in Redis, shared by all
+    # gunicorn workers. If Redis is unreachable, limits fall back to
+    # per-process memory instead of failing the request.
+    RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", REDIS_URL)
+    RATELIMIT_KEY_PREFIX = "trichess"
+    RATELIMIT_SWALLOW_ERRORS = True
+    RATELIMIT_IN_MEMORY_FALLBACK_ENABLED = True
+    RATELIMIT_ENABLED = os.environ.get("RATELIMIT_ENABLED", "true").lower() == "true"
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))
     MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "true").lower() == "true"

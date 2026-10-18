@@ -1,6 +1,6 @@
 """Redis pub/sub fanout for "a move/vote was just persisted" push
-notifications to any open game-board page (webapp/static/ondro.js only —
-webapp/static/filio.js has its own renderer and doesn't use this).
+notifications to any open game-board page (both webapp/static/ondro.js and
+webapp/static/filio.js subscribe and refetch the board on each ping).
 
 Deliberately Flask-independent (reads REDIS_URL straight from os.environ, no
 `current_app`/`app` import), mirroring webapp/notifications.py's shape — but

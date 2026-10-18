@@ -20,6 +20,10 @@ from sse import app as sse
 from webapp.events import _channel
 from webapp.models import TriBoard, User, db
 
+# Fixed ids, so tokens (whose `sub` is the user id) can be minted without
+# the database; "mallory" has no row.
+IDS = {"alice": 101, "bob": 102, "carol": 103, "eve": 104, "mallory": 999}
+
 
 @pytest.fixture
 def db_url(tmp_path):
@@ -30,7 +34,7 @@ def db_url(tmp_path):
         ids = {}
         for name in ("alice", "bob", "carol", "eve"):
             ids[name] = conn.execute(
-                insert(User.__table__).values(username=name, password="x")
+                insert(User.__table__).values(id=IDS[name], username=name, password="x")
             ).inserted_primary_key[0]
         for board_id, status in ((10, 1), (11, 2), (12, 0)):
             conn.execute(
@@ -55,7 +59,7 @@ def secret(app):
 
 def _token(app, username, **kwargs):
     with app.test_request_context():
-        return create_access_token(identity=username, **kwargs)
+        return create_access_token(identity=str(IDS[username]), **kwargs)
 
 
 def _client(db_url, secret, **kwargs):
@@ -83,7 +87,7 @@ class TestChannel:
 
 class TestDecodeToken:
     def test_valid_access_token(self, app, secret):
-        assert sse.decode_token(_token(app, "alice"), secret) == "alice"
+        assert sse.decode_token(_token(app, "alice"), secret) == IDS["alice"]
 
     def test_expired(self, app, secret):
         token = _token(app, "alice", expires_delta=timedelta(seconds=-1))
@@ -94,24 +98,29 @@ class TestDecodeToken:
 
     def test_refresh_token_rejected(self, app, secret):
         with app.test_request_context():
-            token = create_refresh_token(identity="alice")
+            token = create_refresh_token(identity=str(IDS["alice"]))
         assert sse.decode_token(token, secret) is None
 
     def test_garbage(self, secret):
         assert sse.decode_token("not-a-jwt", secret) is None
 
+    def test_username_sub_from_before_ids_rejected(self, app, secret):
+        with app.test_request_context():
+            token = create_access_token(identity="alice")
+        assert sse.decode_token(token, secret) is None
+
 
 class TestSeated:
     def test_seated_on_active_and_finished(self, db_url):
-        assert sse.seated(create_engine(db_url), "bob", 10)
-        assert sse.seated(create_engine(db_url), "carol", 11)
+        assert sse.seated(create_engine(db_url), IDS["bob"], 10)
+        assert sse.seated(create_engine(db_url), IDS["carol"], 11)
 
     def test_not_seated(self, db_url):
-        assert not sse.seated(create_engine(db_url), "eve", 10)
+        assert not sse.seated(create_engine(db_url), IDS["eve"], 10)
 
     def test_waiting_board_and_unknown_board(self, db_url):
-        assert not sse.seated(create_engine(db_url), "alice", 12)
-        assert not sse.seated(create_engine(db_url), "alice", 999)
+        assert not sse.seated(create_engine(db_url), IDS["alice"], 12)
+        assert not sse.seated(create_engine(db_url), IDS["alice"], 999)
 
 
 class TestEndpointErrors:

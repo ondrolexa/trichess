@@ -96,6 +96,9 @@ The application uses environment variables for configuration, loaded from a `.en
 | `BOT_MAX_DEPTH` | Iterative deepening never goes deeper than this | `12` |
 | `SINGLE_PLAYER_NOTIFICATIONS` | Send live "your turn"/"game over" push notifications for 1-human-vs-2-bots games | `false` |
 | `BOT_GAMES_REMOVAL` | Delete finished bot games (and their logs) older than this many minutes via `remove-bot-games`; `0` disables deletion | `15` |
+| `TRUSTED_PROXY_HOPS` | Number of reverse proxies in front of the app whose `X-Forwarded-*` headers are trusted (Traefik: `1`). Needed behind TLS so email links are `https://` and rate limits see client IPs; keep `0` when clients reach the app directly | `0` |
+| `RATELIMIT_STORAGE_URI` | Where login/sign-up rate-limit counters live (falls back to per-process memory if unreachable) | `REDIS_URL` |
+| `RATELIMIT_ENABLED` | `false` turns the login/sign-up rate limits off | `true` |
 | `API_TOKEN_USERS` | Comma-separated allowlist of usernames who may mint an API bearer token via `POST /token` (including Swagger UI's "Authorize" dialog) | `` (empty — nobody allowed until set) |
 | `SSE_URL` | Base URL of the live-update service (`sse/app.py`) for the board page. Empty = same origin (production behind Traefik); in local dev e.g. `http://localhost:8090` | `` (same origin) |
 | `SQLALCHEMY_DATABASE_URI` | Database URL, shared by the app, worker and SSE service: `postgresql+psycopg://user:pw@host:5432/trichess` (set by the compose files). Required: the app and SSE service refuse to start without it | — |
@@ -259,6 +262,7 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep, 
 - **`dump-db`**: Write a SQL dump of the database to `instance/trichess.sql` (or `--file`); every 6 hours via cron.
 - **`sqlite-to-postgres`**: One-time, verified, all-or-nothing copy of the legacy SQLite database into an empty PostgreSQL database (`--sqlite PATH`).
 - **`remove-bot-games`**: Delete finished games with a bot player, and their logs, older than `--minutes` (`BOT_GAMES_REMOVAL` env var, default `15`; `0` disables; runs every 5 minutes via cron — see `crontab`).
+- **`rebuild-ratings`**: Recompute every rating and the rating history from all rated games. Ratings normally update incrementally as games finish; this is the repair path (deleting a rated game from the admin page runs it too).
 - **`purge-stalling`**: Delete active games, and their logs, with no move or vote for more than `--days` days (default `365`; `0` disables; `--dry-run` only lists the game ids); daily via cron at 03:30.
 
 ### Bot players
@@ -273,9 +277,9 @@ crontab              # Cron job configuration (resend-notifications, bot-sweep, 
 
 ### Live board updates (SSE)
 - `webapp/events.py` publishes a Redis pub/sub ping (one channel per board id) whenever `GameBoard.post()` (`webapp/api.py`) commits a move or vote — from a real human POST or `webapp/botplayer.py`'s in-process re-entry into that same endpoint, same code path either way.
-- `GET /api/v1/manager/board/events?id=<id>&jwt=<token>` is served by a separate async service, `sse/app.py` (Starlette + uvicorn, `uvicorn sse.app:app --port 8090`; It streams these as Server-Sent Events to any seated player's open board page. `webapp/static/ondro.js` opens one on page load and refetches full state (`boardReset()`) on each ping — it never trusts the pushed payload. Auth on this one route is query-string-only (`?jwt=`, no `Bearer` prefix), since browsers' `EventSource` API can't set custom headers; every other endpoint stays header-only.
+- `GET /api/v1/manager/board/events?id=<id>&jwt=<token>` is served by a separate async service, `sse/app.py` (Starlette + uvicorn, `uvicorn sse.app:app --port 8090 --no-access-log`; It streams these as Server-Sent Events to any seated player's open board page. Both board renderers open one on page load and refetch full state on each ping (`ondro.js`: `boardReset()`; `filio.js`: `Click_Refresh()`) — neither trusts the pushed payload. Auth on this one route is query-string-only (`?jwt=`, no `Bearer` prefix), since browsers' `EventSource` API can't set custom headers; every other endpoint stays header-only.
 - Each open tab costs one coroutine (tens of KB) rather than a gunicorn thread, and the whole service shares a single Redis pattern subscription — 1000 concurrent streams measured at about 35 MB extra RSS.
-- Local dev: run `uvicorn sse.app:app --port 8090` next to `flask run`, and set `SSE_URL=http://localhost:8090` and the Flask origin in `CORS_ORIGINS` in `.env`.
+- Local dev: run `uvicorn sse.app:app --port 8090 --no-access-log` next to `flask run`, and set `SSE_URL=http://localhost:8090` and the Flask origin in `CORS_ORIGINS` in `.env`.
 
 ### External Services
 - Uses `ntfy.mykuna.eu` for push notifications (non-debug mode only).

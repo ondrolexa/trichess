@@ -124,7 +124,7 @@ class Test_CSRF_Protection:
         app.config["WTF_CSRF_ENABLED"] = True
         user = _create_user()
         with app.test_request_context():
-            token = create_access_token(identity=user.username)
+            token = create_access_token(identity=str(user.id))
         resp = client.post(
             "/api/v1/game/info",
             json={"slog": "", "view_pid": 0},
@@ -185,7 +185,7 @@ class Test_GameInfo_InChessNext:
     def test_response_includes_in_chess_next(self, app, client):
         user = _create_user()
         with app.test_request_context():
-            token = create_access_token(identity=user.username)
+            token = create_access_token(identity=str(user.id))
         resp = client.post(
             "/api/v1/game/info",
             json={
@@ -653,3 +653,110 @@ class TestGameLists:
         assert html.count("Page 1 of 2") == 1
         assert "archive_page=1" in html
         assert "active_page=2" in html
+
+
+class TestSeatJoining:
+    def _waiting_game(self, client):
+        client.post("/join", data={"seat": "Seat 1"})  # alice in seat 0
+        return TriBoard.query.one()
+
+    def test_second_seat_for_same_user_refused(self, app, client):
+        _create_user()
+        _login(client)
+        board = self._waiting_game(client)
+
+        resp = client.post("/join", data={"board": board.id, "seat": "1"})
+
+        assert resp.status_code == 302
+        db.session.refresh(board)
+        assert board.player_1_id is None
+        with client.session_transaction() as sess:
+            assert any("already have a seat" in m for _, m in sess["_flashes"])
+
+    def test_started_game_cannot_be_joined(self, app, client):
+        alice, bob, carol = (_create_user(n) for n in ("alice", "bob", "carol"))
+        dave = _create_user("dave")
+        board = _seated_board([alice, bob, carol], 1)
+        board.player_2_id = None  # an empty seat on a started game
+        db.session.commit()
+        _login(client, "dave")
+
+        client.post("/join", data={"board": board.id, "seat": "2"})
+
+        db.session.refresh(board)
+        assert board.player_2_id is None
+        assert dave.id not in (board.player_0_id, board.player_1_id)
+
+    def test_invalid_seat_refused(self, app, client):
+        _create_user()
+        _create_user("bob")
+        _login(client)
+        board = self._waiting_game(client)
+        client.get("/logout/")
+        _login(client, "bob")
+
+        client.post("/join", data={"board": board.id, "seat": "7"})
+
+        db.session.refresh(board)
+        assert (board.player_1_id, board.player_2_id) == (None, None)
+
+    def test_game_started_log_written_under_the_join_lock(self, app, client, caplog):
+        # The join holds the board's row lock while logging "Game started"
+        # on DBHandler's own connection; on PostgreSQL a plain FOR UPDATE
+        # would block that row's foreign-key check (SQLite has no row locks).
+        if db.engine.dialect.name == "sqlite":
+            pytest.skip("needs row locks (TEST_DATABASE_URL=postgresql...)")
+        caplog.set_level(logging.INFO)  # pytest leaves root at WARNING
+        _create_user()
+        _create_user("bob")
+        _login(client)
+        board = self._waiting_game(client)
+        client.post("/join", data={"board": board.id, "fill_bot": "2"})
+        client.get("/logout/")
+        _login(client, "bob")
+
+        client.post("/join", data={"board": board.id, "seat": "1"})
+
+        db.session.refresh(board)
+        assert board.status == 1
+        started = Log.query.filter_by(board_id=board.id, message="Game started")
+        assert started.count() == 1
+
+    def test_other_player_and_bot_fill_start_the_game(self, app, client):
+        _create_user()
+        bob = _create_user("bob")
+        _login(client)
+        board = self._waiting_game(client)
+        client.post("/join", data={"board": board.id, "fill_bot": "2"})
+        client.get("/logout/")
+        _login(client, "bob")
+
+        client.post("/join", data={"board": board.id, "seat": "1"})
+
+        db.session.refresh(board)
+        assert board.player_1_id == bob.id
+        assert board.player_2.is_bot
+        assert board.status == 1
+
+
+class TestExternalScriptsPinned:
+    """Every third-party script is an exact version with an SRI hash."""
+
+    def _external_scripts(self, html):
+        tags = re.findall(r"<script[^>]*\bsrc=\"https?://[^>]*>", html)
+        assert tags, "expected at least one external script"
+        return tags
+
+    @pytest.mark.parametrize("page", ["play", "profile"])
+    def test_external_scripts_have_integrity(self, app, client, page):
+        alice = _create_user()
+        alice.board = "ondro"
+        bob, carol = _create_user("bob"), _create_user("carol")
+        tb = _seated_board([alice, bob, carol], 1)
+        _login(client)
+        url = f"/play/{tb.id}" if page == "play" else "/profile"
+
+        for tag in self._external_scripts(client.get(url).get_data(as_text=True)):
+            assert 'integrity="sha384-' in tag, tag
+            assert 'crossorigin="anonymous"' in tag, tag
+            assert "@10/" not in tag and "@latest" not in tag, tag

@@ -56,3 +56,20 @@ def send_password_reset_email(user):
         f"Best,\nTrichess Team"
     )
     return send_email(user.email, subject, body)
+
+
+def send_account_exists_email(user):
+    """Sent instead of a second account when someone registers with an email
+    that already has one (the form answers the same either way)."""
+    forgot_url = url_for("forgot", _external=True)
+    subject = "Trichess registration attempt"
+    body = (
+        f"Hi {user.username},\n\n"
+        f"Someone tried to register a new Trichess account with this email "
+        f"address, which already belongs to your account ({user.username}).\n\n"
+        f"If it was you and you forgot your password, reset it here:\n"
+        f"{forgot_url}\n\n"
+        f"Otherwise you can ignore this email.\n\n"
+        f"Best,\nTrichess Team"
+    )
+    return send_email(user.email, subject, body)

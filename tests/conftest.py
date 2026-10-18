@@ -14,6 +14,8 @@ import os
 # database instead — CI runs it both ways. Its name must contain "test".
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite:///:memory:")
 os.environ["SQLALCHEMY_DATABASE_URI"] = TEST_DATABASE_URL
+# Rate-limit counters in memory, never in a real Redis; reset per test below.
+os.environ["RATELIMIT_STORAGE_URI"] = "memory://"
 # webapp.configuration refuses to start without signing keys outside debug.
 os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key-not-for-production-use")
 os.environ.setdefault("JWT_SECRET_KEY", "test-jwt-secret-key-not-for-production-use")
@@ -94,6 +96,9 @@ def app():
             "to avoid wiping real data."
         )
         db.create_all()
+        from webapp.main import limiter
+
+        limiter.reset()
         yield flask_app
         db.session.remove()
         db.drop_all()

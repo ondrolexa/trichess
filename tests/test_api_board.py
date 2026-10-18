@@ -1,9 +1,13 @@
+import logging
+
+import pytest
 from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
 from engine import GameAPI, get_game
+from webapp.api import MAX_SLOG_ENTRIES
 from webapp.main import db
-from webapp.models import Score, TriBoard, User
+from webapp.models import Log, Score, TriBoard, User
 
 
 def _create_user(username, active=True):
@@ -31,8 +35,9 @@ def _make_board(owner, seats, slog="", status=1):
 
 
 def _login(app, username):
+    user = User.query.filter_by(username=username).one()
     with app.test_request_context():
-        return create_access_token(identity=username)
+        return create_access_token(identity=str(user.id))
 
 
 class TestGameBoardGetViewPidOverride:
@@ -146,10 +151,10 @@ class TestGameBoardEndgamePersistence:
         tb.slog = ga.slog[:-4]
         db.session.commit()
         prior = get_game(0, tb.slog)
-        poster_username = players[prior.on_move].username
+        poster = players[prior.on_move]
 
         with app.test_request_context():
-            token = create_access_token(identity=poster_username)
+            token = create_access_token(identity=str(poster.id))
         resp = client.post(
             "/api/v1/manager/board",
             json={"id": tb.id, "slog": ga.slog},
@@ -182,7 +187,7 @@ class TestGameBoardEndgamePersistence:
 
         tb, players = self._setup(app)
         ga = get_game(0, "")
-        poster_username = players[ga.on_move].username
+        poster = players[ga.on_move]
         for gid in range(169):
             targets = ga.valid_moves(gid)
             if targets:
@@ -190,7 +195,7 @@ class TestGameBoardEndgamePersistence:
                 break
 
         with app.test_request_context():
-            token = create_access_token(identity=poster_username)
+            token = create_access_token(identity=str(poster.id))
         resp = client.post(
             "/api/v1/manager/board",
             json={"id": tb.id, "slog": ga.slog},
@@ -283,3 +288,112 @@ class TestGameBoardPostValidation:
         ga = GameAPI(view_pid=0)
         ga.make_move(166, ga.valid_moves(166)[0]["tgid"])
         assert self._post(app, client, tb, "bob", ga.slog).status_code != 200
+
+
+class TestSlogLimits:
+    """Client slogs are replayed in full, so their size is capped."""
+
+    @pytest.fixture
+    def post(self, app, client):
+        _create_user("alice")
+        headers = {"Authorization": f"Bearer {_login(app, 'alice')}"}
+
+        def post(path, slog):
+            body = {"slog": slog, "view_pid": 0, "gid": 166}
+            return client.post(path, json=body, headers=headers)
+
+        return post
+
+    def test_overlong_slog_rejected_by_engine_endpoints(self, post):
+        slog = "BNDL" * (MAX_SLOG_ENTRIES + 1)
+        for path in ("/api/v1/game/info", "/api/v1/move/valid"):
+            assert post(path, slog).status_code == 400, path
+
+    def test_partial_entry_rejected(self, post):
+        assert post("/api/v1/game/info", "BNDLH").status_code == 400
+
+    def test_normal_slog_accepted(self, post):
+        resp = post("/api/v1/game/info", "BNDLHBIB")
+        assert resp.status_code == 200
+        assert resp.get_json()["move_number"] == 2
+
+    def test_oversized_body_rejected(self, post):
+        assert post("/api/v1/game/info", "B" * (64 * 1024)).status_code == 413
+
+
+class TestGameBoardPostIsAtomic:
+    """Log rows are written on their own connection, so a failing POST rolls
+    back the whole move while its log lines survive. Needs real transactions:
+    SQLite's in-memory test database shares one connection between both."""
+
+    @pytest.fixture(autouse=True)
+    def _postgres_only(self, app):
+        if db.engine.dialect.name == "sqlite":
+            pytest.skip("needs separate connections (TEST_DATABASE_URL=postgresql...)")
+
+    def _setup(self):
+        alice, bob, carol = (_create_user(n) for n in ("alice", "bob", "carol"))
+        return _make_board(alice, {0: alice, 1: bob, 2: carol})
+
+    def _move(self, app, client, tb):
+        ga = GameAPI(view_pid=0)
+        ga.make_move(166, ga.valid_moves(166)[0]["tgid"])
+        return client.post(
+            "/api/v1/manager/board",
+            json={"id": tb.id, "slog": ga.slog},
+            headers={"Authorization": f"Bearer {_login(app, 'alice')}"},
+        )
+
+    def test_move_logs_while_board_is_locked(self, app, client, caplog):
+        # Under pytest the root logger stays at WARNING, which would drop the
+        # GAME (25) records this test is about before they reach DBHandler.
+        caplog.set_level(logging.INFO)
+        tb = self._setup()
+
+        assert self._move(app, client, tb).status_code == 200
+
+        # Written while the request held the board's row lock: the lock must
+        # not block the log row's foreign-key check (no lock timeout).
+        messages = {
+            m for (m,) in db.session.query(Log.message).filter_by(board_id=tb.id)
+        }
+        assert "Move.str 000" in messages and "Move end 000" in messages
+
+    def test_failure_mid_post_rolls_back_the_move(self, app, client, monkeypatch):
+        from webapp import api
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("scoring failed")
+
+        monkeypatch.setattr(api, "finalize_if_finished", boom)
+        tb = self._setup()
+
+        assert self._move(app, client, tb).status_code == 417
+
+        db.session.expire_all()
+        assert db.session.get(TriBoard, tb.id).slog == ""
+        errors = db.session.query(Log).filter_by(level="ERROR").all()
+        assert any("scoring failed" in e.message for e in errors)
+
+    def test_game_end_logs_while_players_are_locked(self, app, client, caplog):
+        # Finishing a rated game locks the three users' rows (ratings) while
+        # "Game finished" is logged with a user id on DBHandler's connection.
+        caplog.set_level(logging.INFO)
+        tb = self._setup()
+        players = {0: tb.player_0, 1: tb.player_1, 2: tb.player_2}
+        for _ in range(3):
+            db.session.refresh(tb)
+            ga = get_game(0, tb.slog)
+            slog = ga.resignation_vote(ga.on_move != 0)
+            with app.test_request_context():
+                token = create_access_token(identity=str(players[ga.on_move].id))
+            resp = client.post(
+                "/api/v1/manager/board",
+                json={"id": tb.id, "slog": slog},
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert resp.status_code == 200
+        db.session.expire_all()
+        assert db.session.get(TriBoard, tb.id).status == 2
+        finished = Log.query.filter(Log.message.like("Game finished%")).count()
+        assert finished == 1

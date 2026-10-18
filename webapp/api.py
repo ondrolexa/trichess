@@ -1,10 +1,10 @@
 import logging
 import os
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_current_user, jwt_required
 from flask_restx import Api, Resource, fields, reqparse
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import aliased
@@ -13,7 +13,7 @@ from engine import get_game
 from webapp.botplayer import maybe_trigger_bot
 from webapp.events import publish_board_move
 from webapp.main import GAME, db, post_notification
-from webapp.models import Score, TriBoard, User
+from webapp.models import RatingHistory, Score, TriBoard, User
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -222,7 +222,7 @@ def finalize_if_finished(
             extra={"user_id": log_user_id, "board_id": tb.id},
         )
     if not board_has_bot:
-        update_rating_db()
+        record_game_rating(tb, scores)
     return endgame_kind
 
 
@@ -252,12 +252,8 @@ def sweep_finalize(board_id):
 
 
 def _seat_map(tb):
-    """username -> seat index (0/1/2) for a TriBoard's three players."""
-    return {
-        tb.player_0.username: 0,
-        tb.player_1.username: 1,
-        tb.player_2.username: 2,
-    }
+    """user id -> seat index (0/1/2) for a TriBoard's three players."""
+    return {tb.player_0_id: 0, tb.player_1_id: 1, tb.player_2_id: 2}
 
 
 def _accept_posted_slog(ga1, posted, poster_pid):
@@ -299,7 +295,7 @@ def _accept_posted_slog(ga1, posted, poster_pid):
     return ga1.slog + ga1.move2slog(from_pos, to_pos, label)
 
 
-def _board_summary(tb, username):
+def _board_summary(tb, user_id):
     """Dict shape shared by ActiveGames.get()'s "own"/"joined" lists."""
     ga = get_game(0, tb.slog)
     seats = _seat_map(tb)
@@ -308,7 +304,7 @@ def _board_summary(tb, username):
         "player_0": tb.player_0.username,
         "player_1": tb.player_1.username,
         "player_2": tb.player_2.username,
-        "my_turn": seats[username] == ga.on_move,
+        "my_turn": seats[user_id] == ga.on_move,
     }
 
 
@@ -343,21 +339,20 @@ def compute_outcome_scores(ga):
             return {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
 
 
-def get_rating_history():
-    """Replay every finished triboard game in chronological order and return
-    the full rating trajectory for every player who has appeared in at least
-    one finished game.
-    """
+def elo_update(ratings, scores):
+    """3-player Elo: the three players' new ratings after one game, from their
+    ratings before it and their scores in it (out of 2.0)."""
+    q = [10 ** (r / L) for r in ratings]
+    total = sum(q)
+    return [r + K * (s - qi / total) for r, s, qi in zip(ratings, scores, q)]
 
+
+def _rated_games():
+    """Every rated (bot-free) finished game in rating order:
+    (board_id, finished_at, (p0, p1, p2), (s0, s1, s2))."""
     S0 = aliased(Score, name="s0")
     S1 = aliased(Score, name="s1")
     S2 = aliased(Score, name="s2")
-    users = User.query.all()
-    ratings = {u.id: starting_rating for u in users}
-
-    # history stores (timestamp, rating) snapshots after each game
-    history = defaultdict(list)
-
     # Games with a bot seat don't create Score rows (see GameBoard.post()'s
     # board_has_bot guard) — excluding them here too, not just via missing
     # Score rows, matters: an included-but-scoreless board would COALESCE to
@@ -366,13 +361,14 @@ def get_rating_history():
     bot_ids = select(User.id).where(User.is_bot)
     stmt = (
         select(
+            TriBoard.id,
             TriBoard.modified_at,
             TriBoard.player_0_id,
-            func.coalesce(S0.score, 0).label("player_0_score"),
             TriBoard.player_1_id,
-            func.coalesce(S1.score, 0).label("player_1_score"),
             TriBoard.player_2_id,
-            func.coalesce(S2.score, 0).label("player_2_score"),
+            func.coalesce(S0.score, 0),
+            func.coalesce(S1.score, 0),
+            func.coalesce(S2.score, 0),
         )
         .outerjoin(
             S0, and_(TriBoard.id == S0.board_id, TriBoard.player_0_id == S0.player_id)
@@ -389,69 +385,95 @@ def get_rating_history():
             TriBoard.player_1_id.notin_(bot_ids),
             TriBoard.player_2_id.notin_(bot_ids),
         )
-        .order_by(TriBoard.modified_at)
+        .order_by(TriBoard.modified_at, TriBoard.id)
     )
-    games = db.session.execute(stmt).all()
+    for board_id, ts, p0, p1, p2, s0, s1, s2 in db.session.execute(stmt):
+        yield board_id, ts or datetime.min, (p0, p1, p2), (s0, s1, s2)
 
-    for row in games:
-        raw_ts, p0id, p0s, p1id, p1s, p2id, p2s = row
 
-        ts = raw_ts or datetime.min
-
-        # Ensure every player appearing in a game has an initial rating
-        # (handles edge cases where active=0 users still have games)
-        for pid in (p0id, p1id, p2id):
-            if pid not in ratings:
-                ratings[pid] = starting_rating
-
-        # --- 3-player Elo update ---
-        q0 = 10 ** (ratings[p0id] / L)
-        q1 = 10 ** (ratings[p1id] / L)
-        q2 = 10 ** (ratings[p2id] / L)
-        Q = q0 + q1 + q2
-
-        e0 = q0 / Q  # expected score for player 0
-        e1 = q1 / Q  # expected score for player 1
-        e2 = q2 / Q  # expected score for player 2
-
-        ratings[p0id] += K * (p0s - e0)
-        ratings[p1id] += K * (p1s - e1)
-        ratings[p2id] += K * (p2s - e2)
-
-        # Record snapshot for each player at this moment in time
-        history[p0id].append((ts, ratings[p0id]))
-        history[p1id].append((ts, ratings[p1id]))
-        history[p2id].append((ts, ratings[p2id]))
-
+def get_rating_history():
+    """Replay every rated game from scratch: {user_id: [(timestamp, rating),
+    ...]} for every player of at least one. The source of truth that the
+    incremental updates (record_game_rating) must agree with."""
+    ratings = {}
+    history = defaultdict(list)
+    for _, ts, ids, scores in _rated_games():
+        before = [ratings.get(i, starting_rating) for i in ids]
+        for i, rating in zip(ids, elo_update(before, scores)):
+            ratings[i] = rating
+            history[i].append((ts, rating))
     return dict(history)
 
 
+def record_game_rating(tb, scores):
+    """Apply one just-finished rated game to its players' ratings and rating
+    history, in the caller's transaction (it commits).
+
+    The three users' rows are locked first, in id order, so two games ending
+    at once can't both start from the same old rating. FOR NO KEY UPDATE, so
+    log rows naming these users (DBHandler, own connection) aren't blocked.
+    """
+    ids = [tb.player_0_id, tb.player_1_id, tb.player_2_id]
+    users = {
+        u.id: u
+        for u in db.session.query(User)
+        .filter(User.id.in_(ids))
+        .order_by(User.id)
+        .with_for_update(key_share=True)
+    }
+    before = [
+        users[i].rating if users[i].rating is not None else starting_rating for i in ids
+    ]
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    for i, rating in zip(ids, elo_update(before, [scores[s] for s in range(3)])):
+        users[i].rating = rating
+        db.session.add(
+            RatingHistory(user_id=i, board_id=tb.id, rating=rating, created_at=now)
+        )
+
+
+def rebuild_ratings():
+    """Recompute every rating and the whole rating history from all rated
+    games (after a rated game is deleted, or to repair). Caller commits."""
+    ratings = {}
+    db.session.query(RatingHistory).delete()
+    for board_id, ts, ids, scores in _rated_games():
+        before = [ratings.get(i, starting_rating) for i in ids]
+        for i, rating in zip(ids, elo_update(before, scores)):
+            ratings[i] = rating
+            db.session.add(
+                RatingHistory(
+                    user_id=i, board_id=board_id, rating=rating, created_at=ts
+                )
+            )
+    for user in User.query.filter_by(is_bot=False):
+        user.rating = ratings.get(user.id, starting_rating)
+    return len(ratings)
+
+
 def get_user_rating_history(user_id):
-    """Return the rating trajectory for a single user.
-    Returns an empty list if the user has never played a finished game.
-    """
-    history = get_rating_history()
-    return history.get(user_id, [])
+    """[(timestamp, rating), ...] after each of the user's rated games;
+    empty if they have none."""
+    return [
+        (h.created_at, h.rating)
+        for h in RatingHistory.query.filter_by(user_id=user_id).order_by(
+            RatingHistory.created_at, RatingHistory.id
+        )
+    ]
 
 
-def get_current_ratings():
-    """Return the final (current) rating for every user as a flat dict.
-    Users who have never played a finished game are not included.
-    """
-    history = get_rating_history()
-    return {uid: points[-1][1] for uid, points in history.items() if points}
+# Client-supplied slogs are replayed in full (~20 µs per entry), so their
+# size is capped: real games stay under ~300 entries.
+MAX_SLOG_ENTRIES = 4000
 
 
-# rating update
-def update_rating_db():
-    """Update user rating in database."""
-    users = User.query.all()
-    current_ratings = get_current_ratings()
-    for u in users:
-        if u.id in current_ratings:
-            u.rating = current_ratings[u.id]
-
-    db.session.commit()
+def slog_arg(value):
+    """reqparse type for a slog: a string of 4-char entries, bounded."""
+    if not isinstance(value, str) or len(value) % 4:
+        raise ValueError("slog must be a string of 4-character entries")
+    if len(value) > 4 * MAX_SLOG_ENTRIES:
+        raise ValueError(f"slog longer than {MAX_SLOG_ENTRIES} entries")
+    return value
 
 
 # move API
@@ -461,7 +483,7 @@ moveapi = api.namespace(
 )
 
 ValidMovesParser = reqparse.RequestParser()
-ValidMovesParser.add_argument(name="slog", type=str, required=True, nullable=False)
+ValidMovesParser.add_argument(name="slog", type=slog_arg, required=True, nullable=False)
 ValidMovesParser.add_argument(name="view_pid", type=int, required=True, nullable=False)
 ValidMovesParser.add_argument(name="gid", type=int, required=True, nullable=False)
 valid_payload = api.model(
@@ -524,7 +546,7 @@ class ValidMoves(Resource):
 
 
 MakeMoveParser = reqparse.RequestParser()
-MakeMoveParser.add_argument(name="slog", type=str, required=True, nullable=False)
+MakeMoveParser.add_argument(name="slog", type=slog_arg, required=True, nullable=False)
 MakeMoveParser.add_argument(name="view_pid", type=int, required=True, nullable=False)
 MakeMoveParser.add_argument(name="gid", type=int, required=True, nullable=False)
 MakeMoveParser.add_argument(name="tgid", type=int, required=True, nullable=False)
@@ -591,7 +613,7 @@ gameapi = api.namespace(
 )
 
 GameInfoParser = reqparse.RequestParser()
-GameInfoParser.add_argument(name="slog", type=str, required=True, nullable=False)
+GameInfoParser.add_argument(name="slog", type=slog_arg, required=True, nullable=False)
 GameInfoParser.add_argument(name="view_pid", type=int, required=True, nullable=False)
 
 game_payload = api.model(
@@ -777,7 +799,7 @@ voteapi = api.namespace(
 )
 
 VoteParser = reqparse.RequestParser()
-VoteParser.add_argument(name="slog", type=str, required=True, nullable=False)
+VoteParser.add_argument(name="slog", type=slog_arg, required=True, nullable=False)
 VoteParser.add_argument(name="view_pid", type=int, required=True, nullable=False)
 VoteParser.add_argument(name="vote", type=bool, required=True, nullable=False)
 vote_payload = api.model(
@@ -865,7 +887,9 @@ BoardParser.add_argument(
 
 UpdateBoardParser = reqparse.RequestParser()
 UpdateBoardParser.add_argument(name="id", type=int, required=True, nullable=False)
-UpdateBoardParser.add_argument(name="slog", type=str, required=True, nullable=False)
+UpdateBoardParser.add_argument(
+    name="slog", type=slog_arg, required=True, nullable=False
+)
 
 board_payload = api.model(
     "Board payload",
@@ -913,9 +937,8 @@ class GameBoard(Resource):
         id = args["id"]
         view_pid_override = args.get("view_pid")
         res = {}
-        username = get_jwt_identity()
+        user = get_current_user()
         try:
-            user = User.query.filter_by(username=username).first()
             user_in = TriBoard.for_player(user.id)
             active_or_archive = db.or_(
                 TriBoard.status == 1,
@@ -938,18 +961,16 @@ class GameBoard(Resource):
                 res["player_1"] = tb.player_1.username
                 res["player_2"] = tb.player_2.username
                 res["slog"] = tb.slog
-                res["view_pid"] = pid[username]
+                res["view_pid"] = pid[user.id]
                 try:
-                    ga = get_game(pid[username], tb.slog or "")
+                    ga = get_game(pid[user.id], tb.slog or "")
                     res["move_number"] = ga.move_number
                     code_pid = (
-                        pid[username]
-                        if view_pid_override is None
-                        else view_pid_override
+                        pid[user.id] if view_pid_override is None else view_pid_override
                     )
                     gid2hex = (
                         ga.gid2hex
-                        if code_pid == pid[username]
+                        if code_pid == pid[user.id]
                         else get_game(code_pid, tb.slog or "").gid2hex
                     )
                     res["gid2code"] = [
@@ -977,13 +998,15 @@ class GameBoard(Resource):
     @managerapi.expect(board_payload, validate=True)
     def post(self):
         state = UpdateBoardParser.parse_args()
-        username = get_jwt_identity()
+        user1 = get_current_user()
         try:
-            user1 = User.query.filter_by(username=username).first()
             user_in = TriBoard.for_player(user1.id)
             tb = (
                 db.session.query(TriBoard)
-                .with_for_update()
+                # FOR NO KEY UPDATE: serialises moves on this board but
+                # doesn't block the FK check of a Log row written about it
+                # meanwhile (DBHandler uses its own connection).
+                .with_for_update(key_share=True)
                 .filter_by(status=1, id=state.id)
                 .filter(user_in)
                 .first()
@@ -1007,7 +1030,7 @@ class GameBoard(Resource):
                         },
                     )
                     pid = _seat_map(tb)
-                    new_slog = _accept_posted_slog(ga1, state.slog, pid[username])
+                    new_slog = _accept_posted_slog(ga1, state.slog, pid[user1.id])
                     players = {
                         0: tb.player_0,
                         1: tb.player_1,
@@ -1017,9 +1040,7 @@ class GameBoard(Resource):
                     if new_slog is not None:
                         ga2 = get_game(0, new_slog)
                         tb.slog = ga2.slog
-                        user = User.query.filter_by(
-                            username=players[ga2.on_move].username
-                        ).first()
+                        user = players[ga2.on_move]
                         endgame_kind = finalize_if_finished(
                             tb,
                             ga2,
@@ -1048,7 +1069,8 @@ class GameBoard(Resource):
                         db.session.commit()
                         publish_board_move(tb.id, len(ga2.slog))
                         if tb.status == 1:
-                            maybe_trigger_bot(tb.id)
+                            # finalize_if_finished just ran on this position
+                            maybe_trigger_bot(tb.id, finalize=False)
                     else:
                         managerapi.abort(
                             409, message="Posted slog is in conflict with server one"
@@ -1096,8 +1118,7 @@ class ActiveGames(Resource):
     def get(self):
         res = {}
         try:
-            username = get_jwt_identity()
-            user = User.query.filter_by(username=username).first()
+            user = get_current_user()
             user_in = TriBoard.for_player(user.id)
             own = TriBoard.query.filter_by(status=1, owner_id=user.id).all()
             joined = (
@@ -1113,8 +1134,8 @@ class ActiveGames(Resource):
             managerapi.abort(417, message="An unexpected error occurred")
         else:
             try:
-                res["own"] = [_board_summary(tb, username) for tb in own]
-                res["joined"] = [_board_summary(tb, username) for tb in joined]
+                res["own"] = [_board_summary(tb, user.id) for tb in own]
+                res["joined"] = [_board_summary(tb, user.id) for tb in joined]
                 return res
             except Exception as err:
                 logger.error(

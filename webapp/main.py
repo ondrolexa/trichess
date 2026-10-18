@@ -10,6 +10,8 @@ from flask import Flask
 from flask_bootstrap import Bootstrap5
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -17,6 +19,7 @@ from flask_wtf import CSRFProtect
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from webapp.notifications import _send_push_notification_job, notification_queue
 
@@ -37,21 +40,28 @@ class DBHandler(logging.Handler):
             _ = current_app._get_current_object()
         except RuntimeError, AttributeError:
             return
-        # Use the existing app context — no nested push so the session stays alive
-        entry = Log(
-            level=record.levelname,
-            message=self.format(record),
-            module=record.module,
-            user_id=getattr(record, "user_id", None),
-            board_id=getattr(record, "board_id", None),
-        )
-        db.session.add(entry)
+        # Own connection and transaction, never db.session: committing the
+        # request's session here would commit a half-done move (and defeat
+        # its rollback) whenever something logs mid-request.
         try:
-            db.session.commit()
+            with db.engine.begin() as conn:
+                if conn.dialect.name == "postgresql":
+                    # Never let a log write hang its own request on a row
+                    # lock that request holds (its FK check on board/user).
+                    conn.exec_driver_sql("SET LOCAL lock_timeout = '2s'")
+                conn.execute(
+                    Log.__table__.insert().values(
+                        level=record.levelname,
+                        message=self.format(record),
+                        module=record.module,
+                        user_id=getattr(record, "user_id", None),
+                        board_id=getattr(record, "board_id", None),
+                    )
+                )
         except Exception:
             # A logging failure must never mask/replace the exception that
             # triggered this log record in the first place.
-            db.session.rollback()
+            self.handleError(record)
 
 
 # Configure logging
@@ -69,6 +79,16 @@ CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # Configuration of application, see configuration.py, choose one and uncomment.
 app.config.from_object("webapp.configuration.Config")
+# No route takes uploads: the largest legitimate body is a ~1 KB slog.
+app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
+
+if app.config["TRUSTED_PROXY_HOPS"]:
+    hops = app.config["TRUSTED_PROXY_HOPS"]
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=hops, x_proto=hops, x_host=hops)
+
+# Rate limits for the login/sign-up routes (see views.py); keyed by client IP,
+# which is only right behind a proxy with TRUSTED_PROXY_HOPS set.
+limiter = Limiter(get_remote_address, app=app)
 
 
 def _mirror_debug_for_cli():
@@ -102,6 +122,11 @@ def add_security_headers(response):
 @app.errorhandler(404)
 def handle_not_found(err):
     return "Not found", 404
+
+
+@app.errorhandler(429)
+def handle_rate_limited(err):
+    return "Too many attempts. Please wait a minute and try again.", 429
 
 
 @app.errorhandler(Exception)
@@ -444,9 +469,27 @@ def dump_db_command(file):
 def sqlite_to_postgres_command(sqlite_path):
     """One-time copy of the legacy SQLite database into the (empty)
     PostgreSQL database — see README's cut-over runbook."""
+    from webapp.api import rebuild_ratings
     from webapp.sqlite_migrate import sqlite_to_postgres
 
     sqlite_to_postgres(app, db, sqlite_path)
+    # The legacy file has no rating_history; derive it (and the ratings).
+    players = rebuild_ratings()
+    db.session.commit()
+    click.echo(f"Rebuilt ratings and rating history for {players} player(s)")
+
+
+@app.cli.command("rebuild-ratings")
+def rebuild_ratings_command():
+    """Recompute every rating and the rating history from all rated games.
+
+    Ratings are otherwise updated incrementally as games finish; this is the
+    repair path (and what deleting a rated game runs)."""
+    from webapp.api import rebuild_ratings
+
+    players = rebuild_ratings()
+    db.session.commit()
+    click.echo(f"Rebuilt ratings and rating history for {players} player(s)")
 
 
 @app.cli.command("bot-sweep")
@@ -478,7 +521,7 @@ def bot_sweep_command():
             if sweep_finalize(board_id):
                 finalized += 1
             else:
-                maybe_trigger_bot(board_id)
+                maybe_trigger_bot(board_id, finalize=False)
         except Exception as err:
             # One board's failure (e.g. a transient Redis hiccup on the
             # publish/enqueue side, after the DB write already committed)

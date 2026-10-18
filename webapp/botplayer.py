@@ -10,8 +10,10 @@ import os
 from flask_jwt_extended import create_access_token
 from redis import Redis
 from rq import Queue
+from rq.exceptions import NoSuchJobError
+from rq.job import Job, JobStatus
 
-from engine import choose_move, choose_vote, get_game
+from engine import choose_move, choose_vote, get_game, slog_summary
 from engine.bot import MAX_DEPTH, MIN_SOUND_DEPTH
 from webapp.main import GAME, app, db
 from webapp.maintenance import is_maintenance
@@ -41,32 +43,53 @@ def _seat_players(tb):
     return {0: tb.player_0, 1: tb.player_1, 2: tb.player_2}
 
 
-def maybe_trigger_bot(board_id: int) -> None:
+# A job for one board and turn that is still waiting or running: enqueueing
+# it again would only search the same move twice (and lose with a 409).
+_PENDING = {
+    JobStatus.QUEUED,
+    JobStatus.STARTED,
+    JobStatus.DEFERRED,
+    JobStatus.SCHEDULED,
+}
+
+
+def maybe_trigger_bot(board_id: int, finalize: bool = True) -> None:
     """Enqueue a bot-move job if the player currently on move is a bot.
 
     Cheap read done here (not inside the job) so ordinary all-human games
     never touch Redis.
 
-    Checks sweep_finalize() first: a bot should never be asked to search for
-    a move on a position that's already game-over (e.g. a board that reached
-    a since-added endgame rule — like threefold repetition — before that
-    rule existed, and never got another move to trigger the check).
+    With `finalize` (callers that haven't just checked it themselves), runs
+    sweep_finalize() first: a bot should never be asked to search for a move
+    on a position that's already game-over (e.g. a board that reached a
+    since-added endgame rule — like threefold repetition — before that rule
+    existed, and never got another move to trigger the check).
+
+    One job per board and turn (job id from the slog length): while it's
+    queued or running, triggering again — e.g. bot-sweep every 5 minutes
+    over a backlog — doesn't add a duplicate.
     """
     from webapp.api import sweep_finalize
 
     # Bots pause during maintenance; bot-sweep (cron) re-triggers them after.
     if is_maintenance():
         return
-    if sweep_finalize(board_id):
+    if finalize and sweep_finalize(board_id):
         return
     tb = db.session.get(TriBoard, board_id)
     if tb is None or tb.status != 1:
         return
-    ga = get_game(0, tb.slog)
-    players = _seat_players(tb)
-    on_move = players.get(ga.on_move)
-    if on_move is not None and on_move.is_bot:
-        bot_queue.enqueue(run_bot_move, board_id)
+    slog = tb.slog or ""
+    on_move = _seat_players(tb).get(slog_summary(slog).on_move)
+    if on_move is None or not on_move.is_bot:
+        return
+    job_id = f"bot-{board_id}-{len(slog)}"
+    try:
+        if Job.fetch(job_id, connection=bot_queue.connection).get_status() in _PENDING:
+            return
+    except NoSuchJobError:
+        pass
+    bot_queue.enqueue(run_bot_move, board_id, job_id=job_id)
 
 
 def run_bot_move(board_id: int) -> None:
@@ -124,7 +147,7 @@ def run_bot_move(board_id: int) -> None:
             )
             return
 
-        token = create_access_token(identity=bot.username)
+        token = create_access_token(identity=str(bot.id))
         response = app.test_client().post(
             "/api/v1/manager/board",
             json={"id": board_id, "slog": new_slog},
