@@ -105,3 +105,10 @@ class Config(object):
     MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "")
+    # Comma-separated admin addresses the Contact form (/contact) mails.
+    # Kept in .env, never in the repo or a page. Empty (or no MAIL_SERVER)
+    # turns the Contact page off.
+    CONTACT_EMAILS = [
+        e.strip() for e in os.environ.get("CONTACT_EMAILS", "").split(",") if e.strip()
+    ]
+    CONTACT_MAX_ATTACHMENT = 1024 * 1024

@@ -38,10 +38,12 @@ from webapp.api import get_user_rating_history, rebuild_ratings
 from webapp.botplayer import maybe_trigger_bot
 from webapp.email import (
     send_account_exists_email,
+    send_contact_email,
     send_password_reset_email,
     send_verification_email,
 )
 from webapp.forms import (
+    ContactForm,
     ForgotPasswordForm,
     LoginForm,
     NewGameForm,
@@ -206,6 +208,7 @@ def render_template(*args, **kwargs):
         version=webapp_version,
         ga_config=_ga_config(ga_game),
         maintenance=is_maintenance(),
+        contact_enabled=contact_enabled(),
     )
 
 
@@ -1073,6 +1076,56 @@ def verify(token):
         track_event("email_verified")
         flash("Email verified! You can now log in.", "success")
     return redirect(url_for("login"))
+
+
+def contact_enabled():
+    return bool(app.config["CONTACT_EMAILS"] and app.config["MAIL_SERVER"])
+
+
+def _contact_user():
+    """Rate-limit key: per player, not per IP."""
+    user = g.get("user")
+    return (
+        f"contact:{user.id}"
+        if user is not None and user.is_authenticated
+        else "contact"
+    )
+
+
+@app.route("/contact", methods=["GET", "POST"])
+@limiter.limit("3 per hour;10 per day", methods=["POST"], key_func=_contact_user)
+@login_required
+def contact():
+    if not contact_enabled():
+        abort(404)
+    if g.user.is_admin:
+        # The admins are the recipients.
+        return redirect(url_for("index"))
+    form = ContactForm()
+    if form.validate_on_submit():
+        file = form.attachment.data or None
+        queued = send_contact_email(g.user, form.subject.data, form.message.data, file)
+        logger.warning(
+            "Contact message from %s: %s",
+            g.user.username,
+            form.subject.data,
+            extra={"user_id": g.user.id},
+        )
+        track_event("contact_sent", has_attachment="yes" if file else "no")
+        if queued:
+            flash("Your message was sent to the admins.", "success")
+        else:
+            flash("Sorry, your message could not be sent. Try again later.", "warning")
+        return redirect(url_for("active_games"))
+    return render_template("contact.html", form=form)
+
+
+@app.errorhandler(413)
+def request_too_large(err):
+    if request.endpoint == "contact":
+        flash("Attachment too large (max 1 MB).", "danger")
+        return redirect(url_for("contact"))
+    return "Request too large", 413
 
 
 # register API blueprint (bearer-JWT-only, no cookies — CSRF doesn't apply)

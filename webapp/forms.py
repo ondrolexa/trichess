@@ -1,12 +1,14 @@
 import os
 
 from flask_wtf import FlaskForm
+from flask_wtf.file import FileAllowed, FileField, FileSize
 from wtforms import (
     EmailField,
     PasswordField,
     SelectField,
     StringField,
     SubmitField,
+    TextAreaField,
 )
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp
 
@@ -113,3 +115,27 @@ class ResetPasswordForm(FlaskForm):
         validators=[DataRequired(), EqualTo("password")],
     )
     submit = SubmitField("Reset password")
+
+
+CONTACT_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "pdf", "txt", "log"]
+
+
+class ContactForm(FlaskForm):
+    subject = StringField(
+        "Subject", validators=[DataRequired(), Length(min=3, max=150)]
+    )
+    message = TextAreaField(
+        "Message",
+        validators=[DataRequired(), Length(max=5000)],
+        render_kw={"rows": 8},
+    )
+    attachment = FileField(
+        "Attachment",
+        validators=[
+            FileAllowed(CONTACT_EXTENSIONS, "Images, PDF or text files only."),
+            FileSize(max_size=1024 * 1024, message="Attachment too large (max 1 MB)."),
+        ],
+        description="Optional: an image, PDF or text file, max 1 MB.",
+        render_kw={"accept": ",".join("." + e for e in CONTACT_EXTENSIONS)},
+    )
+    submit = SubmitField("Send")

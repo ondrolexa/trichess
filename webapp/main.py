@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import click
-from flask import Flask
+from flask import Flask, request
 from flask_bootstrap import Bootstrap5
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -79,7 +79,8 @@ CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # Configuration of application, see configuration.py, choose one and uncomment.
 app.config.from_object("webapp.configuration.Config")
-# No route takes uploads: the largest legitimate body is a ~1 KB slog.
+# The largest legitimate body is a ~1 KB slog; the Contact form's attachment
+# is the one exception (_allow_contact_upload below).
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
 if app.config["TRUSTED_PROXY_HOPS"]:
@@ -101,6 +102,15 @@ def _mirror_debug_for_cli():
 
 
 _mirror_debug_for_cli()
+
+
+@app.before_request
+def _allow_contact_upload():
+    """Raise the body limit for the Contact form only. Registered before
+    CSRFProtect, whose own before_request reads the form first."""
+    if request.endpoint == "contact":
+        request.max_content_length = app.config["CONTACT_MAX_ATTACHMENT"] + 64 * 1024
+
 
 # CSRF protection for cookie/session-authenticated HTML form routes. The /api/v1/*
 # blueprint and the /token view are bearer-JWT-only (no cookies involved) and are

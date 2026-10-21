@@ -1372,6 +1372,13 @@
               <td>empty (off)</td>
             </tr>
             <tr>
+              <td><code>CONTACT_EMAILS</code></td>
+              <td>Comma-separated admin addresses the <strong>Contact</strong> form mails (Reply-To is the player's
+                email, the player gets a copy). Never shown on any page; empty, or no <code>MAIL_SERVER</code>, hides
+                the Contact menu</td>
+              <td>empty (off)</td>
+            </tr>
+            <tr>
               <td><code>MAIL_SERVER, MAIL_PORT, MAIL_USE_TLS, MAIL_USERNAME, MAIL_PASSWORD, MAIL_DEFAULT_SENDER</code></td>
               <td>Outgoing SMTP for verification and password-reset email; empty <code>MAIL_SERVER</code> disables email</td>
               <td>port <code>587</code>, TLS on</td>
@@ -1462,6 +1469,11 @@
               <td><code>view_archive</code></td>
               <td>First page of <code>/archive</code>, or a finished game opened on the board</td>
               <td><code>context</code> (list / game)</td>
+            </tr>
+            <tr>
+              <td><code>contact_sent</code></td>
+              <td>Contact form sent</td>
+              <td><code>has_attachment</code> (yes / no)</td>
             </tr>
             <tr>
               <td><code>profile_pref_change</code></td>

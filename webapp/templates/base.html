@@ -48,6 +48,9 @@
               <li class="nav-item">{{ render_nav_item('archive', 'Archive') }}</li>
               <li class="nav-item">{{ render_nav_item('rating', 'Ratings') }}</li>
               <li class="nav-item">{{ render_nav_item('profile', 'Profile') }}</li>
+              {% if contact_enabled %}
+              <li class="nav-item">{{ render_nav_item('contact', 'Contact') }}</li>
+              {% endif %}
               {% else %}
               <li class="nav-item">{{ render_nav_item('admin_games', 'All games') }}</li>
               <li class="nav-item">{{ render_nav_item('admin_users', 'All users') }}</li>

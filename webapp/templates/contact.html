@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% from 'bootstrap5/form.html' import render_form %}
+
+{%block content%}
+  <h2 class="mb-2">Contact the admins</h2>
+  <p class="text-secondary mb-4">Questions, bug reports or ideas — we'll answer to your account's email address.</p>
+  {{ render_form(form, enctype="multipart/form-data", form_type='horizontal', horizontal_columns=('lg', 2, 8)) }}
+{%endblock%}

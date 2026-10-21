@@ -48,7 +48,11 @@ def _send_push_notification_job(username, text, title, gameid):
         logger.error(f"Unexpected post notification error: {err}, type: {type(err)}")
 
 
-def _send_email_job(to, subject, body):
+def _send_email_job(to, subject, body, reply_to=None, attachment=None):
+    """*to* is one address or a list; *attachment* an optional
+    (filename, content_type, bytes) tuple."""
+    if not isinstance(to, str):
+        to = ", ".join(to)
     server = os.environ.get("MAIL_SERVER", "")
     if not server:
         logger.warning(
@@ -66,7 +70,13 @@ def _send_email_job(to, subject, body):
     msg["From"] = sender
     msg["To"] = to
     msg["Subject"] = subject
+    if reply_to:
+        msg["Reply-To"] = reply_to
     msg.set_content(body)
+    if attachment is not None:
+        filename, content_type, data = attachment
+        maintype, subtype = content_type.split("/", 1)
+        msg.add_attachment(data, maintype=maintype, subtype=subtype, filename=filename)
 
     try:
         with smtplib.SMTP(server, port, timeout=30) as smtp:

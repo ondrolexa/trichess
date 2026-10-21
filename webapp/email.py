@@ -1,6 +1,8 @@
 import logging
+import mimetypes
 
 from flask import current_app, url_for
+from werkzeug.utils import secure_filename
 
 from webapp.notifications import _send_email_job, notification_queue
 from webapp.token import generate_password_reset_token, generate_verification_token
@@ -8,7 +10,7 @@ from webapp.token import generate_password_reset_token, generate_verification_to
 logger = logging.getLogger(__name__)
 
 
-def send_email(to, subject, body):
+def send_email(to, subject, body, reply_to=None, attachment=None):
     """Queue an email — never blocks the caller on the SMTP connection.
 
     Returns whether it was queued, not whether it was actually delivered
@@ -23,7 +25,9 @@ def send_email(to, subject, body):
             "MAIL_SERVER not configured — skipping email to %s: %s", to, subject
         )
         return False
-    notification_queue.enqueue(_send_email_job, to, subject, body)
+    notification_queue.enqueue(
+        _send_email_job, to, subject, body, reply_to=reply_to, attachment=attachment
+    )
     return True
 
 
@@ -73,3 +77,40 @@ def send_account_exists_email(user):
         f"Best,\nTrichess Team"
     )
     return send_email(user.email, subject, body)
+
+
+def send_contact_email(user, subject, message, file=None):
+    """Mail a Contact form message to the admins (CONTACT_EMAILS), replying
+    to the player, and a copy (without the attachment) to the player.
+
+    *file* is the form's FileStorage, if any. Returns whether the admins'
+    email was queued.
+    """
+    attachment = None
+    if file:
+        filename = secure_filename(file.filename) or "attachment"
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        attachment = (filename, content_type, file.read())
+    body = (
+        f"From: {user.username} (user id {user.id}, {user.email or 'no email'})\n"
+        f"Subject: {subject}\n\n"
+        f"{message}\n"
+    )
+    queued = send_email(
+        current_app.config["CONTACT_EMAILS"],
+        f"[Trichess contact] {subject}",
+        body,
+        reply_to=user.email,
+        attachment=attachment,
+    )
+    if queued and user.email:
+        copy = (
+            f"Hi {user.username},\n\n"
+            f"We received your message and will get back to you by email.\n\n"
+            f"Subject: {subject}\n\n"
+            f"{message}\n\n"
+            + (f"(Attachment: {attachment[0]})\n\n" if attachment else "")
+            + "Best,\nTrichess Team"
+        )
+        send_email(user.email, f"Your Trichess message: {subject}", copy)
+    return queued
