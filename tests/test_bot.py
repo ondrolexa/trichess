@@ -141,7 +141,7 @@ class TestChooseMove:
         assert game.slog == slog_before
 
     def test_returns_none_while_a_vote_is_pending(self, game):
-        game.voting.resign_vote(0, "A")
+        game.voting.vote("resign", 0, "A")
         assert game.voting.needed()
         assert choose_move(game) is None
 

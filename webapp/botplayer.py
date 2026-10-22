@@ -5,7 +5,6 @@ Named separately from engine.bot (the move/vote *decision* logic) to keep
 """
 
 import logging
-import os
 
 from flask_jwt_extended import create_access_token
 from redis import Redis
@@ -14,34 +13,16 @@ from rq.exceptions import NoSuchJobError
 from rq.job import Job, JobStatus
 
 from engine import choose_move, choose_vote, get_game, slog_summary
-from engine.bot import MAX_DEPTH, MIN_SOUND_DEPTH
-from webapp.main import GAME, app, db
+from webapp.game_end import sweep_finalize
+from webapp.log import GAME
+from webapp.main import app, db
 from webapp.maintenance import is_maintenance
-from webapp.models import TriBoard, User
+from webapp.models import GameStatus, TriBoard
 
 logger = logging.getLogger(__name__)
 
-_redis = Redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))
+_redis = Redis.from_url(app.config["REDIS_URL"])
 bot_queue = Queue("bot", connection=_redis)
-
-BOT_DEPTH = int(os.environ.get("BOT_DEPTH", MIN_SOUND_DEPTH))
-if BOT_DEPTH < MIN_SOUND_DEPTH:
-    # Below MIN_SOUND_DEPTH the search never simulates the 2nd of the bot's
-    # 2 opponents at all. Clamp rather than play unsound moves.
-    logger.error(
-        f"BOT_DEPTH={BOT_DEPTH} is below MIN_SOUND_DEPTH={MIN_SOUND_DEPTH} "
-        "(bot would be blind to its 2nd opponent's replies) — clamping up."
-    )
-    BOT_DEPTH = MIN_SOUND_DEPTH
-# BOT_DEPTH always completes; with a time budget (seconds, 0 = off) the
-# search keeps deepening up to BOT_MAX_DEPTH while the budget lasts.
-BOT_TIME_LIMIT = float(os.environ.get("BOT_TIME_LIMIT", 2.0))
-BOT_MAX_DEPTH = int(os.environ.get("BOT_MAX_DEPTH", MAX_DEPTH))
-
-
-def _seat_players(tb):
-    return {0: tb.player_0, 1: tb.player_1, 2: tb.player_2}
-
 
 # A job for one board and turn that is still waiting or running: enqueueing
 # it again would only search the same move twice (and lose with a 409).
@@ -69,18 +50,16 @@ def maybe_trigger_bot(board_id: int, finalize: bool = True) -> None:
     queued or running, triggering again — e.g. bot-sweep every 5 minutes
     over a backlog — doesn't add a duplicate.
     """
-    from webapp.api import sweep_finalize
-
     # Bots pause during maintenance; bot-sweep (cron) re-triggers them after.
     if is_maintenance():
         return
     if finalize and sweep_finalize(board_id):
         return
     tb = db.session.get(TriBoard, board_id)
-    if tb is None or tb.status != 1:
+    if tb is None or tb.status != GameStatus.ACTIVE:
         return
     slog = tb.slog or ""
-    on_move = _seat_players(tb).get(slog_summary(slog).on_move)
+    on_move = tb.players.get(slog_summary(slog).on_move)
     if on_move is None or not on_move.is_bot:
         return
     job_id = f"bot-{board_id}-{len(slog)}"
@@ -105,11 +84,11 @@ def run_bot_move(board_id: int) -> None:
         if is_maintenance():
             return
         tb = db.session.get(TriBoard, board_id)
-        if tb is None or tb.status != 1:
+        if tb is None or tb.status != GameStatus.ACTIVE:
             return
         ga = get_game(0, tb.slog)
         move_id = f"{(ga.move_number + 1):03d}"
-        players = _seat_players(tb)
+        players = tb.players
         bot = players.get(ga.on_move)
         if bot is None or not bot.is_bot:
             return
@@ -121,7 +100,7 @@ def run_bot_move(board_id: int) -> None:
                 extra={"user_id": bot.id, "board_id": board_id},
             )
             if ga.voting.needed():
-                vote = choose_vote(ga, depth=BOT_DEPTH)
+                vote = choose_vote(ga, depth=app.config["BOT_DEPTH"])
                 if vote is None:
                     return
                 new_slog = (
@@ -132,9 +111,9 @@ def run_bot_move(board_id: int) -> None:
             else:
                 move = choose_move(
                     ga,
-                    depth=BOT_DEPTH,
-                    time_limit=BOT_TIME_LIMIT or None,
-                    max_depth=BOT_MAX_DEPTH,
+                    depth=app.config["BOT_DEPTH"],
+                    time_limit=app.config["BOT_TIME_LIMIT"] or None,
+                    max_depth=app.config["BOT_MAX_DEPTH"],
                 )
                 if move is None:
                     return
@@ -143,7 +122,8 @@ def run_bot_move(board_id: int) -> None:
                 new_slog = ga.slog
         except Exception as err:
             logger.error(
-                f"[run_bot_move] Failed to compute a move for board {board_id}: {err}"
+                f"[run_bot_move] Failed to compute a move for board {board_id}: {err}",
+                exc_info=True,
             )
             return
 

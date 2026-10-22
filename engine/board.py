@@ -12,7 +12,38 @@ base12 = [Pos(i, -7) for i in range(1, 7)]
 base2 = [Pos(7, i) for i in range(-7, 1)]
 base20 = [Pos(7 - i, i) for i in range(1, 7)]
 
-# Castling: (king_from, king_to) -> (rook_from, rook_to), as (q, r) tuples.
+# Starting layout per player: (Player factory, cells), placed in this order.
+# Pawn rows: player 0 on r=6, player 1 on s=6 (r=-6-q), player 2 on q=6;
+# the gap in the middle of each row holds the third bishop.
+_PAWN_COLS = (*range(-7, -3), *range(-2, 2))
+STARTING_LAYOUT = (
+    (
+        ("pawn", [(i, 6) for i in _PAWN_COLS]),
+        ("knight", [(-5, 7), (-2, 7)]),
+        ("bishop", [(-6, 7), (-1, 7), (-3, 6)]),
+        ("rook", [(-7, 7), (0, 7)]),
+        ("queen", [(-3, 7)]),
+        ("king", [(-4, 7)]),
+    ),
+    (
+        ("pawn", [(i, -6 - i) for i in _PAWN_COLS]),
+        ("knight", [(-2, -5), (-5, -2)]),
+        ("bishop", [(-1, -6), (-6, -1), (-3, -3)]),
+        ("rook", [(0, -7), (-7, 0)]),
+        ("queen", [(-4, -3)]),
+        ("king", [(-3, -4)]),
+    ),
+    (
+        ("pawn", [(6, i) for i in _PAWN_COLS]),
+        ("knight", [(7, -2), (7, -5)]),
+        ("bishop", [(7, -1), (7, -6), (6, -3)]),
+        ("rook", [(7, 0), (7, -7)]),
+        ("queen", [(7, -4)]),
+        ("king", [(7, -3)]),
+    ),
+)
+
+# Castling (Help → For developers → Hex Geometry (webapp/templates/help.html)): (king_from, king_to) -> (rook_from, rook_to), as (q, r) tuples.
 CASTLING_ROOK_MOVES = {
     ((-4, 7), (-6, 7)): ((-7, 7), (-5, 7)),
     ((-4, 7), (-2, 7)): ((0, 7), (-3, 7)),
@@ -25,7 +56,8 @@ CASTLING_ROOK_MOVES = {
 # Precomputed attack tables for fast is_attacked().
 # Straight directions (Rook slides): the 6 edge-adjacent hex directions.
 _STRAIGHT = ((-1, 0), (0, -1), (1, -1), (1, 0), (0, 1), (-1, 1))
-# Diagonal directions (Bishop slides): the 6 face-adjacent hex directions.
+# Diagonal directions (Bishop slides): the 6 directions through a cell's
+# corners, to the cell beyond.
 _DIAGONAL = ((-1, -1), (1, -2), (2, -1), (1, 1), (-1, 2), (-2, 1))
 # King step offsets: union of straight + diagonal (12 total).
 _KING_STEPS = _STRAIGHT + _DIAGONAL
@@ -45,6 +77,7 @@ _KNIGHT_OFFSETS = (
     (3, -1),
 )
 # Pawn attack offsets per player: a pawn at pos+offset attacks pos.
+# (Help → For developers → Hex Geometry (webapp/templates/help.html).)
 _PAWN_ATTACK = (
     ((-2, 1), (-1, 2), (1, 1)),
     ((-2, 1), (-1, -1), (1, -2)),
@@ -184,50 +217,13 @@ class Board:
 
     def init_pieces(self):
         """Clear the board and place all 51 pieces (17 per player) at starting positions."""
-
         for hex in self:
             hex.piece = None
-        # place pawns
-        for i in range(-7, -3):
-            self.place_piece(Pos(i, 6), self.players[0].pawn)
-            self.place_piece(Pos(i, -6 - i), self.players[1].pawn)
-            self.place_piece(Pos(6, i), self.players[2].pawn)
-        for i in range(-2, 2):
-            self.place_piece(Pos(i, 6), self.players[0].pawn)
-            self.place_piece(Pos(i, -6 - i), self.players[1].pawn)
-            self.place_piece(Pos(6, i), self.players[2].pawn)
-        # place knights
-        self.place_piece(Pos(-5, 7), self.players[0].knight)
-        self.place_piece(Pos(-2, 7), self.players[0].knight)
-        self.place_piece(Pos(-2, -5), self.players[1].knight)
-        self.place_piece(Pos(-5, -2), self.players[1].knight)
-        self.place_piece(Pos(7, -2), self.players[2].knight)
-        self.place_piece(Pos(7, -5), self.players[2].knight)
-        # place bishops
-        self.place_piece(Pos(-6, 7), self.players[0].bishop)
-        self.place_piece(Pos(-1, 7), self.players[0].bishop)
-        self.place_piece(Pos(-3, 6), self.players[0].bishop)
-        self.place_piece(Pos(-1, -6), self.players[1].bishop)
-        self.place_piece(Pos(-6, -1), self.players[1].bishop)
-        self.place_piece(Pos(-3, -3), self.players[1].bishop)
-        self.place_piece(Pos(7, -1), self.players[2].bishop)
-        self.place_piece(Pos(7, -6), self.players[2].bishop)
-        self.place_piece(Pos(6, -3), self.players[2].bishop)
-        # place rooks
-        self.place_piece(Pos(-7, 7), self.players[0].rook)
-        self.place_piece(Pos(0, 7), self.players[0].rook)
-        self.place_piece(Pos(0, -7), self.players[1].rook)
-        self.place_piece(Pos(-7, 0), self.players[1].rook)
-        self.place_piece(Pos(7, 0), self.players[2].rook)
-        self.place_piece(Pos(7, -7), self.players[2].rook)
-        # place queens
-        self.place_piece(Pos(-3, 7), self.players[0].queen)
-        self.place_piece(Pos(-4, -3), self.players[1].queen)
-        self.place_piece(Pos(7, -4), self.players[2].queen)
-        # place kings
-        self.place_piece(Pos(-4, 7), self.players[0].king)
-        self.place_piece(Pos(-3, -4), self.players[1].king)
-        self.place_piece(Pos(7, -3), self.players[2].king)
+        for pid, layout in enumerate(STARTING_LAYOUT):
+            player = self.players[pid]
+            for kind, cells in layout:
+                for q, r in cells:
+                    self.place_piece(Pos(q, r), getattr(player, kind))
 
     def place_piece(self, pos: Pos, create_piece_fn):
         """Place piece on cell at *pos*.
@@ -315,61 +311,56 @@ class Board:
 
         Uses reverse-direction scanning: from *pos*, scan outward along each
         attack direction and check for threatening pieces.
+
+        Only proven correct for *by_player*'s own king square (see
+        TestAttackDetectionConsistency in tests/test_board.py): on other
+        squares it disagrees with pos_in_chess() (e.g. flags untouched pawns
+        on a fresh board), so don't reuse it for arbitrary pieces.
         """
         q, r = pos._q, pos._r
-        board = self._board
         enemy_pids = self._enemy_pids[by_player.pid]
-
-        # Straight rays (Rook / Queen).
-        for dq, dr in _STRAIGHT:
-            sq, sr = q + dq, r + dr
-            while -7 <= sq <= 7 and -7 <= sr <= 7 and -7 <= -sq - sr <= 7:
-                h = board.get((sq, sr))
-                if h is not None and h.piece is not None:
-                    if h.piece.player.pid in enemy_pids and isinstance(
-                        h.piece, (Rook, Queen)
-                    ):
-                        return True
-                    break
-                sq += dq
-                sr += dr
-
-        # Diagonal rays (Bishop / Queen).
-        for dq, dr in _DIAGONAL:
-            sq, sr = q + dq, r + dr
-            while -7 <= sq <= 7 and -7 <= sr <= 7 and -7 <= -sq - sr <= 7:
-                h = board.get((sq, sr))
-                if h is not None and h.piece is not None:
-                    if h.piece.player.pid in enemy_pids and isinstance(
-                        h.piece, (Bishop, Queen)
-                    ):
-                        return True
-                    break
-                sq += dq
-                sr += dr
-
-        # King steps.
-        for dq, dr in _KING_STEPS:
-            h = board.get((q + dq, r + dr))
-            if h is not None and h.piece is not None:
-                if h.piece.player.pid in enemy_pids and isinstance(h.piece, King):
-                    return True
-
-        # Knight offsets.
-        for dq, dr in _KNIGHT_OFFSETS:
-            h = board.get((q + dq, r + dr))
-            if h is not None and h.piece is not None:
-                if h.piece.player.pid in enemy_pids and isinstance(h.piece, Knight):
-                    return True
-
-        # Pawn attacks.
+        if self._ray_hits(q, r, _STRAIGHT, enemy_pids, (Rook, Queen)):
+            return True
+        if self._ray_hits(q, r, _DIAGONAL, enemy_pids, (Bishop, Queen)):
+            return True
+        if self._step_hits(q, r, _KING_STEPS, enemy_pids, King):
+            return True
+        if self._step_hits(q, r, _KNIGHT_OFFSETS, enemy_pids, Knight):
+            return True
+        # Pawn attacks depend on the pawn owner's orientation.
+        board = self._board
         for pid in enemy_pids:
             for dq, dr in _PAWN_ATTACK[pid]:
                 h = board.get((q + dq, r + dr))
                 if h is not None and h.piece is not None:
                     if h.piece.player.pid == pid and isinstance(h.piece, Pawn):
                         return True
+        return False
 
+    def _ray_hits(self, q, r, directions, enemy_pids, kinds) -> bool:
+        """True when, along any of *directions* from (q, r), the first piece
+        met is an enemy one of *kinds*."""
+        board = self._board
+        for dq, dr in directions:
+            sq, sr = q + dq, r + dr
+            while -7 <= sq <= 7 and -7 <= sr <= 7 and -7 <= -sq - sr <= 7:
+                h = board.get((sq, sr))
+                if h is not None and h.piece is not None:
+                    if h.piece.player.pid in enemy_pids and isinstance(h.piece, kinds):
+                        return True
+                    break
+                sq += dq
+                sr += dr
+        return False
+
+    def _step_hits(self, q, r, offsets, enemy_pids, kind) -> bool:
+        """True when an enemy *kind* stands one of *offsets* away from (q, r)."""
+        board = self._board
+        for dq, dr in offsets:
+            h = board.get((q + dq, r + dr))
+            if h is not None and h.piece is not None:
+                if h.piece.player.pid in enemy_pids and isinstance(h.piece, kind):
+                    return True
         return False
 
     def possible_moves(self, piece: Piece, castling: bool = True) -> list[Pos]:

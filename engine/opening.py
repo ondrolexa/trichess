@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from engine.gameapi import GameAPI
+from engine.gameapi import GameAPI, is_vote_chunk
 
 # A ply's top move is only ever used once at least this many independent
 # finished games agree on it — keeps the book from repeating a single
@@ -16,13 +16,11 @@ MAX_BOOK_PLIES = 9
 # host by the compose files.
 BOOK_PATH = Path(__file__).resolve().parent.parent / "instance" / "opening_book.json"
 
-_VOTE_PREFIXES = ("r", "s", "R", "S")
-
 
 def _moves_only(slog: str) -> list[str]:
     """Split a slog into its 4-char chunks, dropping vote chunks."""
     chunks = [slog[i : i + 4] for i in range(0, len(slog), 4)]
-    return [c for c in chunks if c[:1] not in _VOTE_PREFIXES]
+    return [c for c in chunks if not is_vote_chunk(c)]
 
 
 def build_book(slogs: list[str]) -> dict[int, dict[str, int]]:

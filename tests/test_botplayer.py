@@ -5,7 +5,7 @@ from sqlalchemy import update
 from werkzeug.security import generate_password_hash
 
 from engine import GameAPI, get_game
-from webapp import api, botplayer
+from webapp import botplayer, game_end
 from webapp.main import db
 from webapp.models import Log, Score, TriBoard, User
 
@@ -117,7 +117,7 @@ class TestSweepFinalize:
         alice = _create_user("alice")
         tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, slog=_repetition_slog())
 
-        assert api.sweep_finalize(tb.id) is True
+        assert game_end.sweep_finalize(tb.id) is True
 
         db.session.refresh(tb)
         assert tb.status == 2
@@ -129,7 +129,7 @@ class TestSweepFinalize:
         carol = _create_user("carol")
         tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, slog=_repetition_slog())
 
-        assert api.sweep_finalize(tb.id) is True
+        assert game_end.sweep_finalize(tb.id) is True
 
         db.session.refresh(tb)
         assert tb.status == 2
@@ -140,7 +140,7 @@ class TestSweepFinalize:
         alice = _create_user("alice")
         tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, slog="")
 
-        assert api.sweep_finalize(tb.id) is False
+        assert game_end.sweep_finalize(tb.id) is False
 
         db.session.refresh(tb)
         assert tb.status == 1
@@ -150,10 +150,10 @@ class TestSweepFinalize:
         alice = _create_user("alice")
         tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, status=2)
 
-        assert api.sweep_finalize(tb.id) is False
+        assert game_end.sweep_finalize(tb.id) is False
 
     def test_returns_false_for_missing_board(self, app):
-        assert api.sweep_finalize(999999) is False
+        assert game_end.sweep_finalize(999999) is False
 
 
 class TestRunBotMove:
@@ -213,7 +213,7 @@ class TestRunBotMove:
 class TestFillBotSeat:
     def _login(self, client, user):
         with client.session_transaction() as sess:
-            sess["_user_id"] = str(user.id)
+            sess["_user_id"] = user.get_id()
             sess["_fresh"] = True
 
     def test_owner_can_fill_two_distinct_bot_seats(self, client, app):
@@ -265,7 +265,7 @@ class TestFillBotSeat:
 
 class TestRatingExcludesBots:
     def test_bot_board_excluded_from_rating_history(self, app):
-        from webapp.api import get_rating_history
+        from webapp.ratings import get_rating_history
 
         bot1, _ = _bots()
         alice = _create_user("alice")
@@ -288,7 +288,7 @@ class TestRatingExcludesBots:
         _make_board(alice, {0: alice, 1: bob, 2: bot1}, status=2)
 
         with client.session_transaction() as sess:
-            sess["_user_id"] = str(alice.id)
+            sess["_user_id"] = alice.get_id()
             sess["_fresh"] = True
         resp = client.get("/rating")
         assert b"Bot 1" not in resp.data
@@ -375,7 +375,7 @@ class TestSinglePlayerNotifications:
     def test_turn_notification_when_opted_in(self, monkeypatch, app, client):
         from webapp import api
 
-        monkeypatch.setattr(api, "SINGLE_PLAYER_NOTIFICATIONS", True)
+        monkeypatch.setitem(app.config, "SINGLE_PLAYER_NOTIFICATIONS", True)
         calls = []
         monkeypatch.setattr(api, "post_notification", lambda *a, **k: calls.append(a))
 
@@ -427,11 +427,11 @@ class TestSinglePlayerNotifications:
         assert calls and calls[0][0] == "bob"
 
     def test_resend_notification_ignores_the_gate(self, monkeypatch, app):
-        from webapp import main
+        from webapp import cli
 
         calls = []
         monkeypatch.setattr(
-            main,
+            cli,
             "post_notification",
             lambda username, text, title, gameid: calls.append(username),
         )
@@ -444,7 +444,7 @@ class TestSinglePlayerNotifications:
 
         app.debug = False
         try:
-            main.resend_notification()
+            cli.resend_notification()
         finally:
             app.debug = True
 
@@ -453,11 +453,11 @@ class TestSinglePlayerNotifications:
 
 class TestResendNotificationNeverTargetsBots:
     def test_skips_a_bot_on_move(self, monkeypatch, app):
-        from webapp import main
+        from webapp import cli
 
         calls = []
         monkeypatch.setattr(
-            main,
+            cli,
             "post_notification",
             lambda username, text, title, gameid: calls.append(username),
         )
@@ -472,7 +472,7 @@ class TestResendNotificationNeverTargetsBots:
 
         app.debug = False
         try:
-            main.resend_notification()
+            cli.resend_notification()
         finally:
             app.debug = True
 
@@ -491,51 +491,52 @@ def _backdate_board(tb, minutes):
 
 class TestRemoveBotGames:
     def test_default_is_15_minutes_enabled(self):
-        from webapp import main
+        from webapp import cli
 
-        assert main.BOT_GAMES_REMOVAL == 15
+        (minutes,) = cli.remove_bot_games_command.params
+        assert minutes.default == 15
 
     def test_zero_minutes_disables_removal(self, app):
-        from webapp import main
+        from webapp import cli
 
         bot1, bot2 = _bots()
         alice = _create_user("alice")
         tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, status=2)
         _backdate_board(tb, 200)
 
-        removed = main.remove_bot_games(0)
+        removed = cli.remove_bot_games(0)
 
         assert removed == 0
         assert db.session.get(TriBoard, tb.id) is not None
 
     def test_removes_finished_bot_game_past_cutoff(self, app):
-        from webapp import main
+        from webapp import cli
 
         bot1, bot2 = _bots()
         alice = _create_user("alice")
         tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, status=2)
         _backdate_board(tb, 200)
 
-        removed = main.remove_bot_games(120)
+        removed = cli.remove_bot_games(120)
 
         assert removed == 1
         assert db.session.get(TriBoard, tb.id) is None
 
     def test_leaves_recent_bot_game(self, app):
-        from webapp import main
+        from webapp import cli
 
         bot1, bot2 = _bots()
         alice = _create_user("alice")
         tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, status=2)
         _backdate_board(tb, 10)
 
-        removed = main.remove_bot_games(120)
+        removed = cli.remove_bot_games(120)
 
         assert removed == 0
         assert db.session.get(TriBoard, tb.id) is not None
 
     def test_leaves_all_human_game_regardless_of_age(self, app):
-        from webapp import main
+        from webapp import cli
 
         alice = _create_user("alice")
         bob = _create_user("bob")
@@ -543,26 +544,26 @@ class TestRemoveBotGames:
         tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=2)
         _backdate_board(tb, 200)
 
-        removed = main.remove_bot_games(120)
+        removed = cli.remove_bot_games(120)
 
         assert removed == 0
         assert db.session.get(TriBoard, tb.id) is not None
 
     def test_leaves_active_bot_game_regardless_of_age(self, app):
-        from webapp import main
+        from webapp import cli
 
         bot1, bot2 = _bots()
         alice = _create_user("alice")
         tb = _make_board(alice, {0: alice, 1: bot1, 2: bot2}, status=1)
         _backdate_board(tb, 200)
 
-        removed = main.remove_bot_games(120)
+        removed = cli.remove_bot_games(120)
 
         assert removed == 0
         assert db.session.get(TriBoard, tb.id) is not None
 
     def test_deletes_logs_attached_to_removed_board(self, app):
-        from webapp import main
+        from webapp import cli
 
         bot1, bot2 = _bots()
         alice = _create_user("alice")
@@ -573,13 +574,13 @@ class TestRemoveBotGames:
         db.session.commit()
         log_id = log.id
 
-        removed = main.remove_bot_games(120)
+        removed = cli.remove_bot_games(120)
 
         assert removed == 1
         assert db.session.get(Log, log_id) is None
 
     def test_clears_stray_score_row_without_raising(self, app):
-        from webapp import main
+        from webapp import cli
 
         bot1, bot2 = _bots()
         alice = _create_user("alice")
@@ -592,7 +593,7 @@ class TestRemoveBotGames:
         db.session.add(score)
         db.session.commit()
 
-        removed = main.remove_bot_games(120)
+        removed = cli.remove_bot_games(120)
 
         assert removed == 1
         assert db.session.get(TriBoard, tb.id) is None
@@ -605,7 +606,7 @@ class TestPurgeStallingGames:
         return _create_user("alice"), _create_user("bob"), _create_user("carol")
 
     def test_removes_stalled_active_game_and_its_logs(self, app):
-        from webapp import main
+        from webapp import cli
 
         alice, bob, carol = self._humans()
         tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=1)
@@ -615,24 +616,24 @@ class TestPurgeStallingGames:
         db.session.commit()
         board_id, log_id = tb.id, log.id
 
-        removed = main.purge_stalling_games(365)
+        removed = cli.purge_stalling_games(365)
 
         assert removed == [board_id]
         assert db.session.get(TriBoard, board_id) is None
         assert db.session.get(Log, log_id) is None
 
     def test_leaves_recent_active_game(self, app):
-        from webapp import main
+        from webapp import cli
 
         alice, bob, carol = self._humans()
         tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=1)
         _backdate_board(tb, 300 * self.DAY)
 
-        assert main.purge_stalling_games(365) == []
+        assert cli.purge_stalling_games(365) == []
         assert db.session.get(TriBoard, tb.id) is not None
 
     def test_leaves_waiting_and_finished_games_regardless_of_age(self, app):
-        from webapp import main
+        from webapp import cli
 
         alice, bob, carol = self._humans()
         seats = {0: alice, 1: bob, 2: carol}
@@ -641,18 +642,18 @@ class TestPurgeStallingGames:
         _backdate_board(waiting, 400 * self.DAY)
         _backdate_board(finished, 400 * self.DAY)
 
-        assert main.purge_stalling_games(365) == []
+        assert cli.purge_stalling_games(365) == []
         assert db.session.get(TriBoard, waiting.id) is not None
         assert db.session.get(TriBoard, finished.id) is not None
 
     def test_zero_days_disables_removal(self, app):
-        from webapp import main
+        from webapp import cli
 
         alice, bob, carol = self._humans()
         tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, status=1)
         _backdate_board(tb, 400 * self.DAY)
 
-        assert main.purge_stalling_games(0) == []
+        assert cli.purge_stalling_games(0) == []
         assert db.session.get(TriBoard, tb.id) is not None
 
     def test_cli_dry_run_deletes_nothing(self, app):

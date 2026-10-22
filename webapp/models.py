@@ -1,14 +1,30 @@
+import enum
 import os
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash
 
 from webapp.main import db
+from webapp.token import password_fingerprint
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, "..", ".env"))
+
+
+def utcnow_naive():
+    """Now as naive UTC: how every DateTime column stores time (their
+    server_default now() runs on a server pinned to timezone=UTC)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+class GameStatus(enum.IntEnum):
+    """TriBoard.status."""
+
+    WAITING = 0  # in the lobby, seats still open
+    ACTIVE = 1
+    FINISHED = 2
 
 
 def score_outcome(score, onmove, tag):
@@ -76,7 +92,9 @@ class User(db.Model):  # ty: ignore
         return False
 
     def get_id(self):
-        return str(self.id)
+        """The session's user id, bound to the password: changing it ends
+        every other session (views.load_user rejects the old id)."""
+        return f"{self.id}:{password_fingerprint(self)}"
 
     def __repr__(self):
         return f"<User {self.username!r}>"
@@ -95,7 +113,7 @@ class TriBoard(db.Model):  # ty: ignore
     player_1_accepted = db.Column(db.Boolean, default=False)
     player_2_accepted = db.Column(db.Boolean, default=False)
 
-    status = db.Column(db.Integer, nullable=False, default=0)
+    status = db.Column(db.Integer, nullable=False, default=GameStatus.WAITING)
     slog = db.Column(db.Text, default="")
 
     created_at = db.Column(db.DateTime, server_default=db.func.now())
@@ -111,6 +129,38 @@ class TriBoard(db.Model):  # ty: ignore
     player_2 = db.relationship(User, foreign_keys=[player_2_id])
 
     scores = db.relationship("Score", backref="board")
+
+    SEATS = (0, 1, 2)
+
+    @property
+    def players(self):
+        """{seat: User or None}."""
+        return {seat: getattr(self, f"player_{seat}") for seat in self.SEATS}
+
+    @property
+    def player_ids(self):
+        """[user id or None] per seat."""
+        return [getattr(self, f"player_{seat}_id") for seat in self.SEATS]
+
+    def seat_of(self, user_id):
+        """The seat *user_id* sits in, or None."""
+        return next((s for s, i in enumerate(self.player_ids) if i == user_id), None)
+
+    def assign_seat(self, seat, user):
+        setattr(self, f"player_{seat}_id", user.id)
+        setattr(self, f"player_{seat}_accepted", True)
+
+    def clear_seat(self, seat):
+        setattr(self, f"player_{seat}_id", None)
+        setattr(self, f"player_{seat}_accepted", False)
+
+    @property
+    def is_full(self):
+        return None not in self.player_ids
+
+    @property
+    def bot_count(self):
+        return sum(1 for p in self.players.values() if p is not None and p.is_bot)
 
     @classmethod
     def for_player(cls, user_id):
@@ -135,7 +185,7 @@ class Score(db.Model):  # ty: ignore
 class RatingHistory(db.Model):  # ty: ignore
     """A player's rating right after each rated game, for the profile chart.
 
-    Written incrementally when a game finishes (api.record_game_rating);
+    Written incrementally when a game finishes (ratings.record_game_rating);
     `flask rebuild-ratings` recomputes it, and User.rating, from all games.
     """
 
@@ -178,6 +228,17 @@ class Setting(db.Model):  # ty: ignore
     value = db.Column(db.Text, nullable=False)
 
 
+def delete_board(tb):
+    """Delete a game with every row that references it (Score, Log,
+    RatingHistory). Returns whether it was rated, i.e. had Score rows, in
+    which case the caller must rebuild ratings. The caller commits."""
+    rated = Score.query.filter_by(board_id=tb.id).delete() > 0
+    Log.query.filter_by(board_id=tb.id).delete()
+    RatingHistory.query.filter_by(board_id=tb.id).delete()
+    db.session.delete(tb)
+    return rated
+
+
 def _seed_admin_user(target, connection, **kwargs):
     # No explicit id: as the first row of a fresh table it gets id 1 (the
     # hardcoded admin check) on every backend, and PostgreSQL's id sequence
@@ -200,9 +261,9 @@ def _seed_admin_user(target, connection, **kwargs):
 
 def _seed_bot_users(target, connection, **kwargs):
     # Two fixed bot accounts (not the admin user) so a game can have up to 2
-    # bot seats without 2 seats sharing one username — webapp/api.py's
-    # _seat_map() keys on username, so 2 seats with the same identity would
-    # be ambiguous. Random, unrecorded password + active=False: nobody can
+    # bot seats without 2 seats sharing one account — TriBoard.seat_of()
+    # looks a user up by id, so 2 seats with the same identity would be
+    # ambiguous. Random, unrecorded password + active=False: nobody can
     # log in as these accounts even if the hash were somehow brute-forced.
     for username in ("Bot 1", "Bot 2"):
         connection.execute(

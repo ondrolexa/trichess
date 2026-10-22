@@ -1,5 +1,3 @@
-import os
-
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileSize
 from wtforms import (
@@ -11,6 +9,8 @@ from wtforms import (
     TextAreaField,
 )
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp
+
+from webapp.styles import style_names
 
 
 class NewGameForm(FlaskForm):
@@ -49,35 +49,15 @@ class LoginForm(FlaskForm):
 
 class ProfileForm(FlaskForm):
     email = EmailField(validators=[Optional(), Email()])
-    themes_dir = os.path.join(
-        os.path.abspath(os.path.dirname(__file__)), "static/themes"
-    )
-    theme_files = sorted(
-        [
-            os.path.splitext(f)[0]
-            for f in os.listdir(themes_dir)
-            if os.path.splitext(f)[1] == ".yaml"
-        ]
-    )
     theme = SelectField(
         "Colors",
         validators=[DataRequired()],
-        choices=theme_files,
-    )
-    pieces_dir = os.path.join(
-        os.path.abspath(os.path.dirname(__file__)), "static/pieces"
-    )
-    pieces_files = sorted(
-        [
-            os.path.splitext(f)[0]
-            for f in os.listdir(pieces_dir)
-            if os.path.splitext(f)[1] == ".yaml"
-        ]
+        choices=style_names("themes"),
     )
     pieces = SelectField(
         "Pieces",
         validators=[DataRequired()],
-        choices=pieces_files,
+        choices=style_names("pieces"),
     )
     board = SelectField(
         "Board",

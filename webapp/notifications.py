@@ -45,7 +45,10 @@ def _send_push_notification_job(username, text, title, gameid):
     except requests.exceptions.ConnectionError:
         logger.error("Connection error during notification post.")
     except Exception as err:
-        logger.error(f"Unexpected post notification error: {err}, type: {type(err)}")
+        logger.error(
+            f"Unexpected post notification error: {err}, type: {type(err)}",
+            exc_info=True,
+        )
 
 
 def _send_email_job(to, subject, body, reply_to=None, attachment=None):
@@ -87,4 +90,4 @@ def _send_email_job(to, subject, body, reply_to=None, attachment=None):
             smtp.send_message(msg)
         logger.info("Email sent to %s", to)
     except Exception as e:
-        logger.error("Failed to send email to %s: %s", to, e)
+        logger.error("Failed to send email to %s: %s", to, e, exc_info=True)

@@ -1214,6 +1214,9 @@ function showVoteModal(kind, vote_results) {
   voteModals[kind].show();
 }
 
+// /game/info rendering: gameInfo() fetches, the render* helpers below each
+// draw one part of the response, in the order they must run.
+
 function gameInfo(init = false, redraw = false) {
   const slog = AppState.slog;
   apiFetch("/api/v1/game/info", {
@@ -1231,25 +1234,8 @@ function gameInfo(init = false, redraw = false) {
       if (redraw) {
         drawPieces(data.pieces);
       }
-
-      const fontBase = `${theme["canvas"]["font-family"]}, sans-serif`;
-      for (let s = 0; s < 3; s++) {
-        const isOnMove = AppState.pid2seat[data.onmove] === s;
-        AppState.player_names_font[s] =
-          `${isOnMove ? 900 : 400} 10px ${fontBase}`;
-        AppState.player_names_color[s] = isOnMove
-          ? data.in_chess
-            ? theme["canvas"]["name_inchess"]
-            : theme["canvas"]["name_onmove"]
-          : theme["canvas"]["name"];
-      }
-
-      for (const tween of AppState.active_tweens) {
-        tween.reset();
-        tween.destroy();
-      }
-      AppState.active_tweens = [];
-
+      renderPlayerNames(data);
+      stopInChessTweens();
       updateStats(
         data.eliminated,
         data.eliminated_value,
@@ -1257,159 +1243,13 @@ function gameInfo(init = false, redraw = false) {
         data.pieces_value,
         data.move_number,
       );
-
-      if (
-        AppState.slog == AppState.server_slog &&
-        AppState.on_move &&
-        !data.finished
-      ) {
-        draw.disabled = false;
-        resign.disabled = false;
-      } else {
-        draw.disabled = true;
-        resign.disabled = true;
-      }
-      // Setup buttons
-      if (
-        AppState.slog.slice(0, -4) == AppState.server_slog &&
-        AppState.on_move
-      ) {
-        submit.disabled = false;
-        submit.className = "btn btn-danger mb-2 col-12";
-      } else {
-        submit.disabled = true;
-        submit.className = "btn btn-secondary mb-2 col-12";
-      }
-      if (AppState.slog.length < AppState.game_slog.length) {
-        forwardmove.disabled = false;
-        forwardmove.className = "btn btn-primary mb-2 col-12";
-      } else {
-        forwardmove.disabled = true;
-        forwardmove.className = "btn btn-secondary mb-2 col-12";
-      }
-      if (AppState.slog.length > 0) {
-        backmove.disabled = false;
-        backmove.className = "btn btn-primary mb-2 col-12";
-      } else {
-        backmove.disabled = true;
-        backmove.className = "btn btn-secondary mb-2 col-12";
-      }
-      // Show last two moves: hide both trackers' old squares first
-      // (unconditionally, so a null response resets the tracker instead of
-      // leaving stale gid/tgid behind), then draw both new ones (pre-last
-      // first, last move second so an overlapping last-move highlight
-      // visually wins) — hiding must not be interleaved with drawing, or
-      // one tracker's stale-hide step can erase a square the other tracker
-      // just drew.
-      const preLastMoverPid = ((((data.move_number - 2) % 3) + 3) % 3);
-      const lastMoverPid = ((((data.move_number - 1) % 3) + 3) % 3);
-      hideMoveHighlight(AppState.prelastmove);
-      hideMoveHighlight(AppState.lastmove);
-      if (data.pre_last_move != null) {
-        setMoveHighlight(
-          AppState.prelastmove,
-          data.pre_last_move,
-          theme["pieces"]["color"][preLastMoverPid],
-        );
-      }
-      if (data.last_move != null) {
-        setMoveHighlight(
-          AppState.lastmove,
-          data.last_move,
-          theme["pieces"]["color"][lastMoverPid],
-        );
-      }
-      // show piece in chess
-      if (data.in_chess) {
-        playInChessTween(data.in_chess.king_pos);
-        AppState.gid2high[data.in_chess.king_pos].visible(true);
-        AppState.gid2high[data.in_chess.king_pos].stroke(
-          theme["board"]["hex_inchess"],
-        );
-        for (let player in data.in_chess.chess_by) {
-          for (let pcs in data.in_chess.chess_by[player]) {
-            AppState.gid2high[data.in_chess.chess_by[player][pcs].gid].visible(
-              true,
-            );
-            AppState.gid2high[data.in_chess.chess_by[player][pcs].gid].stroke(
-              theme["board"]["hex_inchess"],
-            );
-          }
-        }
-      }
-      // show next player's king in chess too, if applicable
-      if (data.in_chess_next) {
-        playInChessTween(data.in_chess_next.king_pos);
-        AppState.gid2high[data.in_chess_next.king_pos].visible(true);
-        AppState.gid2high[data.in_chess_next.king_pos].stroke(
-          theme["board"]["hex_inchess"],
-        );
-        for (let player in data.in_chess_next.chess_by) {
-          for (let pcs in data.in_chess_next.chess_by[player]) {
-            AppState.gid2high[
-              data.in_chess_next.chess_by[player][pcs].gid
-            ].visible(true);
-            AppState.gid2high[
-              data.in_chess_next.chess_by[player][pcs].gid
-            ].stroke(theme["board"]["hex_inchess"]);
-          }
-        }
-      }
-      // Show voting results
-      if (data.vote_results != null) {
-        AppState.movelabel_text = `Move ${data.move_number}\n${data.vote_results["kind"]} voting`;
-        for (let p = 0; p < 3; p++) {
-          AppState.player_names[p] =
-            `${AppState.seat2name[p]} (${data.vote_results[AppState.seat2pid[p]]})`;
-        }
-      }
-      // Open voting if needed
-      board_layer.off("click tap", handleBoardClick);
-      if (data.vote_needed && !data.finished) {
-        if (data.onmove == AppState.view_pid) {
-          showVoteModal(data.vote_results["kind"], data.vote_results);
-        } else {
-          AppState.movelabel_text = `${data.vote_results["kind"]} voting\nin progress`;
-        }
-      } else if (data.finished) {
-        if (data.endgame === "draw") {
-          gameoverMessage.textContent = "Draw agreed";
-        } else if (data.endgame === "resignation") {
-          let wid;
-          if (data.vote_results[0] == "D") {
-            wid = 0;
-          } else if (data.vote_results[1] == "D") {
-            wid = 1;
-          } else {
-            wid = 2;
-          }
-          gameoverMessage.textContent = AppState.pid2name[wid] + " win";
-        } else if (data.endgame === "stalemate") {
-          gameoverMessage.textContent = "Stalemate";
-        } else if (data.endgame === "repetition") {
-          gameoverMessage.textContent = "Threefold repetition";
-        } else {
-          gameoverMessage.textContent = AppState.pid2name[data.onmove] + " lost";
-        }
-        for (let p = 0; p < 3; p++) {
-          const pid = AppState.seat2pid[p];
-          AppState.player_names[p] =
-            `${AppState.seat2name[p]} (${data.score[pid]})`;
-        }
-        // Badge order follows the game's own seats (pid 0/1/2), not the
-        // viewer-relative seat rotation — the same order every player sees,
-        // regardless of who's viewing.
-        for (let pid = 0; pid < 3; pid++) {
-          gameoverBadges[pid].style.backgroundColor = theme["pieces"]["color"][pid];
-          gameoverBadges[pid].style.color = "#000000";
-          gameoverBadges[pid].children[0].textContent = AppState.pid2name[pid];
-          gameoverBadges[pid].children[1].textContent = data.score[pid].toFixed(2);
-        }
-        gameoverModal.show();
-      } else {
-        gameoverModal.hide();
-        board_layer.on("click tap", handleBoardClick);
-      }
+      renderButtons(data);
+      renderLastMoves(data);
+      highlightCheck(data.in_chess);
+      // the next player's king too, if applicable
+      highlightCheck(data.in_chess_next);
+      renderVoteResults(data);
+      renderGameState(data);
     })
     .catch((response) => {
       console.error(
@@ -1420,143 +1260,193 @@ function gameInfo(init = false, redraw = false) {
     });
 }
 
+// Player on move in bold, in the "in check" color when their king is attacked.
+function renderPlayerNames(data) {
+  const fontBase = `${theme["canvas"]["font-family"]}, sans-serif`;
+  for (let s = 0; s < 3; s++) {
+    const isOnMove = AppState.pid2seat[data.onmove] === s;
+    AppState.player_names_font[s] = `${isOnMove ? 900 : 400} 10px ${fontBase}`;
+    AppState.player_names_color[s] = isOnMove
+      ? data.in_chess
+        ? theme["canvas"]["name_inchess"]
+        : theme["canvas"]["name_onmove"]
+      : theme["canvas"]["name"];
+  }
+}
+
+function stopInChessTweens() {
+  for (const tween of AppState.active_tweens) {
+    tween.reset();
+    tween.destroy();
+  }
+  AppState.active_tweens = [];
+}
+
+function setButton(button, enabled, enabledClass, disabledClass) {
+  button.disabled = !enabled;
+  button.className = enabled ? enabledClass : disabledClass;
+}
+
+// Vote buttons only on the committed position; Submit once a move has been
+// made on it; back/forward while there is history to step through.
+function renderButtons(data) {
+  const canVote =
+    AppState.slog == AppState.server_slog && AppState.on_move && !data.finished;
+  draw.disabled = !canVote;
+  resign.disabled = !canVote;
+  setButton(
+    submit,
+    AppState.slog.slice(0, -4) == AppState.server_slog && AppState.on_move,
+    "btn btn-danger mb-2 col-12",
+    "btn btn-secondary mb-2 col-12",
+  );
+  setButton(
+    forwardmove,
+    AppState.slog.length < AppState.game_slog.length,
+    "btn btn-primary mb-2 col-12",
+    "btn btn-secondary mb-2 col-12",
+  );
+  setButton(
+    backmove,
+    AppState.slog.length > 0,
+    "btn btn-primary mb-2 col-12",
+    "btn btn-secondary mb-2 col-12",
+  );
+}
+
+// Show last two moves: hide both trackers' old squares first
+// (unconditionally, so a null response resets the tracker instead of
+// leaving stale gid/tgid behind), then draw both new ones (pre-last
+// first, last move second so an overlapping last-move highlight
+// visually wins) — hiding must not be interleaved with drawing, or
+// one tracker's stale-hide step can erase a square the other tracker
+// just drew.
+function renderLastMoves(data) {
+  const preLastMoverPid = (((data.move_number - 2) % 3) + 3) % 3;
+  const lastMoverPid = (((data.move_number - 1) % 3) + 3) % 3;
+  hideMoveHighlight(AppState.prelastmove);
+  hideMoveHighlight(AppState.lastmove);
+  if (data.pre_last_move != null) {
+    setMoveHighlight(
+      AppState.prelastmove,
+      data.pre_last_move,
+      theme["pieces"]["color"][preLastMoverPid],
+    );
+  }
+  if (data.last_move != null) {
+    setMoveHighlight(
+      AppState.lastmove,
+      data.last_move,
+      theme["pieces"]["color"][lastMoverPid],
+    );
+  }
+}
+
+// A king in check and the pieces attacking it (an /info in_chess or
+// in_chess_next report; nothing when it is null).
+function highlightCheck(report) {
+  if (!report) return;
+  playInChessTween(report.king_pos);
+  const gids = [report.king_pos];
+  for (let player in report.chess_by) {
+    for (let pcs in report.chess_by[player]) {
+      gids.push(report.chess_by[player][pcs].gid);
+    }
+  }
+  for (const gid of gids) {
+    AppState.gid2high[gid].visible(true);
+    AppState.gid2high[gid].stroke(theme["board"]["hex_inchess"]);
+  }
+}
+
+// During (or right after) a vote: the vote in the move label, each
+// player's vote next to their name.
+function renderVoteResults(data) {
+  if (data.vote_results == null) return;
+  AppState.movelabel_text = `Move ${data.move_number}\n${data.vote_results["kind"]} voting`;
+  for (let p = 0; p < 3; p++) {
+    AppState.player_names[p] =
+      `${AppState.seat2name[p]} (${data.vote_results[AppState.seat2pid[p]]})`;
+  }
+}
+
+// Ask for this player's vote, show the result of a finished game, or
+// re-enable board clicks.
+function renderGameState(data) {
+  board_layer.off("click tap", handleBoardClick);
+  if (data.vote_needed && !data.finished) {
+    if (data.onmove == AppState.view_pid) {
+      showVoteModal(data.vote_results["kind"], data.vote_results);
+    } else {
+      AppState.movelabel_text = `${data.vote_results["kind"]} voting\nin progress`;
+    }
+  } else if (data.finished) {
+    showGameOver(data);
+  } else {
+    gameoverModal.hide();
+    board_layer.on("click tap", handleBoardClick);
+  }
+}
+
+function endgameText(data) {
+  switch (data.endgame) {
+    case "draw":
+      return "Draw agreed";
+    case "resignation": {
+      // The winner is the player who declined the resign vote.
+      let wid;
+      if (data.vote_results[0] == "D") {
+        wid = 0;
+      } else if (data.vote_results[1] == "D") {
+        wid = 1;
+      } else {
+        wid = 2;
+      }
+      return AppState.pid2name[wid] + " win";
+    }
+    case "stalemate":
+      return "Stalemate";
+    case "repetition":
+      return "Threefold repetition";
+    default:
+      return AppState.pid2name[data.onmove] + " lost";
+  }
+}
+
+function showGameOver(data) {
+  gameoverMessage.textContent = endgameText(data);
+  for (let p = 0; p < 3; p++) {
+    const pid = AppState.seat2pid[p];
+    AppState.player_names[p] = `${AppState.seat2name[p]} (${data.score[pid]})`;
+  }
+  // Badge order follows the game's own seats (pid 0/1/2), not the
+  // viewer-relative seat rotation — the same order every player sees,
+  // regardless of who's viewing.
+  for (let pid = 0; pid < 3; pid++) {
+    gameoverBadges[pid].style.backgroundColor = theme["pieces"]["color"][pid];
+    gameoverBadges[pid].style.color = "#000000";
+    gameoverBadges[pid].children[0].textContent = AppState.pid2name[pid];
+    gameoverBadges[pid].children[1].textContent = data.score[pid].toFixed(2);
+  }
+  gameoverModal.show();
+}
+
+// /manager/board: seats, then the board shapes (built once per reset).
+
 function boardInfo() {
   apiFetchGet("/api/v1/manager/board?id=" + id.toString())
     .then(jsonOrReject)
     .then((data) => {
-      // Create seats mappings
-      let seats = [data.player_0, data.player_1, data.player_2];
-      AppState.view_pid = data.view_pid;
-      for (let p = 0; p < 3; p++) {
-        AppState.seat2pid[p] = (p + AppState.view_pid) % 3;
-        AppState.seat2name[p] = seats[AppState.seat2pid[p]];
-        AppState.pid2seat[p] = (p + 3 - AppState.view_pid) % 3;
-        AppState.pid2name[p] = seats[p];
-      }
+      setSeats(data);
       AppState.slog = data.slog;
       AppState.server_slog = data.slog;
       AppState.game_slog = data.slog;
       AppState.game_moves = data.move_number;
       AppState.gid2code = data.gid2code;
       gameInfo(true, true);
-      // Create board mappings
-      let gid = 0;
-      for (let r = -7; r <= 7; r++) {
-        for (let q = -7; q <= 7; q++) {
-          let s = -q - r;
-          if (s >= -7 && s <= 7) {
-            let x = q + 0.5 * r;
-            let y = (r * Math.sqrt(3)) / 2;
-            let colorid = (((2 * q + r) % 3) + 3) % 3;
-            AppState.pos2gid[[q, r]] = gid;
-            AppState.gid2hex[gid] = createHexPatch(
-              gid,
-              [x, y],
-              theme["board"]["hex_color"][colorid],
-              theme["board"]["hex_border"],
-              [q, r],
-            );
-            AppState.gid2high[gid] = createHexHigh([x, y]);
-            AppState.gid2valid[gid] = createHexValid([x, y]);
-            AppState.gid2attack[gid] = createHexAttack([x, y]);
-            AppState.gid2piece[gid] = createHexLabel(
-              gid,
-              [x, y],
-              "#ffffff",
-              0,
-              "",
-            );
-            gid++;
-          }
-        }
-      }
-      // Create mappings for eliminated
-      let q = {
-        // Vertical mirror of player 2's array (q0 = q2 + r2), so player 0's
-        // rack is the vertical mirror image of player 2's — fills bottom-up
-        // the same way player 2's fills toward the board.
-        0: [
-          6, 5, 4, 3, 2, 6, 5, 4, 3, 7, 6, 5, 4, 7, 6, 5, 8, 7, 6, 8, 7, 9, 8,
-        ],
-        1: [
-          -5, -4, -3, -2, -1, -5, -4, -3, -2, -6, -5, -4, -3, -6, -5, -4, -7,
-          -6, -5, -7, -6, -8, -7,
-        ],
-        2: [
-          13, 12, 11, 10, 9, 12, 11, 10, 9, 12, 11, 10, 9, 11, 10, 9, 11, 10, 9,
-          10, 9, 10, 9,
-        ],
-      };
-      let r = {
-        // Vertical mirror of player 2's array (r0 = -r2).
-        0: [
-          7, 7, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1,
-        ],
-        1: [
-          -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3,
-          -3, -3, -2, -2, -1, -1,
-        ],
-        2: [
-          -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3,
-          -3, -3, -2, -2, -1, -1,
-        ],
-      };
-      const elpiecesGroup = [group0el, group1, group2];
-      for (let i = 0; i < MAX_ELIMINATED; i++) {
-        for (let p = 0; p < 3; p++) {
-          let x = q[p][i] / 1.2 + 0.5 * r[p][i] / 1.2 - 0.5;
-          let y = (r[p][i] * Math.sqrt(3)) / 2 / 1.2;
-          // Convert to group-local coordinates using each group's fixed
-          // landscape/desktop construction anchor as the reference offset
-          // (not the live, mutable AppState.anchor1/anchor2/anchor0el —
-          // those change per orientation via applyAnchors(), and using them
-          // here would double-apply the shift on top of the group's own
-          // .position()). Player 0's reference (9.2, 6.9) mirrors player 2's
-          // (9.2, -6.9) across y=0, matching the q0/r0 mirror above.
-          if (p === 1) {
-            x += 9.2;
-            y += 6.9;
-          } else if (p === 2) {
-            x -= 9.2;
-            y += 6.9;
-          } else if (p === 0) {
-            x -= 9.2;
-            y -= 6.9;
-          }
-          AppState.elpieces[p][i] = createHexLabel(
-            0,
-            [x, y],
-            theme["pieces"]["color"][AppState.seat2pid[p]],
-            theme["pieces"]["stroke-color"] != theme["canvas"]["background"]
-              ? 0.25
-              : 0,
-            "",
-          );
-          elpiecesGroup[p].add(AppState.elpieces[p][i]);
-        }
-      }
-
-      board_layer.add(background);
-      // Add board hexes
-      for (let gid = 0; gid < TOTAL_HEXES; gid++) {
-        board_layer.add(AppState.gid2hex[gid]);
-        pieces_layer.add(AppState.gid2piece[gid]);
-        interactive_layer.add(AppState.gid2high[gid]);
-        interactive_layer.add(AppState.gid2valid[gid]);
-        pieces_layer.add(AppState.gid2attack[gid]);
-      }
-
-      pieces_layer.add(movelabel);
-      pieces_layer.add(group0name, group0el, group1, group2);
-
-      // lines
-      interactive_layer.add(qline);
-      interactive_layer.add(rline);
-      interactive_layer.add(sline);
-      board_layer.batchDraw();
-      interactive_layer.batchDraw();
-      pieces_layer.batchDraw();
-      top_layer.batchDraw();
+      buildBoardShapes();
+      buildEliminatedRacks();
+      addShapesToLayers();
 
       applyInitialLayout();
       submit.disabled = true;
@@ -1569,6 +1459,138 @@ function boardInfo() {
       AppState.ready = true;
       // window.location.reload();
     });
+}
+
+// Seat 0 is always the viewer (drawn at the bottom); seats 1 and 2 follow.
+function setSeats(data) {
+  let seats = [data.player_0, data.player_1, data.player_2];
+  AppState.view_pid = data.view_pid;
+  for (let p = 0; p < 3; p++) {
+    AppState.seat2pid[p] = (p + AppState.view_pid) % 3;
+    AppState.seat2name[p] = seats[AppState.seat2pid[p]];
+    AppState.pid2seat[p] = (p + 3 - AppState.view_pid) % 3;
+    AppState.pid2name[p] = seats[p];
+  }
+}
+
+// The 169 cells with their highlight, move-target and piece shapes, in gid
+// order (row-major by r, then q).
+function buildBoardShapes() {
+  let gid = 0;
+  for (let r = -7; r <= 7; r++) {
+    for (let q = -7; q <= 7; q++) {
+      let s = -q - r;
+      if (s >= -7 && s <= 7) {
+        let x = q + 0.5 * r;
+        let y = (r * Math.sqrt(3)) / 2;
+        let colorid = (((2 * q + r) % 3) + 3) % 3;
+        AppState.pos2gid[[q, r]] = gid;
+        AppState.gid2hex[gid] = createHexPatch(
+          gid,
+          [x, y],
+          theme["board"]["hex_color"][colorid],
+          theme["board"]["hex_border"],
+          [q, r],
+        );
+        AppState.gid2high[gid] = createHexHigh([x, y]);
+        AppState.gid2valid[gid] = createHexValid([x, y]);
+        AppState.gid2attack[gid] = createHexAttack([x, y]);
+        AppState.gid2piece[gid] = createHexLabel(gid, [x, y], "#ffffff", 0, "");
+        gid++;
+      }
+    }
+  }
+}
+
+// Rack cells (q, r) per seat for captured pieces, in filling order.
+const ELIMINATED_Q = {
+  // Vertical mirror of player 2's array (q0 = q2 + r2), so player 0's
+  // rack is the vertical mirror image of player 2's — fills bottom-up
+  // the same way player 2's fills toward the board.
+  0: [6, 5, 4, 3, 2, 6, 5, 4, 3, 7, 6, 5, 4, 7, 6, 5, 8, 7, 6, 8, 7, 9, 8],
+  1: [
+    -5, -4, -3, -2, -1, -5, -4, -3, -2, -6, -5, -4, -3, -6, -5, -4, -7, -6, -5,
+    -7, -6, -8, -7,
+  ],
+  2: [
+    13, 12, 11, 10, 9, 12, 11, 10, 9, 12, 11, 10, 9, 11, 10, 9, 11, 10, 9, 10, 9,
+    10, 9,
+  ],
+};
+const ELIMINATED_R = {
+  // Vertical mirror of player 2's array (r0 = -r2).
+  0: [7, 7, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1],
+  1: [
+    -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3, -3, -3,
+    -2, -2, -1, -1,
+  ],
+  2: [
+    -7, -7, -7, -7, -7, -6, -6, -6, -6, -5, -5, -5, -5, -4, -4, -4, -3, -3, -3,
+    -2, -2, -1, -1,
+  ],
+};
+
+function buildEliminatedRacks() {
+  const elpiecesGroup = [group0el, group1, group2];
+  for (let i = 0; i < MAX_ELIMINATED; i++) {
+    for (let p = 0; p < 3; p++) {
+      const q = ELIMINATED_Q[p][i];
+      const r = ELIMINATED_R[p][i];
+      let x = q / 1.2 + (0.5 * r) / 1.2 - 0.5;
+      let y = (r * Math.sqrt(3)) / 2 / 1.2;
+      // Convert to group-local coordinates using each group's fixed
+      // landscape/desktop construction anchor as the reference offset
+      // (not the live, mutable AppState.anchor1/anchor2/anchor0el —
+      // those change per orientation via applyAnchors(), and using them
+      // here would double-apply the shift on top of the group's own
+      // .position()). Player 0's reference (9.2, 6.9) mirrors player 2's
+      // (9.2, -6.9) across y=0, matching the q0/r0 mirror above.
+      if (p === 1) {
+        x += 9.2;
+        y += 6.9;
+      } else if (p === 2) {
+        x -= 9.2;
+        y += 6.9;
+      } else if (p === 0) {
+        x -= 9.2;
+        y -= 6.9;
+      }
+      AppState.elpieces[p][i] = createHexLabel(
+        0,
+        [x, y],
+        theme["pieces"]["color"][AppState.seat2pid[p]],
+        theme["pieces"]["stroke-color"] != theme["canvas"]["background"]
+          ? 0.25
+          : 0,
+        "",
+      );
+      elpiecesGroup[p].add(AppState.elpieces[p][i]);
+    }
+  }
+}
+
+function addShapesToLayers() {
+  board_layer.add(background);
+  // Add board hexes
+  for (let gid = 0; gid < TOTAL_HEXES; gid++) {
+    board_layer.add(AppState.gid2hex[gid]);
+    pieces_layer.add(AppState.gid2piece[gid]);
+    interactive_layer.add(AppState.gid2high[gid]);
+    interactive_layer.add(AppState.gid2valid[gid]);
+    pieces_layer.add(AppState.gid2attack[gid]);
+  }
+
+  pieces_layer.add(movelabel);
+  pieces_layer.add(group0name, group0el, group1, group2);
+
+  // lines
+  interactive_layer.add(qline);
+  interactive_layer.add(rline);
+  interactive_layer.add(sline);
+  board_layer.batchDraw();
+  interactive_layer.batchDraw();
+  pieces_layer.batchDraw();
+  top_layer.batchDraw();
 }
 
 function boardSubmit() {

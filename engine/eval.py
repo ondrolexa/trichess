@@ -14,17 +14,21 @@ KING_SAFETY_WEIGHT = 0.3
 ACTIVITY_WEIGHT = 0.05
 
 
+_CENTER = Pos(0, 0)
+
+
 def axial_distance(p1: Pos, p2: Pos) -> int:
+    """Hex distance: the number of single steps between two cells."""
     dq = p1._q - p2._q
     dr = p1._r - p2._r
     ds = (-p1._q - p1._r) - (-p2._q - p2._r)
     return max(abs(dq), abs(dr), abs(ds))
 
 
-def _promotion_distance(board: Board, pid: int, q: int, r: int) -> int:
+def _promotion_distance(board: Board, pid: int, pos: Pos) -> int:
     min_d = 99
     for p in board.opposite[pid]:
-        d = max(abs(q - p._q), abs(r - p._r), abs(-q - r - (-p._q - p._r)))
+        d = axial_distance(pos, p)
         if d < min_d:
             min_d = d
     return min_d
@@ -35,7 +39,6 @@ def evaluate_for_pid(ga: GameAPI, pid: int) -> float:
     board = ga.board
     players = ga.players
     king_pos = players[pid].king_piece.hex.pos
-    kq, kr = king_pos._q, king_pos._r
 
     my_mat = 0.0
     opp_mat = 0.0
@@ -47,7 +50,7 @@ def evaluate_for_pid(ga: GameAPI, pid: int) -> float:
         if not hex.has_piece:
             continue
         piece = hex.piece
-        pq, pr = hex.pos._q, hex.pos._r
+        pos = hex.pos
         if piece.player.pid == pid:
             my_mat += piece.value
             # castling=False: mobility only needs a candidate-square count,
@@ -59,18 +62,16 @@ def evaluate_for_pid(ga: GameAPI, pid: int) -> float:
             # no benefit to the evaluation.
             my_mob += len(board.possible_moves(piece, castling=False))
             # center bonus
-            dist = max(abs(pq), abs(pr), abs(-pq - pr))
-            cb = _CENTER_BONUS.get(dist)
+            cb = _CENTER_BONUS.get(axial_distance(pos, _CENTER))
             if cb is not None:
                 activity += cb
             # promotion proximity for pawns
             if isinstance(piece, Pawn):
-                promo_dist = _promotion_distance(board, pid, pq, pr)
+                promo_dist = _promotion_distance(board, pid, pos)
                 if promo_dist < len(_PROMO_BONUS):
                     activity += _PROMO_BONUS[promo_dist]
             # king defenders (within 2 squares)
-            dd = max(abs(pq - kq), abs(pr - kr), abs(-pq - pr - (-kq - kr)))
-            if dd <= 2:
+            if axial_distance(pos, king_pos) <= 2:
                 defenders += 1
         else:
             opp_mat += piece.value

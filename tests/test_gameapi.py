@@ -220,53 +220,53 @@ class TestVoting:
 
     def test_resign_vote_progression(self, game):
         assert not game.voting.needed()
-        game.voting.resign_vote(0, "A")
+        game.voting.vote("resign", 0, "A")
         assert game.voting.needed()
-        game.voting.resign_vote(1, "A")
-        game.voting.resign_vote(2, "D")
+        game.voting.vote("resign", 1, "A")
+        game.voting.vote("resign", 2, "D")
         assert game.voting.finished()
         assert len(game.voting.accepts) == 2
 
     def test_draw_vote_progression(self, game):
-        game.voting.draw_vote(0, "A")
-        game.voting.draw_vote(1, "A")
-        game.voting.draw_vote(2, "A")
+        game.voting.vote("draw", 0, "A")
+        game.voting.vote("draw", 1, "A")
+        game.voting.vote("draw", 2, "A")
         assert game.voting.finished()
         assert len(game.voting.accepts) == 3
 
     def test_set_resign_voting(self, game):
-        game.voting.set_resign_voting("A", "A", "D")
+        game.voting.set_votes("resign", "A", "A", "D")
         assert game.voting.finished()
         assert len(game.voting.accepts) == 2
 
     def test_set_draw_voting(self, game):
-        game.voting.set_draw_voting("A", "D", "A")
+        game.voting.set_votes("draw", "A", "D", "A")
         assert game.voting.finished()
         assert len(game.voting.accepts) == 2
 
     def test_resignation_detected(self, game):
-        game.voting.set_resign_voting("A", "A", "D")
+        game.voting.set_votes("resign", "A", "A", "D")
         assert game.resignation()
         assert game.endgame() == "resignation"
 
     def test_draw_detected(self, game):
-        game.voting.set_draw_voting("A", "A", "A")
+        game.voting.set_votes("draw", "A", "A", "A")
         assert game.draw()
         assert game.endgame() == "draw"
 
     def test_draw_not_resign(self, game):
-        game.voting.set_draw_voting("A", "A", "A")
+        game.voting.set_votes("draw", "A", "A", "A")
         assert not game.resignation()
 
     def test_votes_returns_info_when_active(self, game):
-        game.voting.resign_vote(0, "A")
+        game.voting.vote("resign", 0, "A")
         info = game.voting.votes()
         assert info is not None
         assert info["kind"] == "resign"
         assert info[0] == "A"
 
     def test_clean_resets_voting(self, game):
-        game.voting.set_resign_voting("A", "A", "D")
+        game.voting.set_votes("resign", "A", "A", "D")
         assert game.voting.finished()
         game.voting.clean()
         assert not game.voting.active()
@@ -274,9 +274,9 @@ class TestVoting:
     def test_on_move_during_voting(self, game):
         game.make_move(167, 152)
         assert game.on_move == 1
-        game.voting.resign_vote(1, "A")
+        game.voting.vote("resign", 1, "A")
         assert game.on_move == 2
-        game.voting.resign_vote(2, "D")
+        game.voting.vote("resign", 2, "D")
         assert game.on_move == 0
 
 
@@ -357,11 +357,11 @@ class TestMovePossible:
         assert game.move_possible()
 
     def test_move_possible_empty_after_resignation(self, game):
-        game.voting.set_resign_voting("A", "A", "D")
+        game.voting.set_votes("resign", "A", "A", "D")
         assert not game.move_possible()
 
     def test_move_possible_empty_after_draw(self, game):
-        game.voting.set_draw_voting("A", "A", "A")
+        game.voting.set_votes("draw", "A", "A", "A")
         assert not game.move_possible()
 
 

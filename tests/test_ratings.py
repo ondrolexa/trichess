@@ -1,5 +1,5 @@
-"""Incremental Elo (api.record_game_rating) against the full replay
-(api.get_rating_history), the rating_history table, rebuild-ratings and
+"""Incremental Elo (ratings.record_game_rating) against the full replay
+(ratings.get_rating_history), the rating_history table, rebuild-ratings and
 deleting a rated game."""
 
 import pytest
@@ -7,7 +7,7 @@ from flask_jwt_extended import create_access_token
 
 from engine import get_game
 from tests.test_webapp import _create_user, _login_as_admin, _seated_board
-from webapp import api
+from webapp import ratings
 from webapp.main import db
 from webapp.models import RatingHistory, Score, TriBoard, User
 
@@ -37,7 +37,7 @@ def _resign_game(app, client, players, winner_seat):
 
 
 def _final_ratings():
-    return {uid: points[-1][1] for uid, points in api.get_rating_history().items()}
+    return {uid: points[-1][1] for uid, points in ratings.get_rating_history().items()}
 
 
 @pytest.fixture
@@ -57,7 +57,7 @@ def test_incremental_ratings_match_full_replay(app, client, players):
         assert user.rating == pytest.approx(replay[user.id])
     # One history row per player per game, ending at the current rating.
     assert RatingHistory.query.count() == 9
-    alice_history = api.get_user_rating_history(alice.id)
+    alice_history = ratings.get_user_rating_history(alice.id)
     assert len(alice_history) == 3
     assert alice_history[-1][1] == pytest.approx(alice.rating)
 
@@ -67,7 +67,7 @@ def test_winner_gains_and_others_lose(app, client, players):
     _resign_game(app, client, [alice, bob, carol], winner_seat=1)
     for user in (alice, bob, carol):
         db.session.refresh(user)
-    assert bob.rating > api.starting_rating > alice.rating
+    assert bob.rating > ratings.STARTING_RATING > alice.rating
     assert alice.rating == pytest.approx(carol.rating)
 
 
@@ -81,7 +81,7 @@ def test_bot_game_changes_no_rating(app, client):
         db.session.refresh(tb)
     assert tb.status == 2
     assert RatingHistory.query.count() == 0
-    assert {u.rating for u in (alice, bob)} == {api.starting_rating}
+    assert {u.rating for u in (alice, bob)} == {ratings.STARTING_RATING}
 
 
 def test_rebuild_ratings_reproduces_incremental_state(app, client, players):
@@ -133,7 +133,7 @@ def test_admin_deleting_a_rated_game_removes_its_points(app, client, players):
     assert Score.query.filter_by(board_id=first.id).count() == 0
     assert RatingHistory.query.filter_by(board_id=first.id).count() == 0
     # Carol played only the deleted game: back to the starting rating.
-    assert db.session.get(User, carol.id).rating == api.starting_rating
+    assert db.session.get(User, carol.id).rating == ratings.STARTING_RATING
     replay = _final_ratings()
     for user in (alice, bob, dave):
         assert db.session.get(User, user.id).rating == pytest.approx(replay[user.id])

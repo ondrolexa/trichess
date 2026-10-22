@@ -7,7 +7,6 @@ class Pos:
         kind (str): Attribute used by piece move to classify positions
 
     Attributes:
-        value (complex): Complex number representation (computed on demand).
         kind (str): Attribute used by piece move to classify positions.
         code (str): Position encoded as two ASCII chars for slog encoding.
         q (int): first coordinate
@@ -60,11 +59,13 @@ class Move:
 
     Args:
         *args (str): any number of step codes.
-        kind (str): Type of move. One of s, a or n
+        kind (str): Type of move: s step, f forward onto an empty cell
+            only, a attack (capture) only, d pawn double step, n slide,
+            c castling
 
     Attributes:
         steps (tuple): tuple of step codes.
-        kind (str): Type of move. One of s, a or n
+        kind (str): Type of move (see Args)
 
     """
 
@@ -77,14 +78,14 @@ class Piece:
     """A class to represent trichess piece
 
     Args:
-        symbol (str): A character used to show piece on matplotlib UI
+        symbol (str): Unicode chess symbol of the piece (♟, ♞, …)
         label (str): A character used to show piece in terminal and log
         player (Player): Player is owner of piece
         used (bool, optional): Whether the piece have been moved in current game
         hex (Hex, optional): Cell on which piece is placed or None
 
     Attributes:
-        symbol (str): A character used to show piece on matplotlib UI
+        symbol (str): Unicode chess symbol of the piece (♟, ♞, …)
         label (str): A character used to show piece in terminal and log
         player (Player): Player is owner of piece
         used (bool): Whether the piece have been moved in current game
@@ -124,77 +125,117 @@ class Piece:
         Arg:
             castling: when True, include castling moves (king two-step with rook).
         """
-        if self.hex is not None:
-            res = []
-            player = self.player
-            pos = self.pos
-            board = self.hex.board
-            _board = board._board
-            _has = board._has_piece
-            for move in self._moves:
-                match move.kind:
-                    case "s":
-                        res.append(player.pos_from_move(pos, move))
-                    case "f":
-                        dest = player.pos_from_move(pos, move)
-                        dk = (dest._q, dest._r)
-                        if dk in _board and not _has(dk):
-                            res.append(dest)
-                    case "a":
-                        dest = player.pos_from_move(pos, move)
-                        dk = (dest._q, dest._r)
-                        if dk in _board and _has(dk):
-                            res.append(dest)
-                    case "n":
-                        cur = pos
-                        for _ in range(14):
-                            dest = player.pos_from_move(cur, move)
-                            dk = (dest._q, dest._r)
-                            if dk not in _board:
-                                break
-                            res.append(dest)
-                            if _has(dk):
-                                break
-                            cur = dest
-                    case "d":
-                        partial_move = Move(move.steps[0])
-                        pos1 = player.pos_from_move(pos, partial_move)
-                        dk1 = (pos1._q, pos1._r)
-                        if dk1 in _board and not _has(dk1):
-                            pos2 = player.pos_from_move(pos, move)
-                            dk2 = (pos2._q, pos2._r)
-                            if dk2 in _board and not _has(dk2):
-                                res.append(pos2)
-                if castling and move.kind == "c":
-                    inchess, _, _ = board.pos_in_chess(player, pos)
-                    if not inchess:
-                        dest = player.pos_from_move(pos, move)
-                        dk = (dest._q, dest._r)
-                        overmove = Move(move.steps[0])
-                        overpos = player.pos_from_move(pos, overmove)
-                        ok = (overpos._q, overpos._r)
-                        if dk in _board and not self.hex.piece.used:
-                            if not _has(ok) and not _has(dk):
-                                inchess2, _, _ = board.pos_in_chess(player, overpos)
-                                if not inchess2:
-                                    if move.steps[0] == "SL":
-                                        rpos = player.pos_from_move(dest, overmove)
-                                        rk = (rpos._q, rpos._r)
-                                        if rk in _board and _has(rk):
-                                            rp = _board[rk].piece
-                                            if isinstance(rp, Rook) and not rp.used:
-                                                res.append(dest)
-                                    else:
-                                        fpos = player.pos_from_move(dest, overmove)
-                                        fk = (fpos._q, fpos._r)
-                                        if fk in _board and not _has(fk):
-                                            rpos = player.pos_from_move(fpos, overmove)
-                                            rk = (rpos._q, rpos._r)
-                                            if rk in _board and _has(rk):
-                                                rp = _board[rk].piece
-                                                if isinstance(rp, Rook) and not rp.used:
-                                                    res.append(dest)
-            return res
+        if self.hex is None:
+            return None
+        res = []
+        for move in self._moves:
+            if move.kind == "c":
+                if castling:
+                    dest = self._castling_target(move)
+                    if dest is not None:
+                        res.append(dest)
+            else:
+                _CANDIDATES[move.kind](self, move, res)
+        return res
+
+    # One method per move kind; each appends its candidates to *res*.
+
+    def _step(self, move, res):
+        """s: a plain step, whatever stands there (Board.possible_moves filters)."""
+        res.append(self.player.pos_from_move(self.pos, move))
+
+    def _forward(self, move, res):
+        """f: a step onto an empty cell only (pawn advance)."""
+        dest = self.player.pos_from_move(self.pos, move)
+        dk = (dest._q, dest._r)
+        board = self.hex.board
+        if dk in board._board and not board._has_piece(dk):
+            res.append(dest)
+
+    def _attack(self, move, res):
+        """a: a step onto an occupied cell only (pawn capture)."""
+        dest = self.player.pos_from_move(self.pos, move)
+        dk = (dest._q, dest._r)
+        board = self.hex.board
+        if dk in board._board and board._has_piece(dk):
+            res.append(dest)
+
+    def _slide(self, move, res):
+        """n: repeat the step until the edge or the first occupied cell (included)."""
+        board = self.hex.board
+        cur = self.pos
+        for _ in range(14):
+            dest = self.player.pos_from_move(cur, move)
+            dk = (dest._q, dest._r)
+            if dk not in board._board:
+                break
+            res.append(dest)
+            if board._has_piece(dk):
+                break
+            cur = dest
+
+    def _double(self, move, res):
+        """d: a two-step advance with both cells empty (pawn's first move)."""
+        player, pos = self.player, self.pos
+        board = self.hex.board
+        pos1 = player.pos_from_move(pos, Move(move.steps[0]))
+        dk1 = (pos1._q, pos1._r)
+        if dk1 not in board._board or board._has_piece(dk1):
+            return
+        pos2 = player.pos_from_move(pos, move)
+        dk2 = (pos2._q, pos2._r)
+        if dk2 in board._board and not board._has_piece(dk2):
+            res.append(pos2)
+
+    def _castling_target(self, move):
+        """c: the king's castling destination, or None when castling that way
+        is not allowed: the king is in check or has moved, the cell it
+        passes or lands on is occupied or attacked (the landing cell only
+        later, by the legality filter), a cell between the king's landing
+        cell and the rook is occupied (long side), or the rook is missing
+        or has moved."""
+        player, pos = self.player, self.pos
+        board = self.hex.board
+        _board, _has = board._board, board._has_piece
+        if board.pos_in_chess(player, pos)[0]:
+            return None
+        dest = player.pos_from_move(pos, move)
+        dk = (dest._q, dest._r)
+        overmove = Move(move.steps[0])
+        overpos = player.pos_from_move(pos, overmove)
+        if dk not in _board or self.hex.piece.used:
+            return None
+        if _has((overpos._q, overpos._r)) or _has(dk):
+            return None
+        if board.pos_in_chess(player, overpos)[0]:
+            return None
+        if move.steps[0] == "SL":
+            rpos = player.pos_from_move(dest, overmove)
+        else:
+            # Long side: one more cell between the king's landing cell and the rook.
+            fpos = player.pos_from_move(dest, overmove)
+            fk = (fpos._q, fpos._r)
+            if fk not in _board or _has(fk):
+                return None
+            rpos = player.pos_from_move(fpos, overmove)
+        rk = (rpos._q, rpos._r)
+        if rk not in _board or not _has(rk):
+            return None
+        rp = _board[rk].piece
+        if isinstance(rp, Rook) and not rp.used:
+            return dest
+        return None
+
+
+# Move kind -> Piece method generating its candidates (castling, "c", is
+# handled separately: it needs the castling flag).
+_CANDIDATES = {
+    "s": Piece._step,
+    "f": Piece._forward,
+    "a": Piece._attack,
+    "n": Piece._slide,
+    "d": Piece._double,
+}
 
 
 class Pawn(Piece):

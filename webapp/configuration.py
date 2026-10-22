@@ -1,6 +1,9 @@
+import logging
 import os
 
 from dotenv import load_dotenv
+
+from engine.bot import MAX_DEPTH, MIN_SOUND_DEPTH
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, "..", ".env"))
@@ -21,6 +24,20 @@ def _secret(name):
             f"{name} must be set (see Help → For developers → Configuration) unless DEBUG=true"
         )
     return "dev-only-insecure-key"
+
+
+def _bot_depth():
+    """BOT_DEPTH, clamped up to MIN_SOUND_DEPTH: below it the search never
+    simulates the 2nd of the bot's 2 opponents at all. Clamp rather than
+    play unsound moves."""
+    depth = int(os.environ.get("BOT_DEPTH", MIN_SOUND_DEPTH))
+    if depth < MIN_SOUND_DEPTH:
+        logging.getLogger(__name__).error(
+            f"BOT_DEPTH={depth} is below MIN_SOUND_DEPTH={MIN_SOUND_DEPTH} "
+            "(bot would be blind to its 2nd opponent's replies) — clamping up."
+        )
+        return MIN_SOUND_DEPTH
+    return depth
 
 
 def _required(name):
@@ -62,10 +79,23 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PROPAGATE_EXCEPTIONS = True
     REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-    BOT_DEPTH = int(os.environ.get("BOT_DEPTH", 3))
+    # Allowed CORS origins, comma-separated (the SSE service reads the same
+    # variable itself).
+    CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5000").split(",")
+    # BOT_DEPTH always completes; with a time budget (seconds, 0 = off) the
+    # search keeps deepening up to BOT_MAX_DEPTH while the budget lasts.
+    BOT_DEPTH = _bot_depth()
+    BOT_TIME_LIMIT = float(os.environ.get("BOT_TIME_LIMIT", 2.0))
+    BOT_MAX_DEPTH = int(os.environ.get("BOT_MAX_DEPTH", MAX_DEPTH))
+    # A single human playing against 2 bots is solo practice — live "your
+    # turn"/"game over" pushes for it are suppressed by default (see
+    # game_end.bot_notification_flags). The 24h-stale reminder
+    # (cli.resend_notification) deliberately never consults this — a solo
+    # player who walked away should still get it regardless.
     SINGLE_PLAYER_NOTIFICATIONS = (
         os.environ.get("SINGLE_PLAYER_NOTIFICATIONS", "false").lower() == "true"
     )
+    # Minutes a finished bot game is kept (flask remove-bot-games), 0 = forever.
     BOT_GAMES_REMOVAL = int(os.environ.get("BOT_GAMES_REMOVAL", 15))
     # Comma-separated allowlist of usernames that may mint an API bearer
     # token via /token (Swagger UI's "Authorize" dialog included). Normal

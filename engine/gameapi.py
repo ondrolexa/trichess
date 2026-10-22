@@ -5,14 +5,35 @@ from engine.board import Board
 from engine.pieces import King, Pawn, Pos, Rook
 from engine.player import Player
 
+# Vote chunks in the slog, by prefix: one cast vote (later condensed) or a
+# set-vote holding all 3 votes. Everything else is a move.
+VOTE_PREFIXES = {"r": "resign", "s": "draw"}
+SET_VOTE_PREFIXES = {"R": "resign", "S": "draw"}
+_SET_VOTE_PREFIX = {kind: prefix for prefix, kind in SET_VOTE_PREFIXES.items()}
+_VOTE_PREFIX = {kind: prefix for prefix, kind in VOTE_PREFIXES.items()}
+
+
+def is_vote_chunk(chunk):
+    """True for a vote chunk (individual or set-vote), False for a move."""
+    return chunk[:1] in VOTE_PREFIXES or chunk[:1] in SET_VOTE_PREFIXES
+
+
+def iter_chunks(slog):
+    """The slog's 4-char chunks; a trailing partial chunk is ignored."""
+    for i in range(0, len(slog) - 3, 4):
+        yield slog[i : i + 4]
+
 
 class Voting:
     """Tracks resignation / draw voting among the three players.
 
-    Slog vote encoding (4 chars per record):
+    Slog vote encoding (4 chars per record; full spec in
+    Help → For developers → Slog Format (webapp/templates/help.html)):
       Individual vote: ``r<v0><v1><v2>`` or ``s<v0><v1><v2>``
         where v{i} = A (accept) / D (decline) / X (not yet voted)
       Set-vote (all 3 in one chunk): ``R<v0><v1><v2>`` or ``S<v0><v1><v2>``
+
+    *kind* is ``"resign"`` or ``"draw"`` throughout.
     """
 
     def __init__(self):
@@ -31,73 +52,36 @@ class Voting:
 
         Returns empty string when no vote is active.
         """
-        if self.kind == "resign":
-            return "R" + "".join(self.log)
-        if self.kind == "draw":
-            return "S" + "".join(self.log)
-        return ""
+        if self.kind is None:
+            return ""
+        return _SET_VOTE_PREFIX[self.kind] + "".join(self.log)
 
-    def set_resign_voting(self, v0, v1, v2):
-        """Set all 3 resign votes at once (used when replaying a compact slog)."""
+    def set_votes(self, kind, v0, v1, v2):
+        """Set all 3 votes at once (used when replaying a set-vote chunk)."""
         self.n_voted = 3
-        self.kind = "resign"
+        self.kind = kind
         for player, vote in enumerate([v0, v1, v2]):
             self.log[player] = vote
             if vote == "A":
                 self.accepts.append(player)
 
-    def set_draw_voting(self, v0, v1, v2):
-        """Set all 3 draw votes at once (used when replaying a compact slog)."""
-        self.n_voted = 3
-        self.kind = "draw"
-        for player, vote in enumerate([v0, v1, v2]):
-            self.log[player] = vote
-            if vote == "A":
+    def vote(self, kind, player, code):
+        """Cast a single vote.  Starts a new vote if none is active."""
+        if self.kind is None:
+            self.kind = kind
+        if self.kind != kind:
+            raise ValueError(f"{self.kind} voting is in progress")
+        if code != "X":
+            if code == "A":
                 self.accepts.append(player)
+            self.log[player] = code
+            self.n_voted += 1
 
-    def resign_vote(self, player, code):
-        """Cast a single resign vote.  Starts a new vote if none is active."""
-        if self.kind is None:
-            self.kind = "resign"
-        if self.kind == "resign":
-            if code != "X":
-                if code == "A":
-                    self.accepts.append(player)
-                self.log[player] = code
-                self.n_voted += 1
-        else:
-            raise ValueError(f"{self.kind} voting is in progress")
-
-    def draw_vote(self, player, code):
-        """Cast a single draw vote.  Starts a new vote if none is active."""
-        if self.kind is None:
-            self.kind = "draw"
-        if self.kind == "draw":
-            if code != "X":
-                if code == "A":
-                    self.accepts.append(player)
-                self.log[player] = code
-                self.n_voted += 1
-        else:
-            raise ValueError(f"{self.kind} voting is in progress")
-
-    def resign_slog(self, player, vote):
-        """Generate a 4-char individual resign vote chunk for slog."""
+    def chunk(self, kind, player, vote):
+        """Generate a 4-char individual vote chunk for slog."""
         votelog = ["X", "X", "X"]
-        if vote:
-            votelog[player] = "A"
-        else:
-            votelog[player] = "D"
-        return "r" + "".join(votelog)
-
-    def draw_slog(self, player, vote):
-        """Generate a 4-char individual draw vote chunk for slog."""
-        votelog = ["X", "X", "X"]
-        if vote:
-            votelog[player] = "A"
-        else:
-            votelog[player] = "D"
-        return "s" + "".join(votelog)
+        votelog[player] = "A" if vote else "D"
+        return _VOTE_PREFIX[kind] + "".join(votelog)
 
     def needed(self):
         """True when at least 1 vote cast but fewer than 3 (vote still in progress)."""
@@ -134,6 +118,11 @@ class Voting:
         return self.n_voted > 0
 
 
+# gid traversal per view_pid: (outer axis, inner axis, inner direction).
+# The third axis is -outer-inner and must be on the board as well.
+_GID_TRAVERSAL = {0: ("r", "q", 1), 1: ("s", "r", 1), 2: ("q", "r", -1)}
+
+
 class GameAPI:
     """Game logic layer exposed to the HTTP API.
 
@@ -153,7 +142,7 @@ class GameAPI:
         view_pid (int): Perspective for gid→hex mapping.
         board (Board): Current board state.
         voting (Voting): Resign / draw vote tracker.
-        slogan (str): Serialized game log.
+        slog (str): Serialized game log.
     """
 
     def __init__(self, view_pid, **kwargs):
@@ -190,35 +179,15 @@ class GameAPI:
         """
         order = GameAPI._GID_ORDER_CACHE.get(self.view_pid)
         if order is None:
+            outer, inner, step = _GID_TRAVERSAL[self.view_pid]
             order = []
-            match self.view_pid:
-                case 0:
-                    gid = 0
-                    for r in range(-7, 8):
-                        for q in range(-7, 8):
-                            # check whether on board
-                            s = -q - r
-                            if -7 <= s <= 7:
-                                order.append((gid, Pos(q, r)))
-                                gid += 1
-                case 1:
-                    gid = 0
-                    for s in range(-7, 8):
-                        for r in range(-7, 8):
-                            # check whether on board
-                            q = -r - s
-                            if -7 <= q <= 7:
-                                order.append((gid, Pos(q, r)))
-                                gid += 1
-                case 2:
-                    gid = 0
-                    for q in range(-7, 8):
-                        for r in range(7, -8, -1):
-                            # check whether on board
-                            s = -q - r
-                            if -7 <= s <= 7:
-                                order.append((gid, Pos(q, r)))
-                                gid += 1
+            for a in range(-7, 8):
+                for b in range(-7 * step, 8 * step, step):
+                    third = -a - b
+                    if -7 <= third <= 7:
+                        axes = {outer: a, inner: b}
+                        pos = Pos(axes.get("q", third), axes.get("r", third))
+                        order.append((len(order), pos))
             GameAPI._GID_ORDER_CACHE[self.view_pid] = order
 
         board = self.board
@@ -265,7 +234,7 @@ class GameAPI:
     def last_move(self):
         """Last move as ``{gid, tgid}``, or None if no moves or last entry is a vote."""
         if self.slog:
-            if self.slog[-4] not in ["R", "S", "r", "s"]:
+            if not is_vote_chunk(self.slog[-4:]):
                 from_pos, to_pos, new_piece = self.slog2pos(*self.slog[-4:])
                 return {
                     "gid": self.pos2gid[from_pos],
@@ -278,8 +247,7 @@ class GameAPI:
         """Second-to-last move as ``{gid, tgid}``, or None if there isn't one."""
         if self.last_move is None:
             return None
-        chunks = [self.slog[i : i + 4] for i in range(0, len(self.slog), 4)]
-        move_chunks = [c for c in chunks if c[0] not in ("R", "S", "r", "s")]
+        move_chunks = [c for c in iter_chunks(self.slog) if not is_vote_chunk(c)]
         if len(move_chunks) < 2:
             return None
         from_pos, to_pos, new_piece = self.slog2pos(*move_chunks[-2])
@@ -288,22 +256,21 @@ class GameAPI:
             "tgid": self.pos2gid[to_pos],
         }
 
-    def in_chess(self):
-        """Check if player on move has chess"""
+    def _chess_report(self, pid):
+        """(in check, king gid, attackers by pid) for player *pid*."""
         res = {0: [], 1: [], 2: []}
-        inchess, kingpos, pieces = self.board.in_chess(self.players[self.on_move])
+        inchess, kingpos, pieces = self.board.in_chess(self.players[pid])
         for p in pieces:
             res[p.player.pid].append({"gid": self.pos2gid[p.pos], "piece": p.label})
         return inchess, self.pos2gid[kingpos], res
 
+    def in_chess(self):
+        """Check if player on move has chess"""
+        return self._chess_report(self.on_move)
+
     def in_chess_next(self):
         """Check if the player after the one on move has chess"""
-        res = {0: [], 1: [], 2: []}
-        next_pid = (self.on_move + 1) % 3
-        inchess, kingpos, pieces = self.board.in_chess(self.players[next_pid])
-        for p in pieces:
-            res[p.player.pid].append({"gid": self.pos2gid[p.pos], "piece": p.label})
-        return inchess, self.pos2gid[kingpos], res
+        return self._chess_report((self.on_move + 1) % 3)
 
     def eliminated(self):
         """Return eliminated pieces for players"""
@@ -357,9 +324,11 @@ class GameAPI:
     def slog2pos(self, q1, r1, q2, r2):
         """Decode a 4-char slog segment into (Pos, Pos, promotion_label).
 
-        Promotion is signalled by an uppercase (offset +32) character
+        Promotion is signalled by a lowercase (offset +32) character
         in a specific position:
           q1 → Queen, r1 → Rook, q2 → Bishop, r2 → Knight.
+        Coordinate characters never exceed "O", so "> O" is the flag.
+        Spec: Help → For developers → Slog Format (webapp/templates/help.html).
         """
         # check promotion
         if q1 > "O":
@@ -418,34 +387,19 @@ class GameAPI:
         self.position_counts = defaultdict(int)
         self.position_counts[self._position_signature()] += 1
         # replay
-        for q1, r1, q2, r2 in zip(s[::4], s[1::4], s[2::4], s[3::4]):
-            # clean previously finished voting
-            if self.voting.finished():
-                self.voting.clean()
-            if q1 == "r":
-                self.voting.resign_vote(0, r1)
-                self.voting.resign_vote(1, q2)
-                self.voting.resign_vote(2, r2)
-            elif q1 == "s":
-                self.voting.draw_vote(0, r1)
-                self.voting.draw_vote(1, q2)
-                self.voting.draw_vote(2, r2)
-            elif q1 == "R":
-                self.voting.set_resign_voting(r1, q2, r2)
-            elif q1 == "S":
-                self.voting.set_draw_voting(r1, q2, r2)
-            else:
-                from_pos, to_pos, new_piece = self.slog2pos(q1, r1, q2, r2)
+        for chunk in iter_chunks(s):
+            if not apply_chunk(self.voting, chunk):
+                from_pos, to_pos, new_piece = self.slog2pos(*chunk)
                 # make move
                 self.board.move_piece(from_pos, to_pos, new_piece)
                 self.move_number += 1
                 self.position_counts[self._position_signature()] += 1
 
             # fix slog when just finished voting
-            if self.voting.finished() and q1 in ["r", "s"]:
+            if self.voting.finished() and chunk[0] in VOTE_PREFIXES:
                 self.slog = self.slog[:-8] + self.voting.slog
             else:
-                self.slog += q1 + r1 + q2 + r2
+                self.slog += chunk
 
     def logtail(self, n=5):
         return self.slog[-4 * n :]
@@ -470,22 +424,15 @@ class GameAPI:
                     tgid = self.pos2gid[pos]
                     testok = self.board.test_move_piece(hex.pos, self.gid2hex[tgid].pos)
                     if testok:
-                        if not self.board[pos].has_piece:
-                            targets.append(
-                                {
-                                    "tgid": tgid,
-                                    "kind": "safe",
-                                    "promotion": self.board.promotion(piece, pos),
-                                }
-                            )
-                        else:
-                            targets.append(
-                                {
-                                    "tgid": tgid,
-                                    "kind": "attack",
-                                    "promotion": self.board.promotion(piece, pos),
-                                }
-                            )
+                        targets.append(
+                            {
+                                "tgid": tgid,
+                                "kind": "attack"
+                                if self.board[pos].has_piece
+                                else "safe",
+                                "promotion": self.board.promotion(piece, pos),
+                            }
+                        )
         return targets
 
     def make_move(self, from_gid, to_gid, new_piece=""):
@@ -506,33 +453,27 @@ class GameAPI:
 
     def resignation_vote(self, vote: bool):
         """Get slog with resignation voting"""
-        return self.slog + self.voting.resign_slog(self.on_move, vote)
+        return self.slog + self.voting.chunk("resign", self.on_move, vote)
 
     def draw_vote(self, vote: bool):
         """Get slog with draw voting"""
-        return self.slog + self.voting.draw_slog(self.on_move, vote)
+        return self.slog + self.voting.chunk("draw", self.on_move, vote)
 
     def resignation(self):
         """True when 2 of 3 players accepted a resign vote."""
-        if (
+        return (
             self.voting.kind == "resign"
             and self.voting.finished()
             and len(self.voting.accepts) == 2
-        ):
-            return True
-        else:
-            return False
+        )
 
     def draw(self):
         """True when all 3 players accepted a draw vote."""
-        if (
+        return (
             self.voting.kind == "draw"
             and self.voting.finished()
             and len(self.voting.accepts) == 3
-        ):
-            return True
-        else:
-            return False
+        )
 
     def move_possible(self):
         """True when the player on move has at least one legal move.
@@ -598,6 +539,31 @@ class GameAPI:
             return "checkmate" if in_chess else "stalemate"
         return None
 
+    def outcome_scores(self, kind=None):
+        """Points (out of 2.0) per player of a finished game: {pid: score}.
+
+        Resignation gives the player who declined 2.0; checkmate splits 2.0
+        by how many pieces each player attacks the mated king with; draw,
+        stalemate and repetition give everyone 2/3. *kind* is the endgame()
+        result, computed here when not given (bot search passes it in, since
+        endgame()'s legal-move scan is the expensive part).
+        """
+        kind = kind or self.endgame()
+        scores = {0: 0.0, 1: 0.0, 2: 0.0}
+        if kind == "resignation":
+            resigned = self.voting.results(kind="resign")
+            scores[({0, 1, 2} - set(resigned)).pop()] = 2.0
+            return scores
+        if kind == "checkmate":
+            _, _, who = self.in_chess()
+            attackers = [len(pieces) for pieces in who.values()]
+            total = sum(attackers)
+            if total:
+                for pid, count in enumerate(attackers):
+                    scores[pid] = count * 2 / total
+            return scores
+        return {0: 2.0 / 3, 1: 2.0 / 3, 2: 2.0 / 3}
+
 
 def get_game(view_pid, slog):
     ga = GameAPI(view_pid)
@@ -611,31 +577,34 @@ class SlogSummary(NamedTuple):
     voting_active: bool
 
 
+def apply_chunk(voting, chunk):
+    """Apply one slog chunk's votes to *voting*; False for a move chunk,
+    which the caller applies. A vote that finished on an earlier chunk is
+    cleared first. Shared by GameAPI.replay_from_slog and slog_summary."""
+    if voting.finished():
+        voting.clean()
+    prefix = chunk[0]
+    if prefix in VOTE_PREFIXES:
+        kind = VOTE_PREFIXES[prefix]
+        for player, code in enumerate(chunk[1:]):
+            voting.vote(kind, player, code)
+    elif prefix in SET_VOTE_PREFIXES:
+        voting.set_votes(SET_VOTE_PREFIXES[prefix], *chunk[1:])
+    else:
+        return False
+    return True
+
+
 def slog_summary(slog):
     """``move_number``, ``on_move`` and whether a vote is in progress, read
     from the slog string alone — no board replay, so microseconds instead of
     milliseconds. Meant for pages listing many games.
 
-    Mirrors the vote handling of ``GameAPI.replay_from_slog``; keep the two
-    in sync (tests/test_gameapi.py checks they agree).
+    Vote handling is GameAPI.replay_from_slog's own (apply_chunk).
     """
     voting = Voting()
     move_number = 0
-    for q1, r1, q2, r2 in zip(slog[::4], slog[1::4], slog[2::4], slog[3::4]):
-        if voting.finished():
-            voting.clean()
-        if q1 == "r":
-            voting.resign_vote(0, r1)
-            voting.resign_vote(1, q2)
-            voting.resign_vote(2, r2)
-        elif q1 == "s":
-            voting.draw_vote(0, r1)
-            voting.draw_vote(1, q2)
-            voting.draw_vote(2, r2)
-        elif q1 == "R":
-            voting.set_resign_voting(r1, q2, r2)
-        elif q1 == "S":
-            voting.set_draw_voting(r1, q2, r2)
-        else:
+    for chunk in iter_chunks(slog):
+        if not apply_chunk(voting, chunk):
             move_number += 1
     return SlogSummary(move_number, (move_number + voting.n_voted) % 3, voting.active())

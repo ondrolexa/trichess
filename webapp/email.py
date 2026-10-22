@@ -32,7 +32,7 @@ def send_email(to, subject, body, reply_to=None, attachment=None):
 
 
 def send_verification_email(user):
-    token = generate_verification_token(user.id)
+    token = generate_verification_token(user)
     verify_url = url_for("verify", token=token, _external=True)
     subject = "Verify your Trichess account"
     body = (

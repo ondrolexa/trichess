@@ -10,22 +10,20 @@ Rerun flask --app=webapp db upgrade with production database
 from the models or a dump and stamped at head, never replayed from base.)
 """
 
-import hashlib
-import hmac
+import functools
 import logging
-import os
 import secrets
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-import yaml
-from flask import abort, flash, g, jsonify, redirect, request, session, url_for
+from flask import abort, flash, g, jsonify, redirect, request, url_for
 from flask import render_template as real_render_template
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
     get_current_user,
+    get_jwt,
     jwt_required,
 )
 from flask_login import current_user, login_required, login_user, logout_user
@@ -33,8 +31,15 @@ from markupsafe import Markup
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from engine import slog_summary
+from webapp.analytics import (
+    LATE_COMPLETION_WINDOW,
+    ga_config,
+    game_minutes,
+    minutes_since,
+    opponents,
+    track_event,
+)
 from webapp.api import blueprint as api
-from webapp.api import get_user_rating_history, rebuild_ratings
 from webapp.botplayer import maybe_trigger_bot
 from webapp.email import (
     send_account_exists_email,
@@ -52,10 +57,23 @@ from webapp.forms import (
     RegistrationForm,
     ResetPasswordForm,
 )
-from webapp.main import GAME, app, csrf, db, jwt, limiter, lm, post_notification
+from webapp.log import GAME
 from webapp.main import __version__ as webapp_version
+from webapp.main import app, csrf, db, jwt, limiter, lm, post_notification
 from webapp.maintenance import is_maintenance, set_maintenance
-from webapp.models import Log, RatingHistory, Score, TriBoard, User, score_outcome
+from webapp.models import (
+    GameStatus,
+    Log,
+    RatingHistory,
+    Score,
+    TriBoard,
+    User,
+    delete_board,
+    score_outcome,
+    utcnow_naive,
+)
+from webapp.ratings import get_user_rating_history, rebuild_ratings
+from webapp.styles import load_style
 from webapp.token import (
     password_fingerprint,
     verify_password_reset_token,
@@ -80,122 +98,10 @@ def _jinja2_filter_timedelta(date):
     return str(now - native) + " ago"
 
 
-def track_event(name, **params):
-    """Queue a GA4 event to be emitted by the next rendered page.
-
-    Account/lobby actions all end in a redirect, so the event rides the
-    session to the page that follows and is sent from the browser — under
-    the visitor's own consent state, no server-side Measurement Protocol
-    needed. In-game milestones are sent by analytics.js from the board
-    page instead. Only non-identifying params belong in **params.
-    """
-    if not app.config["GA_MEASUREMENT_ID"]:
-        return
-    events = session.get("ga_events", [])
-    events.append({"name": name, "params": params})
-    session["ga_events"] = events[-10:]
-
-
-def _minutes_since(ts):
-    """Whole minutes from naive-UTC *ts* to now (GA `wait_time`)."""
-    if ts is None:
-        return 0
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-    return max(0, int((now - ts).total_seconds() // 60))
-
-
-def _game_minutes(tb):
-    """Whole minutes from a finished game's start to its last move."""
-    if tb.started_at is None or tb.modified_at is None:
-        return 0
-    return max(0, int((tb.modified_at - tb.started_at).total_seconds() // 60))
-
-
-def _opponents(tb):
-    """Board make-up for analytics: "bots" (2 bot seats), "mixed" (1) or
-    "humans" — a browser viewer is always human, so it's their opponents."""
-    bots = sum(
-        1 for p in (tb.player_0, tb.player_1, tb.player_2) if p is not None and p.is_bot
-    )
-    return {2: "bots", 1: "mixed"}.get(bots, "humans")
-
-
-# GA user properties: rating classes (ratings start at 500, K=9) and rated
-# games played; bot games are casual and never counted.
-ELO_CLASSES = ((600, "Advanced"), (525, "Intermediate"), (0, "Novice"))
-GAMES_PLAYED_TIERS = ((51, "51+"), (21, "21-50"), (6, "6-20"), (1, "1-5"), (0, "0"))
-
-# A finished game opened this soon after its end still reports
-# game_completed to a player who wasn't watching when it ended.
-LATE_COMPLETION_WINDOW = timedelta(days=7)
-
-
-def _classify(value, classes):
-    return next(label for threshold, label in classes if value >= threshold)
-
-
-def _ga_config(game=None):
-    """Per-page GA4 settings for _analytics.html, or None to omit the tag.
-
-    `game` is the board page's context for analytics.js's trichessGame hooks.
-    """
-    events = session.pop("ga_events", [])
-    if not app.config["GA_MEASUREMENT_ID"] or app.debug:
-        return None
-    authenticated = g.user is not None and g.user.is_authenticated
-    if authenticated and g.user.is_admin:
-        return None
-    config = {
-        "id": app.config["GA_MEASUREMENT_ID"],
-        "content_group": request.endpoint or "",
-        "user_id": None,
-        "user_properties": {"logged_in": "yes" if authenticated else "no"},
-        "events": events,
-        "game": game,
-    }
-    if authenticated:
-        # Opaque, stable per-user id: never the username/email or raw db id.
-        config["user_id"] = hmac.new(
-            app.config["SECRET_KEY"].encode(),
-            f"ga-user-{g.user.id}".encode(),
-            hashlib.sha256,
-        ).hexdigest()[:32]
-        rated_games = Score.query.filter_by(player_id=g.user.id).count()
-        config["user_properties"].update(
-            board_renderer=g.user.board or "",
-            ui_theme=g.user.theme or "",
-            piece_set=g.user.pieces or "",
-            elo_class=_classify(g.user.rating or 0, ELO_CLASSES),
-            games_played_tier=_classify(rated_games, GAMES_PLAYED_TIERS),
-        )
-    return config
-
-
 def render_template(*args, **kwargs):
-    navailable = TriBoard.query.filter_by(status=0).count()
-    base_dir = os.path.abspath(os.path.dirname(__file__))
-    themes_dir = os.path.join(base_dir, "static/themes")
-    default_theme_file = os.path.join(themes_dir, "default.yaml")
-
-    if g.user is not None and g.user.is_authenticated:
-        theme_name = g.user.theme
-        # Validate theme name to prevent path traversal
-        if (
-            theme_name is None
-            or "/" in theme_name
-            or "\\" in theme_name
-            or ".." in theme_name
-        ):
-            theme_file = default_theme_file
-        else:
-            theme_file = os.path.join(themes_dir, f"{theme_name}.yaml")
-            # Ensure the path is still inside themes_dir
-            if not os.path.abspath(theme_file).startswith(themes_dir + os.sep):
-                theme_file = default_theme_file
-    else:
-        theme_file = default_theme_file
-    with open(theme_file) as f:
-        theme = yaml.safe_load(f)
+    navailable = TriBoard.query.filter_by(status=GameStatus.WAITING).count()
+    logged_in = g.user is not None and g.user.is_authenticated
+    theme = load_style("themes", g.user.theme if logged_in else "default")
     if "board" not in kwargs:
         kwargs["board"] = False
     ga_game = kwargs.pop("ga_game", None)
@@ -206,7 +112,7 @@ def render_template(*args, **kwargs):
         navailable=navailable,
         theme=theme,
         version=webapp_version,
-        ga_config=_ga_config(ga_game),
+        ga_config=ga_config(ga_game),
         maintenance=is_maintenance(),
         contact_enabled=contact_enabled(),
     )
@@ -238,8 +144,6 @@ def index():
     if request.method == "POST":
         if request.form.get("action") == "login":
             return redirect(url_for("login"))
-        elif request.form.get("action") == "logout":
-            return redirect(url_for("logout"))
         elif request.form.get("action") == "register":
             return redirect(url_for("register"))
         else:
@@ -254,7 +158,7 @@ def index():
 def active_games():
     user_in = TriBoard.for_player(g.user.id)
     active = (
-        TriBoard.query.filter_by(status=1)
+        TriBoard.query.filter_by(status=GameStatus.ACTIVE)
         .filter(user_in)
         .order_by(TriBoard.modified_at.desc())
         .all()
@@ -285,7 +189,7 @@ def _paginate(query, arg="page"):
 def archive():
     user_in = TriBoard.for_player(g.user.id)
     pagination = _paginate(
-        TriBoard.query.filter_by(status=2)
+        TriBoard.query.filter_by(status=GameStatus.FINISHED)
         .filter(user_in)
         .order_by(TriBoard.modified_at.desc())
     )
@@ -296,7 +200,7 @@ def archive():
     }
     for game in games:
         for seat in range(3):
-            player_id = getattr(game, f"player_{seat}_id")
+            player_id = game.player_ids[seat]
             setattr(game, f"player_{seat}_score", scores.get((game.id, player_id), 0.0))
         game.moves = slog_summary(game.slog or "").move_number
     if request.args.get("page", 1, type=int) == 1:
@@ -324,7 +228,7 @@ def rating():
             db.session.query(
                 column, db.func.count(TriBoard.id), db.func.max(TriBoard.modified_at)
             )
-            .filter(TriBoard.status == 2, column.is_not(None))
+            .filter(TriBoard.status == GameStatus.FINISHED, column.is_not(None))
             .group_by(column)
         )
         for user_id, count, last in rows:
@@ -357,151 +261,128 @@ def rating():
 @app.route("/join", methods=["GET", "POST"])
 @login_required
 def available_games():
+    """The lobby: games waiting for players. Each POST action flashes its
+    outcome and comes back here."""
     if request.method == "POST":
-        delete = request.form.get("delete", type=int)
-        if delete is not None:
-            board = db.session.get(TriBoard, delete)
-            if board and board.owner_id == g.user.id and board.status == 0:
-                others = [
-                    p
-                    for p in (
-                        board.player_0_id,
-                        board.player_1_id,
-                        board.player_2_id,
-                    )
-                    if p is not None and p != g.user.id
-                ]
-                if not others:
-                    wait_time = _minutes_since(board.created_at)
-                    db.session.delete(board)
-                    db.session.commit()
-                    track_event("game_cancelled", wait_time=wait_time)
-            return redirect(url_for("available_games"))
-
-        board_id = request.form.get("board", type=int)
-        if board_id is not None:
-            board = (
-                db.session.query(TriBoard)
-                # Concurrent joins of the same game serialise here. FOR NO KEY
-                # UPDATE: the "Game started" log row may reference it meanwhile.
-                .with_for_update(key_share=True)
-                .filter_by(id=board_id, status=0)
-                .first()
-            )
-            seat = request.form.get("seat")
-            fill_bot = request.form.get("fill_bot")
-            if board is None:
-                flash("Game not found or already started", "error")
-                return redirect(url_for("available_games"))
-            seat_str = fill_bot if fill_bot is not None else seat
-            if seat_str not in ("0", "1", "2"):
-                flash("Invalid seat", "error")
-                return redirect(url_for("available_games"))
-            column = f"player_{seat_str}_id"
-            if getattr(board, column) is not None:
-                flash("Seat already taken", "error")
-                return redirect(url_for("available_games"))
-            seated = {board.player_0_id, board.player_1_id, board.player_2_id} - {None}
-            if fill_bot is not None:
-                if board.owner_id != g.user.id:
-                    flash("Only the game owner can add a bot", "error")
-                    return redirect(url_for("available_games"))
-                newcomer = (
-                    User.query.filter_by(is_bot=True)
-                    .filter(User.id.notin_(seated))
-                    .first()
-                )
-                if newcomer is None:
-                    flash("No bot account available", "error")
-                    return redirect(url_for("available_games"))
-            else:
-                # One seat per player: two seats for one user would map to a
-                # single seat in the game (api._seat_map) and stall it.
-                if g.user.id in seated:
-                    flash("You already have a seat in this game", "warning")
-                    return redirect(url_for("available_games"))
-                newcomer = g.user
-            setattr(board, column, newcomer.id)
-            setattr(board, f"player_{seat_str}_accepted", True)
-            if (
-                (board.player_0_id is not None)
-                and (board.player_1_id is not None)
-                and (board.player_2_id is not None)
-            ):
-                board.status = 1
-                board.started_at = datetime.now(timezone.utc)
-                logger.log(
-                    GAME,
-                    "Game started",
-                    extra={
-                        "user_id": g.user.id,
-                        "board_id": board.id,
-                    },
-                )
-                # send notification to first player
-                if not board.player_0.is_bot:
-                    post_notification(
-                        board.player_0.username,
-                        f"The game {board.id} just started, it's your turn",
-                        "Game started",
-                        board.id,
-                    )
-            db.session.commit()
-            if fill_bot is not None:
-                track_event("bot_seat_added", seat=int(seat_str))
-            else:
-                track_event("game_join", seat=int(seat_str))
-            if board.status == 1:
-                track_event(
-                    "game_started",
-                    type=_opponents(board),
-                    wait_time=_minutes_since(board.created_at),
-                )
-                maybe_trigger_bot(board.id)
-            return redirect(url_for("available_games"))
-
-        form = NewGameForm()
-        if form.validate_on_submit():
-            match form.seat.data:
-                case "Seat 1":
-                    board = TriBoard(
-                        owner_id=g.user.id,
-                        player_0_id=g.user.id,
-                        player_0_accepted=True,
-                    )
-                case "Seat 2":
-                    board = TriBoard(
-                        owner_id=g.user.id,
-                        player_1_id=g.user.id,
-                        player_1_accepted=True,
-                    )
-                case "Seat 3":
-                    board = TriBoard(
-                        owner_id=g.user.id,
-                        player_2_id=g.user.id,
-                        player_2_accepted=True,
-                    )
-            db.session.add(board)
-            db.session.commit()
-            logger.log(
-                GAME,
-                "Game created",
-                extra={
-                    "user_id": g.user.id,
-                    "board_id": board.id,
-                },
-            )
-            track_event("game_created", seat=int(form.seat.data[-1]) - 1)
-            flash("Game created successfuly!", "success")
-            return redirect(url_for("available_games"))
-
+        if (delete := request.form.get("delete", type=int)) is not None:
+            _cancel_game(delete)
+        elif (board_id := request.form.get("board", type=int)) is not None:
+            _take_seat(board_id, request.form.get("seat"), request.form.get("fill_bot"))
+        else:
+            _create_game(NewGameForm())
         return redirect(url_for("available_games"))
-
-    available = TriBoard.query.filter_by(status=0).all()
+    available = TriBoard.query.filter_by(status=GameStatus.WAITING).all()
     form = NewGameForm()
     return render_template(
         "available.html", games=available, player_id=g.user.id, form=form
     )
+
+
+def _cancel_game(board_id):
+    """The owner deletes a waiting game nobody else has joined yet."""
+    board = db.session.get(TriBoard, board_id)
+    if (
+        board is None
+        or board.owner_id != g.user.id
+        or board.status != GameStatus.WAITING
+    ):
+        return
+    if any(p is not None and p != g.user.id for p in board.player_ids):
+        return
+    wait_time = minutes_since(board.created_at)
+    # A plain delete: the game's log rows are kept, detached from it.
+    db.session.delete(board)
+    db.session.commit()
+    track_event("game_cancelled", wait_time=wait_time)
+
+
+def _take_seat(board_id, seat, fill_bot):
+    """Seat the current player, or with *fill_bot* (owner only) a bot, in
+    *seat* of a waiting game; filling the last seat starts the game."""
+    board = (
+        db.session.query(TriBoard)
+        # Concurrent joins of the same game serialise here. FOR NO KEY
+        # UPDATE: the "Game started" log row may reference it meanwhile.
+        .with_for_update(key_share=True)
+        .filter_by(id=board_id, status=GameStatus.WAITING)
+        .first()
+    )
+    if board is None:
+        flash("Game not found or already started", "error")
+        return
+    seat_str = fill_bot if fill_bot is not None else seat
+    if seat_str not in ("0", "1", "2"):
+        flash("Invalid seat", "error")
+        return
+    seat = int(seat_str)
+    if board.player_ids[seat] is not None:
+        flash("Seat already taken", "error")
+        return
+    newcomer = _newcomer(board, bot=fill_bot is not None)
+    if newcomer is None:
+        return
+    board.assign_seat(seat, newcomer)
+    if board.is_full:
+        _start_game(board)
+    db.session.commit()
+    track_event("bot_seat_added" if fill_bot is not None else "game_join", seat=seat)
+    if board.status == GameStatus.ACTIVE:
+        track_event(
+            "game_started",
+            type=opponents(board),
+            wait_time=minutes_since(board.created_at),
+        )
+        maybe_trigger_bot(board.id)
+
+
+def _newcomer(board, bot):
+    """Who takes the seat: a free bot account (owner only) or the current
+    player. None, with a message flashed, if nobody can."""
+    seated = set(board.player_ids) - {None}
+    if bot:
+        if board.owner_id != g.user.id:
+            flash("Only the game owner can add a bot", "error")
+            return None
+        newcomer = (
+            User.query.filter_by(is_bot=True).filter(User.id.notin_(seated)).first()
+        )
+        if newcomer is None:
+            flash("No bot account available", "error")
+        return newcomer
+    # One seat per player: two seats for one user would map to a single
+    # seat in the game (TriBoard.seat_of) and stall it.
+    if g.user.id in seated:
+        flash("You already have a seat in this game", "warning")
+        return None
+    return g.user
+
+
+def _start_game(board):
+    board.status = GameStatus.ACTIVE
+    board.started_at = utcnow_naive()
+    logger.log(GAME, "Game started", extra={"user_id": g.user.id, "board_id": board.id})
+    # The player in seat 0 moves first.
+    if not board.player_0.is_bot:
+        post_notification(
+            board.player_0.username,
+            f"The game {board.id} just started, it's your turn",
+            "Game started",
+            board.id,
+        )
+
+
+def _create_game(form):
+    """A new waiting game with the current player in the chosen seat."""
+    if not form.validate_on_submit():
+        return
+    seat = int(form.seat.data[-1]) - 1  # "Seat 1" .. "Seat 3"
+    board = TriBoard(owner_id=g.user.id)
+    board.assign_seat(seat, g.user)
+    db.session.add(board)
+    db.session.commit()
+    logger.log(GAME, "Game created", extra={"user_id": g.user.id, "board_id": board.id})
+    track_event("game_created", seat=seat)
+    flash("Game created successfuly!", "success")
 
 
 @app.route("/play/<int:id>")
@@ -511,33 +392,27 @@ def play(id):
     user_in = TriBoard.for_player(g.user.id)
     tb = TriBoard.query.filter_by(id=id).filter(user_in).first()
     if tb:
-        pieces_file = os.path.join(
-            os.path.abspath(os.path.dirname(__file__)),
-            f"static/pieces/{g.user.pieces}.yaml",
-        )
-        with open(pieces_file) as f:
-            pieces_paths = yaml.safe_load(f)
+        pieces_paths = load_style("pieces", g.user.pieces)
         template = "board_ondro.html" if g.user.board == "ondro" else "board_filio.html"
-        seat = next(i for i in range(3) if getattr(tb, f"player_{i}_id") == g.user.id)
-        finished = tb.status == 2
+        seat = tb.seat_of(g.user.id)
+        finished = tb.status == GameStatus.FINISHED
         ga_game = {
             "board_id": tb.id,
             "seat": seat,
-            "type": _opponents(tb),
+            "type": opponents(tb),
             "renderer": "ondro" if g.user.board == "ondro" else "filio",
             # Seats move in order 0, 1, 2, so seat s has moved once more
             # than s moves were made.
             "has_moved": slog_summary(tb.slog or "").move_number > seat,
             # game_completed's duration: minutes since the start while the
             # game runs; start to last move once it's over.
-            "started_minutes_ago": _minutes_since(tb.started_at),
-            "duration": _game_minutes(tb) if finished else None,
+            "started_minutes_ago": minutes_since(tb.started_at),
+            "duration": game_minutes(tb) if finished else None,
             # A finished game seen for the first time soon after its end
             # still reports game_completed (once per browser).
             "finished_recently": finished
             and tb.modified_at is not None
-            and tb.modified_at
-            > datetime.now(timezone.utc).replace(tzinfo=None) - LATE_COMPLETION_WINDOW,
+            and tb.modified_at > utcnow_naive() - LATE_COMPLETION_WINDOW,
         }
         return render_template(
             template,
@@ -584,8 +459,8 @@ def profile():
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active_games"))
     user_in = TriBoard.for_player(g.user.id)
-    active = TriBoard.query.filter_by(status=1).filter(user_in).all()
-    archive = TriBoard.query.filter_by(status=2).filter(user_in).all()
+    active = TriBoard.query.filter_by(status=GameStatus.ACTIVE).filter(user_in).all()
+    archive = TriBoard.query.filter_by(status=GameStatus.FINISHED).filter(user_in).all()
     avg = sum([t.modified_at - t.started_at for t in archive], timedelta(0))
     if avg.total_seconds() > 0:
         avg = avg / len(archive)
@@ -640,6 +515,8 @@ def password():
         if check_password_hash(g.user.password, form_password.password.data):
             g.user.password = generate_password_hash(form_password.password_new.data)
             db.session.commit()
+            # New session id for this browser; every other session ends.
+            login_user(g.user)
             flash("Password changed successfuly!", "success")
         return redirect(url_for("active_games"))
     return render_template(
@@ -659,16 +536,28 @@ def help():
 # === Admin section ===
 
 
+def admin_required(view):
+    """Admin-only route (the admin is user id 1). Others get a message and
+    their games for a page, 403 for a form post. Put it under @login_required.
+    """
+
+    @functools.wraps(view)
+    def wrapper(*args, **kwargs):
+        if g.user.is_admin:
+            return view(*args, **kwargs)
+        if request.method != "GET":
+            abort(403)
+        flash("You are not admin.", "error")
+        return redirect(url_for("active_games"))
+
+    return wrapper
+
+
 def delete_game(board):
     """Delete a game with everything that references it. A rated game's
     points and rating changes go with it: ratings are recomputed. The caller
     commits."""
-    rated = Score.query.filter_by(board_id=board.id).count() > 0
-    Score.query.filter_by(board_id=board.id).delete()
-    Log.query.filter_by(board_id=board.id).delete()
-    RatingHistory.query.filter_by(board_id=board.id).delete()
-    db.session.delete(board)
-    if rated:
+    if delete_board(board):
         rebuild_ratings()
 
 
@@ -678,18 +567,11 @@ def remove_user(user):
     are scrubbed and it can never log in again. It leaves the games still
     waiting for players (a game it waited in alone is deleted). The caller
     commits."""
-    for board in TriBoard.query.filter_by(status=0).filter(
+    for board in TriBoard.query.filter_by(status=GameStatus.WAITING).filter(
         TriBoard.for_player(user.id)
     ):
-        for seat in range(3):
-            if getattr(board, f"player_{seat}_id") == user.id:
-                setattr(board, f"player_{seat}_id", None)
-                setattr(board, f"player_{seat}_accepted", False)
-        others = [
-            p
-            for p in (board.player_0_id, board.player_1_id, board.player_2_id)
-            if p is not None
-        ]
+        board.clear_seat(board.seat_of(user.id))
+        others = [p for p in board.player_ids if p is not None]
         if not others:
             delete_game(board)
         elif board.owner_id == user.id:
@@ -717,83 +599,72 @@ def remove_user(user):
 
 @app.route("/admin-games", methods=["GET", "POST"])
 @login_required
+@admin_required
 def admin_games():
-    if g.user.is_admin:
-        if request.method == "POST":
-            delete = request.form.get("delete", type=int)
-            if delete is not None:
-                board = db.session.get(TriBoard, delete)
-                if board is not None:
-                    delete_game(board)
-                    db.session.commit()
-                return redirect(url_for("admin_games"))
-        else:
-            available = (
-                TriBoard.query.filter_by(status=0)
-                .order_by(TriBoard.modified_at.desc())
-                .all()
-            )
-            active_pages = _paginate(
-                TriBoard.query.filter_by(status=1).order_by(
-                    TriBoard.modified_at.desc()
-                ),
-                "active_page",
-            )
-            archive_pages = _paginate(
-                TriBoard.query.filter_by(status=2).order_by(
-                    TriBoard.modified_at.desc()
-                ),
-                "archive_page",
-            )
-            # add onmove attribute
-            for game in active_pages.items + archive_pages.items:
-                game.onmove = slog_summary(game.slog or "").on_move
-            return render_template(
-                "admin-games.html",
-                available=available,
-                active=active_pages.items,
-                archive=archive_pages.items,
-                active_pages=active_pages,
-                archive_pages=archive_pages,
-            )
-    else:
-        flash("You are not admin.", "error")
-        return redirect(url_for("active_games"))
+    if request.method == "POST":
+        delete = request.form.get("delete", type=int)
+        board = db.session.get(TriBoard, delete) if delete is not None else None
+        if board is not None:
+            delete_game(board)
+            db.session.commit()
+        return redirect(url_for("admin_games"))
+    available = (
+        TriBoard.query.filter_by(status=GameStatus.WAITING)
+        .order_by(TriBoard.modified_at.desc())
+        .all()
+    )
+    active_pages = _paginate(
+        TriBoard.query.filter_by(status=GameStatus.ACTIVE).order_by(
+            TriBoard.modified_at.desc()
+        ),
+        "active_page",
+    )
+    archive_pages = _paginate(
+        TriBoard.query.filter_by(status=GameStatus.FINISHED).order_by(
+            TriBoard.modified_at.desc()
+        ),
+        "archive_page",
+    )
+    # add onmove attribute
+    for game in active_pages.items + archive_pages.items:
+        game.onmove = slog_summary(game.slog or "").on_move
+    return render_template(
+        "admin-games.html",
+        available=available,
+        active=active_pages.items,
+        archive=archive_pages.items,
+        active_pages=active_pages,
+        archive_pages=archive_pages,
+    )
 
 
 @app.route("/admin-users", methods=["GET", "POST"])
 @login_required
+@admin_required
 def admin_users():
-    if g.user.is_admin:
-        if request.method == "POST":
-            approve = request.form.get("approve", type=int)
-            delete = request.form.get("delete", type=int)
-            if approve is not None:
-                user = User.query.filter_by(id=approve).first()
-                if user is not None:
-                    user.active = True
-                    db.session.commit()
-            elif delete is not None:
-                user = db.session.get(User, delete)
-                if user is not None and not user.is_admin and not user.is_bot:
-                    remove_user(user)
-                    db.session.commit()
-            return redirect(url_for("admin_users"))
-        else:
-            waiting = (
-                User.query.filter(User.id > 1).filter(User.active.is_(False)).all()
-            )
-            users = (
-                User.query.filter(User.id > 1)
-                .filter(User.active.is_(True))
-                .filter_by(is_bot=False)
-                .order_by(User.last_login.desc())
-                .all()
-            )
-            return render_template("admin-users.html", users=users, waiting=waiting)
-    else:
-        flash("You are not admin.", "error")
-        return redirect(url_for("active_games"))
+    if request.method == "POST":
+        approve = request.form.get("approve", type=int)
+        delete = request.form.get("delete", type=int)
+        if approve is not None:
+            user = db.session.get(User, approve)
+            if user is not None:
+                user.active = True
+                db.session.commit()
+        elif delete is not None:
+            user = db.session.get(User, delete)
+            if user is not None and not user.is_admin and not user.is_bot:
+                remove_user(user)
+                db.session.commit()
+        return redirect(url_for("admin_users"))
+    waiting = User.query.filter(User.id > 1).filter(User.active.is_(False)).all()
+    users = (
+        User.query.filter(User.id > 1)
+        .filter(User.active.is_(True))
+        .filter_by(is_bot=False)
+        .order_by(User.last_login.desc())
+        .all()
+    )
+    return render_template("admin-users.html", users=users, waiting=waiting)
 
 
 # === User login methods ===
@@ -827,9 +698,8 @@ def before_request():
 
 @app.route("/admin/maintenance", methods=["POST"])
 @login_required
+@admin_required
 def maintenance_toggle():
-    if not g.user.is_admin:
-        abort(403)
     on = request.form.get("state") == "on"
     set_maintenance(on)
     logger.warning(f"Maintenance mode turned {'on' if on else 'off'} by admin")
@@ -843,8 +713,17 @@ def maintenance_toggle():
 
 
 @lm.user_loader
-def load_user(id):
-    return db.session.get(User, int(id))
+def load_user(session_id):
+    """User.get_id()'s "<id>:<password fingerprint>"; an old fingerprint (the
+    password has changed since) or an old plain-id session logs out."""
+    user_id, _, fingerprint = session_id.partition(":")
+    try:
+        user = db.session.get(User, int(user_id))
+    except ValueError:
+        return None
+    if user is None or not fingerprint or password_fingerprint(user) != fingerprint:
+        return None
+    return user
 
 
 LOGIN_FAILED = Markup(
@@ -880,7 +759,7 @@ def login():
             elif user.active:
                 g.user = user
                 login_user(user)
-                user.last_login = datetime.now(timezone.utc)
+                user.last_login = utcnow_naive()
                 db.session.commit()
                 track_event("login", method="password")
                 flash("Login successful!", "success")
@@ -957,7 +836,11 @@ def token():
         user = User.query.filter_by(username=username).first()
         if user is not None and check_password_hash(user.password, password):
             access_token = create_access_token(identity=str(user.id))
-            refresh_token = create_refresh_token(identity=str(user.id))
+            # Bound to the password, like login sessions (see /refresh).
+            refresh_token = create_refresh_token(
+                identity=str(user.id),
+                additional_claims={"pwd": password_fingerprint(user)},
+            )
             return jsonify(
                 access_token=access_token,
                 refresh_token=refresh_token,
@@ -971,10 +854,13 @@ def token():
 @csrf.exempt
 def refresh():
     user = get_current_user()
+    if get_jwt().get("pwd") != password_fingerprint(user):
+        return jsonify({"message": "Password changed, log in again"}), 401
     return jsonify(access_token=create_access_token(identity=str(user.id)))
 
 
-@app.route("/logout/")
+# POST with CSRF: a GET would let any cross-site link log users out.
+@app.route("/logout/", methods=["POST"])
 @login_required
 def logout():
     logout_user()
@@ -983,7 +869,7 @@ def logout():
 
 def _abandoned_signup(user):
     """A sign-up whose verification link (24 h) expired unused."""
-    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+    cutoff = utcnow_naive() - timedelta(days=1)
     return (
         not user.active
         and not user.email_verified
@@ -1053,13 +939,21 @@ def register():
 
 @app.route("/verify/<token>")
 def verify(token):
-    user_id = verify_verification_token(token)
-    if user_id is None:
+    payload = verify_verification_token(token)
+    if payload is None:
         flash("Invalid or expired verification link.", "danger")
         return redirect(url_for("index"))
+    user_id, email = payload
     user = db.session.get(User, user_id)
     if user is None or user.email is None or user.is_bot:
         # email None: an anonymised (removed) account, never to be reopened.
+        flash("Invalid or expired verification link.", "danger")
+        return redirect(url_for("index"))
+    # A link for an address the account no longer has. Links issued before
+    # tokens named the email (email None; they expire 24 h after deploy, drop
+    # this then) only activate a new sign-up, which can't have changed it.
+    legacy_signup = email is None and not user.active
+    if email != user.email and not legacy_signup:
         flash("Invalid or expired verification link.", "danger")
         return redirect(url_for("index"))
     if user.active:

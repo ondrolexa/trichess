@@ -61,7 +61,7 @@ class TestBookMove:
         assert game.gid2hex[from_gid].piece.label in ("P", "N")
 
     def test_none_while_a_vote_is_pending(self, game):
-        game.voting.resign_vote(0, "A")
+        game.voting.vote("resign", 0, "A")
         assert book_move(game) is None
 
     def test_none_with_an_empty_book(self, game, monkeypatch):

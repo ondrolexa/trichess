@@ -2,6 +2,7 @@ from engine.pieces import Bishop, King, Knight, Move, Pawn, Piece, Pos, Queen, R
 
 # Direction vectors indexed by player pid (0=bottom, 1=left, 2=right).
 # Stored as (dq, dr) tuples. Reverse directions included as "FLr" etc.
+# What each step code means on the board: Help → For developers → Hex Geometry (webapp/templates/help.html).
 STEP = {
     0: {
         "FL": (0, -1),

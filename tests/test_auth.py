@@ -184,7 +184,7 @@ class TestRemoveUser:
         assert user.username == f"[deleted {alice.id}]"
         assert user.email is None and not user.active
         assert db.session.get(TriBoard, tb.id).player_0_id == alice.id
-        client.get("/logout/")
+        client.post("/logout/")
         html = client.post(
             "/login", data={"username": "alice", "password": "password123"}
         ).get_data(as_text=True)
@@ -233,12 +233,183 @@ class TestRemoveUser:
         alice, bob, carol = (_create_user(n) for n in ("alice", "bob", "carol"))
         _seated_board([alice, bob, carol], 2)
         with app.test_request_context():
-            token = generate_verification_token(alice.id)
+            token = generate_verification_token(alice)
         _login_as_admin(client)
         client.post("/admin-users", data={"delete": alice.id})
-        client.get("/logout/")
+        client.post("/logout/")
 
         client.get(f"/verify/{token}")
 
         db.session.expire_all()
         assert not db.session.get(User, alice.id).active
+
+
+class TestLogoutIsPost:
+    def test_get_is_not_allowed(self, app, client):
+        _create_user()
+        _login(client)
+        assert client.get("/logout/").status_code == 405
+        assert client.get("/profile").status_code == 200
+
+    def test_navbar_logout_needs_csrf_token(self, app, client):
+        from tests.test_webapp import _extract_csrf_token
+
+        _create_user()
+        _login(client)
+        app.config["WTF_CSRF_ENABLED"] = True
+        try:
+            assert client.post("/logout/").status_code == 400
+            page = client.get("/profile").get_data(as_text=True)
+            assert 'formaction="/logout/"' in page
+            token = _extract_csrf_token(page)
+            assert (
+                client.post("/logout/", data={"csrf_token": token}).status_code == 302
+            )
+        finally:
+            app.config["WTF_CSRF_ENABLED"] = False
+        assert client.get("/profile").status_code == 302
+
+
+class TestVerificationTokenNamesEmail:
+    def _token(self, app, payload):
+        from itsdangerous import URLSafeTimedSerializer
+
+        with app.app_context():
+            serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+            return serializer.dumps(payload, salt="email-verify")
+
+    def test_link_for_old_email_rejected_after_change(self, app, client):
+        from webapp.token import generate_verification_token
+
+        alice = _create_user()
+        with app.test_request_context():
+            token = generate_verification_token(alice)
+        alice.email = "new@example.com"
+        alice.email_verified = False
+        db.session.commit()
+
+        client.get(f"/verify/{token}")
+
+        db.session.expire_all()
+        assert not db.session.get(User, alice.id).email_verified
+
+    def test_link_for_current_email_verifies(self, app, client):
+        from webapp.token import generate_verification_token
+
+        alice = _create_user(active=False)
+        with app.test_request_context():
+            token = generate_verification_token(alice)
+
+        client.get(f"/verify/{token}")
+
+        db.session.expire_all()
+        user = db.session.get(User, alice.id)
+        assert user.active and user.email_verified
+
+    def test_legacy_link_activates_a_new_sign_up(self, app, client):
+        alice = _create_user(active=False)
+        client.get(f"/verify/{self._token(app, alice.id)}")
+        db.session.expire_all()
+        assert db.session.get(User, alice.id).active
+
+    def test_legacy_link_does_not_verify_a_changed_email(self, app, client):
+        alice = _create_user()
+        alice.email_verified = False
+        db.session.commit()
+        client.get(f"/verify/{self._token(app, alice.id)}")
+        db.session.expire_all()
+        assert not db.session.get(User, alice.id).email_verified
+
+
+class TestPasswordChangeEndsSessions:
+    """The app fixture holds one app context for the whole test, so g (and
+    Flask-Login's cached g._login_user) outlives a request; _forget() makes
+    the next request load its user from the session again, as in production."""
+
+    @staticmethod
+    def _forget():
+        from flask import g
+
+        g.pop("_login_user", None)
+
+    def test_other_session_ends_changer_stays(self, app):
+        _create_user()
+        mine, other = app.test_client(), app.test_client()
+        _login(mine)
+        _login(other)
+        mine.post(
+            "/profile_password",
+            data={"password": "password123", "password_new": "newpass456"},
+        )
+        self._forget()
+        assert mine.get("/profile").status_code == 200
+        self._forget()
+        assert other.get("/profile").status_code == 302
+
+    def test_reset_ends_sessions(self, app, client):
+        from webapp.token import generate_password_reset_token
+
+        alice = _create_user()
+        _login(client)
+        with app.test_request_context():
+            token = generate_password_reset_token(alice)
+        app.test_client().post(
+            f"/reset/{token}", data={"password": "newpass456", "confirm": "newpass456"}
+        )
+        self._forget()
+        assert client.get("/profile").status_code == 302
+
+    def test_plain_id_session_from_before_is_logged_out(self, app, client):
+        alice = _create_user()
+        with client.session_transaction() as sess:
+            sess["_user_id"] = str(alice.id)
+            sess["_fresh"] = True
+        assert client.get("/profile").status_code == 302
+
+    def test_refresh_token_rejected_after_password_change(self, app, client):
+        from werkzeug.security import generate_password_hash
+
+        alice = _create_user()
+        app.config["API_TOKEN_USERS"] = "alice"
+        try:
+            refresh = client.post(
+                "/token", json={"username": "alice", "password": "password123"}
+            ).get_json()["refresh_token"]
+        finally:
+            app.config["API_TOKEN_USERS"] = ""
+        headers = {"Authorization": f"Bearer {refresh}"}
+        assert client.post("/refresh", headers=headers).status_code == 200
+
+        alice.password = generate_password_hash("newpass456")
+        db.session.commit()
+        assert client.post("/refresh", headers=headers).status_code == 401
+
+
+class TestProxyWarning:
+    def test_forwarded_request_without_trusted_hops_warns_once(
+        self, app, client, monkeypatch, caplog
+    ):
+        from webapp import main
+
+        monkeypatch.setattr(main, "_proxy_warned", False)
+        headers = {"X-Forwarded-For": "203.0.113.7"}
+        client.get("/", headers=headers)
+        client.get("/", headers=headers)
+        warnings = [r for r in caplog.records if "TRUSTED_PROXY_HOPS" in r.message]
+        assert len(warnings) == 1
+
+    def test_no_warning_with_trusted_hops(self, app, client, monkeypatch, caplog):
+        from webapp import main
+
+        monkeypatch.setattr(main, "_proxy_warned", False)
+        monkeypatch.setitem(app.config, "TRUSTED_PROXY_HOPS", 1)
+        client.get("/", headers={"X-Forwarded-For": "203.0.113.7"})
+        assert not [r for r in caplog.records if "TRUSTED_PROXY_HOPS" in r.message]
+
+
+class TestCors:
+    def test_no_credentials_allowed(self, app, client):
+        origin = app.config["CORS_ORIGINS"][0]
+        resp = client.get("/api/v1/manager/games", headers={"Origin": origin})
+        assert resp.headers.get("Access-Control-Allow-Origin") == origin
+        assert "Access-Control-Allow-Credentials" not in resp.headers

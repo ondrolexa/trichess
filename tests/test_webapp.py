@@ -9,8 +9,9 @@ from flask_jwt_extended import create_access_token
 from werkzeug.security import generate_password_hash
 
 import webapp
+from webapp.cli import dump_db
 from webapp.forms import ProfileForm
-from webapp.main import db, dump_db
+from webapp.main import db
 from webapp.models import Log, Score, TriBoard, User
 
 
@@ -815,7 +816,7 @@ class TestSeatJoining:
         _create_user("bob")
         _login(client)
         board = self._waiting_game(client)
-        client.get("/logout/")
+        client.post("/logout/")
         _login(client, "bob")
 
         client.post("/join", data={"board": board.id, "seat": "7"})
@@ -835,7 +836,7 @@ class TestSeatJoining:
         _login(client)
         board = self._waiting_game(client)
         client.post("/join", data={"board": board.id, "fill_bot": "2"})
-        client.get("/logout/")
+        client.post("/logout/")
         _login(client, "bob")
 
         client.post("/join", data={"board": board.id, "seat": "1"})
@@ -851,7 +852,7 @@ class TestSeatJoining:
         _login(client)
         board = self._waiting_game(client)
         client.post("/join", data={"board": board.id, "fill_bot": "2"})
-        client.get("/logout/")
+        client.post("/logout/")
         _login(client, "bob")
 
         client.post("/join", data={"board": board.id, "seat": "1"})

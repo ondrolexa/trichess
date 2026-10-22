@@ -114,10 +114,12 @@ class TestGameBoardEndgamePersistence:
     def test_repetition_ending_persists_tag_t_and_notifies(
         self, monkeypatch, app, client
     ):
-        from webapp import api
+        from webapp import game_end
 
         calls = []
-        monkeypatch.setattr(api, "post_notification", lambda *a, **k: calls.append(a))
+        monkeypatch.setattr(
+            game_end, "post_notification", lambda *a, **k: calls.append(a)
+        )
 
         tb, players = self._setup(app)
 
@@ -173,10 +175,12 @@ class TestGameBoardEndgamePersistence:
     def test_stalemate_ending_persists_tag_s_and_notifies(
         self, monkeypatch, app, client
     ):
-        from webapp import api
+        from webapp import game_end
 
         calls = []
-        monkeypatch.setattr(api, "post_notification", lambda *a, **k: calls.append(a))
+        monkeypatch.setattr(
+            game_end, "post_notification", lambda *a, **k: calls.append(a)
+        )
         # A from-scratch, POST-reachable stalemate position would require a
         # full legal game reaching that exact state — see the board-surgery
         # approach used for the engine-level unit test instead
@@ -250,7 +254,7 @@ class TestGameBoardPostValidation:
             gid for gid, hex in ga.gid2hex.items() if gid not in legal and gid != 166
         )
         slog = ga.move2slog(ga.gid2hex[166].pos, ga.gid2hex[target].pos, "")
-        assert self._post(app, client, tb, "alice", slog).status_code != 200
+        assert self._post(app, client, tb, "alice", slog).status_code == 409
         assert self._stored(tb) == ""
 
     def test_moving_an_opponents_piece_is_rejected(self, app, client):
@@ -261,7 +265,7 @@ class TestGameBoardPostValidation:
         other.move_number = 1
         tgid = other.valid_moves(17)[0]["tgid"]
         slog = ga.move2slog(ga.gid2hex[17].pos, ga.gid2hex[tgid].pos, "")
-        assert self._post(app, client, tb, "alice", slog).status_code != 200
+        assert self._post(app, client, tb, "alice", slog).status_code == 409
         assert self._stored(tb) == ""
 
     def test_fabricated_history_with_vote_is_rejected(self, app, client):
@@ -272,7 +276,7 @@ class TestGameBoardPostValidation:
         ga.make_move(26, ga.valid_moves(26)[0]["tgid"])
         # Three moves nobody played, followed by alice's resign vote.
         forged = ga.resignation_vote(True)
-        assert self._post(app, client, tb, "alice", forged).status_code != 200
+        assert self._post(app, client, tb, "alice", forged).status_code == 409
         assert self._stored(tb) == ""
 
     def test_votes_round_trip(self, app, client):
@@ -287,7 +291,7 @@ class TestGameBoardPostValidation:
         tb = self._setup(app)
         ga = GameAPI(view_pid=0)
         ga.make_move(166, ga.valid_moves(166)[0]["tgid"])
-        assert self._post(app, client, tb, "bob", ga.slog).status_code != 200
+        assert self._post(app, client, tb, "bob", ga.slog).status_code == 409
 
 
 class TestSlogLimits:
@@ -368,7 +372,7 @@ class TestGameBoardPostIsAtomic:
         monkeypatch.setattr(api, "finalize_if_finished", boom)
         tb = self._setup()
 
-        assert self._move(app, client, tb).status_code == 417
+        assert self._move(app, client, tb).status_code == 500
 
         db.session.expire_all()
         assert db.session.get(TriBoard, tb.id).slog == ""
@@ -397,3 +401,114 @@ class TestGameBoardPostIsAtomic:
         assert db.session.get(TriBoard, tb.id).status == 2
         finished = Log.query.filter(Log.message.like("Game finished%")).count()
         assert finished == 1
+
+
+class TestGameBoardStatusCodes:
+    """Each failure keeps its own status code: abort() raises an
+    HTTPException, which the resources' catch-all handlers must let through."""
+
+    def _get(self, app, client, board_id, username="alice"):
+        return client.get(
+            f"/api/v1/manager/board?id={board_id}",
+            headers={"Authorization": f"Bearer {_login(app, username)}"},
+        )
+
+    def _players(self):
+        return [_create_user(n) for n in ("alice", "bob", "carol")]
+
+    def test_get_missing_board_is_404(self, app, client):
+        self._players()
+        assert self._get(app, client, 999).status_code == 404
+
+    def test_get_board_of_other_players_is_404(self, app, client):
+        alice, bob, carol = self._players()
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol})
+        _create_user("dave")
+        assert self._get(app, client, tb.id, "dave").status_code == 404
+
+    def test_get_unparseable_slog_is_406(self, app, client):
+        alice, bob, carol = self._players()
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, slog="ZZZZ")
+        resp = self._get(app, client, tb.id)
+        assert resp.status_code == 406
+        assert resp.get_json()["message"] == "slog parsing error"
+
+    def test_post_conflict_is_409_and_board_unchanged(self, app, client):
+        alice, bob, carol = self._players()
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol})
+        stale = "HHHH" * 2  # not one legal step after the empty slog
+        resp = client.post(
+            "/api/v1/manager/board",
+            json={"id": tb.id, "slog": stale},
+            headers={"Authorization": f"Bearer {_login(app, 'alice')}"},
+        )
+        assert resp.status_code == 409
+        assert (
+            resp.get_json()["message"] == "Posted slog is in conflict with server one"
+        )
+        db.session.refresh(tb)
+        assert tb.slog == ""
+
+    def test_post_missing_board_is_404(self, app, client):
+        self._players()
+        resp = client.post(
+            "/api/v1/manager/board",
+            json={"id": 999, "slog": ""},
+            headers={"Authorization": f"Bearer {_login(app, 'alice')}"},
+        )
+        assert resp.status_code == 404
+
+
+class TestEndgameMessages:
+    """finalize_if_finished's "Game over" texts, one per seat."""
+
+    def _ga(self, on_move=0, accepts=()):
+        from types import SimpleNamespace
+
+        voting = SimpleNamespace(results=lambda kind="any": list(accepts))
+        return SimpleNamespace(on_move=on_move, voting=voting)
+
+    def _players(self):
+        from types import SimpleNamespace
+
+        return {i: SimpleNamespace(username=f"u{i}") for i in range(3)}
+
+    def test_resignation_tells_the_winner_first(self):
+        from webapp.game_end import _endgame_messages
+
+        msgs = _endgame_messages(
+            "resignation", self._ga(accepts=[0, 2]), self._players(), {}, 7
+        )
+        assert msgs == [
+            (1, "You win in game 7 by resignation"),
+            (0, "You lost in game 7 by resignation"),
+            (2, "You lost in game 7 by resignation"),
+        ]
+
+    def test_checkmate_names_the_loser_and_each_score(self):
+        from webapp.game_end import _endgame_messages
+
+        scores = {0: 4 / 3, 1: 0.0, 2: 2 / 3}
+        msgs = _endgame_messages(
+            "checkmate", self._ga(on_move=1), self._players(), scores, 7
+        )
+        assert msgs == [
+            (0, "u1 lost in game 7. Your score is 1.33333"),
+            (1, "You lost in game 7"),
+            (2, "u1 lost in game 7. Your score is 0.666667"),
+        ]
+
+    @pytest.mark.parametrize(
+        "kind, text",
+        [
+            ("draw", "Draw agreed in game 7"),
+            ("stalemate", "The game 7 ended in a stalemate"),
+            ("repetition", "The game 7 ended in a threefold repetition"),
+        ],
+    )
+    def test_shared_results_send_one_text_to_all(self, kind, text):
+        from webapp.game_end import _endgame_messages
+
+        scores = {0: 2 / 3, 1: 2 / 3, 2: 2 / 3}
+        msgs = _endgame_messages(kind, self._ga(), self._players(), scores, 7)
+        assert msgs == [(0, text), (1, text), (2, text)]

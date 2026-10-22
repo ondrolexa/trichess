@@ -5,7 +5,7 @@ from flask_jwt_extended import create_access_token
 
 from tests.test_botplayer import _bots, _make_board
 from tests.test_webapp import _create_user, _login, _login_as_admin
-from webapp import botplayer, main
+from webapp import botplayer, cli
 from webapp.main import db
 from webapp.maintenance import is_maintenance, set_maintenance
 from webapp.models import User
@@ -118,11 +118,11 @@ class TestPausedJobs:
 
     def test_reminders_skipped(self, app, monkeypatch):
         calls = []
-        monkeypatch.setattr(main, "post_notification", lambda *a: calls.append(a))
+        monkeypatch.setattr(cli, "post_notification", lambda *a: calls.append(a))
         set_maintenance(True)
         app.debug = False
         try:
-            main.resend_notification()
+            cli.resend_notification()
         finally:
             app.debug = True
         assert calls == []

@@ -63,7 +63,7 @@
             <form action="{{ url_for('index') }}" method="post" class="d-flex" role="form">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             {% if current_user.is_authenticated %}
-              <button class="btn btn-light" type="submit" name="action" value="logout">Logout</button>
+              <button class="btn btn-light" type="submit" formaction="{{ url_for('logout') }}">Logout</button>
             {% else %}
               <button class="btn btn-light me-2" type="submit" name="action" value="register">Register</button>
               <button class="btn btn-light" type="submit" name="action" value="login">Login</button>

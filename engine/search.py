@@ -378,7 +378,11 @@ class Position:
         return out
 
     def mobility(self, i: int) -> int:
-        """len(targets(i, castling=False)) without building the list."""
+        """len(targets(i, castling=False)) without building the list.
+
+        Deliberately a copy of targets()'s logic (it runs for every piece at
+        every leaf, so no list is built): any change to targets() must be
+        made here too."""
         board = self.board
         code = board[i]
         pid = code >> 3
@@ -574,7 +578,9 @@ _LABELS = ("Q", "R", "B", "N")
 
 
 class Search:
-    """Alternating max (root pid) / min (anyone else) alpha-beta search.
+    """Paranoid alpha-beta search: the root pid maximises its score and every
+    opponent move is assumed to minimise it (both opponents pooled into one
+    minimising side).
 
     Same algorithm as the GameAPI-based search it replaced (same node count): promotions first,
     then captures by MVV-LVA, then quiet moves by the history heuristic; all

@@ -24,32 +24,25 @@ MAX_DEPTH = 12
 
 
 def _terminal_score(ga: GameAPI, pid: int) -> float:
-    """Return game-over score for *pid*, matching server-side compute_outcome_scores.
-
-    Draw: every player gets 2/3. Resignation: the non-accepting player gets
-    2.0, the two who accepted get 0.0. Checkmate: score = (player's checker
-    count) * 2 / total checkers. Stalemate / other: each player gets 2/3.
+    """Game-over score for *pid*: GameAPI.outcome_scores(), the same points
+    the server awards.
 
     Used for vote decisions; the move search has its own port of the
-    checkmate/stalemate part (search.Position.terminal_score). Deliberately
-    does not check GameAPI.repetition()/endgame(): votes are resolved a few
-    plies at most, nowhere near enough to observe a real threefold
-    repetition. Stalemate is already covered by the final `return 2.0 / 3`.
+    checkmate/stalemate part (search.Position.terminal_score). The caller
+    already knows the node is terminal, so the kind is read off directly
+    instead of via endgame(): no legal-move scan, and deliberately no
+    repetition check, as votes are resolved a few plies at most, nowhere
+    near enough to observe a real threefold repetition.
     """
     if ga.draw():
-        return 2.0 / 3
-    if ga.resignation():
-        resigned = ga.voting.results(kind="resign")
-        winner = ({0, 1, 2} - set(resigned)).pop()
-        return 2.0 if pid == winner else 0.0
-    in_chess, _, who = ga.in_chess()
-    if in_chess:
-        tot = [len(p) for p in who.values()]
-        total = sum(tot)
-        if total > 0:
-            return tot[pid] * 2.0 / total
-        return 0.0
-    return 2.0 / 3
+        kind = "draw"
+    elif ga.resignation():
+        kind = "resignation"
+    elif ga.in_chess()[0]:
+        kind = "checkmate"
+    else:
+        kind = "stalemate"
+    return ga.outcome_scores(kind)[pid]
 
 
 def _terminal_value(ga: GameAPI, pid: int, depth_left: int) -> float:

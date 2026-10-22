@@ -1,5 +1,5 @@
+from webapp import cli, main, notifications
 from webapp import email as email_module
-from webapp import main, notifications
 from webapp.notifications import _send_email_job, _send_push_notification_job
 
 
@@ -148,3 +148,43 @@ class TestSendEmailJob:
         monkeypatch.setattr(notifications.smtplib, "SMTP", FailingSMTP)
         # Must not raise.
         _send_email_job("a@example.com", "Subj", "Body")
+
+
+class TestResendNotificationRecipient:
+    def _remind(self, app, monkeypatch):
+        calls = []
+        monkeypatch.setattr(
+            cli,
+            "post_notification",
+            lambda username, text, title, gameid: calls.append(username),
+        )
+        app.debug = False
+        try:
+            cli.resend_notification()
+        finally:
+            app.debug = True
+        return calls
+
+    def test_open_vote_reminds_the_player_who_must_answer(self, app, monkeypatch):
+        from engine import get_game
+        from tests.test_botplayer import _backdate_board, _create_user, _make_board
+
+        alice, bob, carol = (_create_user(n) for n in ("alice", "bob", "carol"))
+        # alice (seat 0) opened a draw vote: bob must answer next.
+        slog = get_game(0, "").draw_vote(True)
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, slog=slog)
+        _backdate_board(tb, 2 * 24 * 60)
+
+        assert self._remind(app, monkeypatch) == ["bob"]
+
+    def test_plain_moves_remind_the_player_on_move(self, app, monkeypatch):
+        from engine import GameAPI
+        from tests.test_botplayer import _backdate_board, _create_user, _make_board
+
+        alice, bob, carol = (_create_user(n) for n in ("alice", "bob", "carol"))
+        ga = GameAPI(view_pid=0)
+        ga.make_move(166, ga.valid_moves(166)[0]["tgid"])
+        tb = _make_board(alice, {0: alice, 1: bob, 2: carol}, slog=ga.slog)
+        _backdate_board(tb, 2 * 24 * 60)
+
+        assert self._remind(app, monkeypatch) == ["bob"]
