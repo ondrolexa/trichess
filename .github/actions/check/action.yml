@@ -1,0 +1,46 @@
+name: Check
+description: >-
+  Lint, format check and the test suite on SQLite and PostgreSQL. The calling
+  job must run a postgres:17 service on localhost:5432 (user/password
+  postgres, database trichess_test); composite actions can't declare services.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
+      with:
+        version: "0.12.24"   # same as the Dockerfile's uv image
+        enable-cache: true
+        python-version: "3.14"
+
+    - name: Install dependencies (locked)
+      shell: bash
+      run: uv sync --locked
+
+    - name: Lint
+      shell: bash
+      run: uv run ruff check .
+
+    - name: Check formatting
+      shell: bash
+      run: uv run ruff format --check .
+
+    - name: Test (SQLite)
+      shell: bash
+      run: uv run pytest
+
+    # pg_dump must match the server's major version (17) for the dump-db tests.
+    - name: Install PostgreSQL 17 client
+      shell: bash
+      run: |
+        sudo apt-get install -y postgresql-common
+        sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+        sudo apt-get install -y postgresql-client-17
+        echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+
+    - name: Test (PostgreSQL)
+      shell: bash
+      run: uv run pytest
+      env:
+        TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/trichess_test

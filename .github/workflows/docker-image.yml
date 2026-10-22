@@ -2,9 +2,9 @@ name: Check, then build and push Docker image to dockerhub
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
 
 jobs:
 
@@ -32,43 +32,16 @@ jobs:
     - name: Check out the repo
       uses: actions/checkout@v7
 
-    - name: Set up uv
-      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
-      with:
-        version: "0.12.24"   # same as the Dockerfile's uv image
-        enable-cache: true
-        python-version: "3.14"
-
-    - name: Install dependencies (locked)
-      run: uv sync --locked
-
-    - name: Lint
-      run: uv run ruff check .
-
-    - name: Check formatting
-      run: uv run ruff format --check .
-
-    - name: Test (SQLite)
-      run: uv run pytest
-
-    # pg_dump must match the server's major version (17) for the dump-db tests.
-    - name: Install PostgreSQL 17 client
-      run: |
-        sudo apt-get install -y postgresql-common
-        sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-        sudo apt-get install -y postgresql-client-17
-        echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
-
-    - name: Test (PostgreSQL)
-      run: uv run pytest
-      env:
-        TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/trichess_test
+    # Lint, format check, pytest on SQLite and PostgreSQL.
+    - name: Check
+      uses: ./.github/actions/check
 
   build:
 
-    # Only after checks pass, and only for pushes to main (PRs just check).
+    # Only after checks pass, and only for pushes to main (develop and PRs
+    # just check).
     needs: check
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:

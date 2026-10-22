@@ -1,0 +1,110 @@
+name: Update dependencies
+
+# Replaces Dependabot: upgrades uv.lock and the GitHub Actions versions, runs
+# the full check and, only if it passes, pushes one commit straight to develop
+# (no pull request). main gets the updates when develop is merged.
+#
+# Needs the repo secret DEPS_PUSH_TOKEN: a fine-grained PAT for this repo with
+# Contents and Workflows read/write (GITHUB_TOKEN can't push workflow changes).
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"   # Mondays 05:00 UTC
+  workflow_dispatch:
+
+concurrency: update-deps
+
+permissions:
+  contents: read
+
+env:
+  PINACT_VERSION: "5.0.1"
+
+jobs:
+
+  update:
+
+    runs-on: ubuntu-latest
+
+    # Same as docker-image.yml's check job; the check action needs it.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: trichess_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+    - name: Check out develop
+      uses: actions/checkout@v7
+      with:
+        ref: develop
+        token: ${{ secrets.DEPS_PUSH_TOKEN }}
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
+      with:
+        version: "0.12.24"   # same as the Dockerfile's uv image
+        python-version: "3.14"
+
+    - name: Upgrade Python dependencies
+      run: uv lock --upgrade 2>&1 | tee "$RUNNER_TEMP/uv-upgrade.log"
+
+    # .pre-commit-config.yaml: "Keep rev equal to the ruff version in uv.lock".
+    - name: Sync ruff-pre-commit rev with uv.lock
+      run: |
+        ruff=$(awk '/^name = "ruff"$/ {getline; gsub(/version = |"/, ""); print; exit}' uv.lock)
+        sed -i "/astral-sh\/ruff-pre-commit/{n;s/rev: v.*/rev: v$ruff/}" .pre-commit-config.yaml
+
+    - name: Install pinact
+      run: |
+        cd "$RUNNER_TEMP"
+        base=https://github.com/suzuki-shunsuke/pinact/releases/download/v$PINACT_VERSION
+        curl -fsSLO "$base/pinact_linux_amd64.tar.gz"
+        curl -fsSLO "$base/pinact_${PINACT_VERSION}_checksums.txt"
+        grep ' pinact_linux_amd64.tar.gz$' "pinact_${PINACT_VERSION}_checksums.txt" | sha256sum -c -
+        tar -xzf pinact_linux_amd64.tar.gz pinact
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+    # Latest release of every action, pinned to its commit SHA (# vX.Y.Z comment).
+    - name: Upgrade GitHub Actions
+      run: pinact run --update
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+
+    - name: Anything to commit?
+      id: diff
+      run: |
+        git status --short
+        if git diff --quiet; then
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Check
+      if: steps.diff.outputs.changed == 'true'
+      uses: ./.github/actions/check
+
+    # Plain fast-forward push: if develop moved during the run, this fails
+    # rather than pushing an untested combination; the next run retries.
+    - name: Commit and push to develop
+      if: steps.diff.outputs.changed == 'true'
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        {
+          echo "Update dependencies"
+          echo
+          grep -E '^(Updated|Added|Removed) ' "$RUNNER_TEMP/uv-upgrade.log" || true
+          git diff --quiet -- .github || echo "GitHub Actions upgraded by pinact."
+        } > "$RUNNER_TEMP/commit-msg.txt"
+        git commit -a -F "$RUNNER_TEMP/commit-msg.txt"
+        git push origin HEAD:develop
