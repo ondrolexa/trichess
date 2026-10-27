@@ -88,85 +88,89 @@ class fetchData {
     SemaforWait = false;
     modal_wt.hide();
   }
-  fetchPOST(iurl, ijson, icallback) {
-    const jsonData = JSON.stringify(ijson);
-    let statusCode = null;
+  async fetchPOST(iurl, ijson, icallback) {
+  const jsonData = JSON.stringify(ijson);
+  let statusCode = null;
 
-    fetch(iurl, {
+  try {
+    const response = await fetch(iurl, {
       method: "POST",
       headers: this.headers,
       body: jsonData,
-    })
-      .then((response) => {
-        statusCode = response.status;
-        wait_msg(true);
-        if (!response.ok) {
-          if (response.status === 503) {
-            location.reload(); // maintenance mode: reload shows the maintenance page
-            return;
-          }
-          if (response.status === 401 || response.status === 422) {
-            window.alert("Token expired!");
-            location.reload();
-            return;
-          } else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-        }
-        return response.json();
-      })
-      .then((data) => {
-        // 1 second delay before processing data
-        //setTimeout(() => {
-          this.semaforwait_green();
-          icallback(data);
-        //}, 1000);
-      })
-      .catch((error) => {
-        this.semaforwait_green();
-        if (statusCode !== 401 && statusCode !== 422) {
-          debug("fetchPOST:" + error + " url:" + iurl);
-        }
-      });
+    });
+    statusCode = response.status;
+    wait_msg(true);
+
+    if (!response.ok) {
+      if (response.status === 503) {
+        location.reload(); // maintenance mode: reload shows the maintenance page
+        return;
+      }
+      if (response.status === 401 || response.status === 422) {
+        window.alert("Token expired!");
+        location.reload();
+        return;
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    }
+    const data = await response.json();
+    if (typeof icallback === "function") {
+      //setTimeout(() => {
+      this.semaforwait_green();
+      icallback(data);
+      //}, 1000);
+    }
+    return data;
+
+  } catch (error) {
+    this.semaforwait_green();
+    if (statusCode !== 401 && statusCode !== 422) {
+      debug("fetchPOST:" + error + " url:" + iurl);
+    }
+    throw error; // Rethrow if you want calling functions to catch it too
   }
-  fetchGET(iurl, icallback) {
-    let statusCode = null;
-    fetch(iurl, {
+}
+async fetchGET(iurl, icallback) {
+  let statusCode = null;
+
+  try {
+    const response = await fetch(iurl, {
       method: "GET",
       headers: this.headers,
-    })
-      .then((response) => {
-        statusCode = response.status;
-        wait_msg(true);
-        if (!response.ok) {
-          if (response.status === 503) {
-            location.reload(); // maintenance mode: reload shows the maintenance page
-            return;
-          }
-          if (response.status === 401 || response.status === 422) {
-            window.alert("Token expired!");
-            location.reload();
-            return;
-          } else {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-        }
-        return response.json();
-      })
-      .then((data) => {
-        // 1 second delay before processing data
-        //setTimeout(() => {
-          this.semaforwait_green();
-          icallback(data);
-        //}, 1000);
-      })
-      .catch((error) => {
-        this.semaforwait_green();
-        if (statusCode !== 401 && statusCode !== 422) {
-          debug("fetchGET:" + error + " url:" + iurl);
-        }
-      });
+    });
+
+    statusCode = response.status;
+    wait_msg(true);
+
+    if (!response.ok) {
+      if (response.status === 503) {
+        location.reload(); // maintenance mode: reload shows the maintenance page
+        return;
+      }
+      if (response.status === 401 || response.status === 422) {
+        window.alert("Token expired!");
+        location.reload();
+        return;
+      } else {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    }
+    const data = await response.json();
+    //setTimeout(() => {
+    this.semaforwait_green();
+    icallback(data);
+    //}, 1000);
+    return data;
+
+  } catch (error) {
+    this.semaforwait_green();
+    if (statusCode !== 401 && statusCode !== 422) {
+      debug("fetchGET:" + error + " url:" + iurl);
+    }
+    throw error;
   }
+}
 }
 // ssel - promotion ////////////////////////////////////////////////
 class ssel {
