@@ -162,6 +162,15 @@ class TriBoard(db.Model):  # ty: ignore
     def bot_count(self):
         return sum(1 for p in self.players.values() if p is not None and p.is_bot)
 
+    def deletable_by(self, user_id):
+        """The owner may delete an active game they play alone against 2 bots."""
+        return (
+            self.status == GameStatus.ACTIVE
+            and self.owner_id == user_id
+            and self.seat_of(user_id) is not None
+            and self.bot_count == 2
+        )
+
     @classmethod
     def for_player(cls, user_id):
         """Filter expression matching boards where user_id occupies any of the 3 seats."""

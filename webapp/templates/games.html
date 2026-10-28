@@ -37,7 +37,15 @@
             <tr>
                 {% endif %}
                 {% endif %}
-                <th scope="row">{{game.id}}</th>
+                <th scope="row">
+                    {% if game.deletable_by(uid) %}
+                    <button type="button" class="badge text-bg-danger border-0" data-bs-toggle="modal"
+                        data-bs-target="#deleteGameDialog" data-game-id="{{game.id}}"
+                        title="Delete game {{game.id}}" aria-label="Delete game {{game.id}}">&times;</button>
+                    {% else %}
+                    {{game.id}}
+                    {% endif %}
+                </th>
                 <td class="seat">
                     {% if game.onmove == 0 %}
                     <strong class="{{ on_move_color }}">{{game.player_0.username}} ({{ game.player_0.rating|round|int
@@ -73,10 +81,42 @@
         </tbody>
     </table>
 </div>
+<div class="modal fade" id="deleteGameDialog" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <form method="post" class="modal-content">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <input type="hidden" name="delete" id="deleteGameInput" />
+            <div class="modal-header">
+                <h5 class="modal-title">Delete game</h5>
+            </div>
+            <div class="modal-body">
+                Delete game <span id="deleteGameId"></span>? This can't be undone.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No</button>
+                <button type="submit" class="btn btn-danger">Yes</button>
+            </div>
+        </form>
+    </div>
+</div>
 <script>
-    window.setTimeout(function () {
-        window.location.reload();
-    }, 30000);
+    const deleteGameDialog = document.getElementById("deleteGameDialog");
+    deleteGameDialog.addEventListener("show.bs.modal", function (event) {
+        const gameId = event.relatedTarget.dataset.gameId;
+        document.getElementById("deleteGameInput").value = gameId;
+        document.getElementById("deleteGameId").textContent = gameId;
+    });
+    // Refresh every 30 s, but not while the delete dialog is open.
+    function scheduleReload() {
+        window.setTimeout(function () {
+            if (deleteGameDialog.classList.contains("show")) {
+                scheduleReload();
+            } else {
+                window.location.reload();
+            }
+        }, 30000);
+    }
+    scheduleReload();
 </script>
 {% else %}
 <p>You have no active games. Head over to <a class="link-opacity-100"

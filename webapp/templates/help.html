@@ -472,6 +472,8 @@
         </ul>
         <p>Bot games are purely for fun and practice — play as many as you like without any impact on your standing.
         </p>
+        <p>If you play alone against both bots in a game you own, you can delete it at any time: click the red
+          <strong>&times;</strong> in place of its number on the <strong>Games</strong> page and confirm.</p>
 
         <hr>
 
@@ -1547,6 +1549,11 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
               <td><code>game_cancelled</code></td>
               <td>Owner deletes a game still waiting for players</td>
               <td><code>wait_time</code> (minutes since creation)</td>
+            </tr>
+            <tr>
+              <td><code>bot_game_deleted</code></td>
+              <td>Owner deletes an active game they play alone against 2 bots</td>
+              <td><code>move_number</code></td>
             </tr>
             <tr>
               <td><code>game_started</code></td>

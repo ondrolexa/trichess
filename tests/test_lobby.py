@@ -1,4 +1,5 @@
-"""The /join lobby: creating, joining, bot seats and cancelling games."""
+"""The /join lobby: creating, joining, bot seats and cancelling games; deleting
+solo bot games from /games."""
 
 import logging
 
@@ -160,6 +161,64 @@ class TestCancel:
         board = _waiting_board(_create_user("bob"))
         client.post("/join", data={"delete": board.id})
         assert db.session.get(TriBoard, board.id) is not None
+
+
+def _bot_game(owner, status=GameStatus.ACTIVE):
+    """An active game *owner* plays alone against both bots."""
+    board = _waiting_board(owner)
+    bot1, bot2 = _bots()
+    board.assign_seat(1, bot1)
+    board.assign_seat(2, bot2)
+    board.status = status
+    db.session.add(Log(level="GAME", message="Game started", board_id=board.id))
+    db.session.commit()
+    return board
+
+
+class TestDeleteBotGame:
+    def test_owner_deletes_it_with_its_logs(self, client, alice):
+        board = _bot_game(alice)
+        board_id = board.id
+        resp = client.post("/games", data={"delete": board_id})
+        assert resp.status_code == 302
+        assert resp.headers["Location"].endswith("/games")
+        assert db.session.get(TriBoard, board_id) is None
+        assert Log.query.filter_by(board_id=board_id).count() == 0
+        assert _flashes(client) == [f"Game {board_id} deleted"]
+
+    def test_not_with_another_human(self, client, alice):
+        board = _bot_game(alice)
+        board.assign_seat(2, _create_user("bob"))
+        db.session.commit()
+        client.post("/games", data={"delete": board.id})
+        assert db.session.get(TriBoard, board.id) is not None
+        assert _flashes(client) == ["Game not found or can't be deleted"]
+
+    def test_only_the_owner(self, client, alice):
+        bob = _create_user("bob")
+        board = _bot_game(bob)
+        board.assign_seat(0, alice)  # alice seated, bob still owns it
+        db.session.commit()
+        client.post("/games", data={"delete": board.id})
+        assert db.session.get(TriBoard, board.id) is not None
+
+    def test_not_finished_game(self, client, alice):
+        board = _bot_game(alice, status=GameStatus.FINISHED)
+        client.post("/games", data={"delete": board.id})
+        assert db.session.get(TriBoard, board.id) is not None
+
+    def test_unknown_game(self, client, alice):
+        client.post("/games", data={"delete": 9999})
+        assert _flashes(client) == ["Game not found or can't be deleted"]
+
+    def test_button_only_for_deletable_game(self, client, alice):
+        mine = _bot_game(alice)
+        other = _bot_game(alice)
+        other.assign_seat(2, _create_user("bob"))
+        db.session.commit()
+        page = client.get("/games").get_data(as_text=True)
+        assert f'data-game-id="{mine.id}"' in page
+        assert f'data-game-id="{other.id}"' not in page
 
 
 class TestAdminRequired:

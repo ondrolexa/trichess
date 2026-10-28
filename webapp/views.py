@@ -153,9 +153,12 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/games")
+@app.route("/games", methods=["GET", "POST"])
 @login_required
 def active_games():
+    if request.method == "POST":
+        _delete_bot_game(request.form.get("delete", type=int))
+        return redirect(url_for("active_games"))
     user_in = TriBoard.for_player(g.user.id)
     active = (
         TriBoard.query.filter_by(status=GameStatus.ACTIVE)
@@ -171,6 +174,19 @@ def active_games():
     return render_template(
         "games.html", games=active, uid=g.user.id, board=g.user.board
     )
+
+
+def _delete_bot_game(board_id):
+    """The owner deletes an active game they play alone against 2 bots."""
+    board = db.session.get(TriBoard, board_id) if board_id is not None else None
+    if board is None or not board.deletable_by(g.user.id):
+        flash("Game not found or can't be deleted", "error")
+        return
+    move_number = slog_summary(board.slog or "").move_number
+    delete_game(board)
+    db.session.commit()
+    flash(f"Game {board_id} deleted", "success")
+    track_event("bot_game_deleted", move_number=move_number)
 
 
 GAMES_PER_PAGE = 50
