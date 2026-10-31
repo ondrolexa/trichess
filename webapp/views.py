@@ -68,6 +68,7 @@ from webapp.models import (
     Score,
     TriBoard,
     User,
+    create_user_version,
     delete_board,
     score_outcome,
     utcnow_naive,
@@ -466,14 +467,27 @@ def profile():
                 "info",
             )
 
-        for field in ("theme", "board", "pieces"):
-            value = getattr(form_profile, field).data
-            if getattr(g.user, field) != value:
-                track_event("profile_pref_change", field=field, pref_value=value)
-                setattr(g.user, field, value)
+        create_user_version(
+            {
+                "username": g.user.username,
+                "password": g.user.password,
+                "email": new_email,
+                "email_verified": g.user.email_verified if not email_changed else False,
+                "theme": form_profile.theme.data,
+                "board": form_profile.board.data,
+                "pieces": form_profile.pieces.data,
+                "active": g.user.active,
+                "is_bot": g.user.is_bot,
+                "last_login": g.user.last_login,
+                "rating": g.user.rating,
+            },
+            existing_user=g.user,
+        )
+
         db.session.commit()
         flash("Profile saved successfuly!", "success")
         return redirect(url_for("active_games"))
+
     user_in = TriBoard.for_player(g.user.id)
     active = TriBoard.query.filter_by(status=GameStatus.ACTIVE).filter(user_in).all()
     archive = TriBoard.query.filter_by(status=GameStatus.FINISHED).filter(user_in).all()
@@ -529,7 +543,22 @@ def password():
     form_password = PasswordForm(username=g.user.username)
     if form_password.validate_on_submit():
         if check_password_hash(g.user.password, form_password.password.data):
-            g.user.password = generate_password_hash(form_password.password_new.data)
+            create_user_version(
+                {
+                    "username": g.user.username,
+                    "password": generate_password_hash(form_password.password_new.data),
+                    "email": g.user.email,
+                    "email_verified": g.user.email_verified,
+                    "theme": g.user.theme,
+                    "board": g.user.board,
+                    "pieces": g.user.pieces,
+                    "active": g.user.active,
+                    "is_bot": g.user.is_bot,
+                    "last_login": g.user.last_login,
+                    "rating": g.user.rating,
+                },
+                existing_user=g.user,
+            )
             db.session.commit()
             # New session id for this browser; every other session ends.
             login_user(g.user)
@@ -601,13 +630,22 @@ def remove_user(user):
         or RatingHistory.query.filter_by(user_id=user.id).count()
     )
     if in_games:
-        # Brackets and spaces fail RegistrationForm's username rule, so no
-        # one can have registered this name first.
-        user.username = f"[deleted {user.id}]"
-        user.email = None
-        user.email_verified = False
-        user.password = generate_password_hash(secrets.token_hex(32))
-        user.active = False
+        create_user_version(
+            {
+                "username": f"[deleted {user.id}]",
+                "password": generate_password_hash(secrets.token_hex(32)),
+                "email": None,
+                "email_verified": False,
+                "theme": user.theme,
+                "board": user.board,
+                "pieces": user.pieces,
+                "active": False,
+                "is_bot": user.is_bot,
+                "last_login": user.last_login,
+                "rating": user.rating,
+            },
+            existing_user=user,
+        )
     else:
         Log.query.filter_by(user_id=user.id).delete()
         db.session.delete(user)
@@ -663,8 +701,23 @@ def admin_users():
         delete = request.form.get("delete", type=int)
         if approve is not None:
             user = db.session.get(User, approve)
-            if user is not None:
-                user.active = True
+            if user is not None:  # todo "active": false,
+                create_user_version(
+                    {
+                        "username": user.username,
+                        "password": user.password,
+                        "email": user.email,
+                        "email_verified": user.email_verified,
+                        "theme": user.theme,
+                        "board": user.board,
+                        "pieces": user.pieces,
+                        "active": True,
+                        "is_bot": user.is_bot,
+                        "last_login": user.last_login,
+                        "rating": user.rating,
+                    },
+                    existing_user=user,
+                )
                 db.session.commit()
         elif delete is not None:
             user = db.session.get(User, delete)
@@ -775,7 +828,9 @@ def login():
             elif user.active:
                 g.user = user
                 login_user(user)
+                # Pure ORM update for last_login
                 user.last_login = utcnow_naive()
+                db.session.add(user)
                 db.session.commit()
                 track_event("login", method="password")
                 flash("Login successful!", "success")
@@ -817,7 +872,22 @@ def reset(token):
         return redirect(url_for("forgot"))
     form = ResetPasswordForm()
     if form.validate_on_submit():
-        user.password = generate_password_hash(form.password.data)
+        create_user_version(
+            {
+                "username": user.username,
+                "password": generate_password_hash(form.password.data),
+                "email": user.email,
+                "email_verified": user.email_verified,
+                "theme": user.theme,
+                "board": user.board,
+                "pieces": user.pieces,
+                "active": user.active,
+                "is_bot": user.is_bot,
+                "last_login": user.last_login,
+                "rating": user.rating,
+            },
+            existing_user=user,
+        )
         db.session.commit()
         flash("Password reset successful! You can now log in.", "success")
         return redirect(url_for("login"))
@@ -890,7 +960,7 @@ def _abandoned_signup(user):
         not user.active
         and not user.email_verified
         and not user.is_bot
-        and user.email is not None  # anonymised accounts keep their name
+        and user.email is not None
         and user.created_at is not None
         and user.created_at < cutoff
         and not TriBoard.query.filter(TriBoard.for_player(user.id)).count()
@@ -920,7 +990,8 @@ def register():
         if existing is not None and _abandoned_signup(existing):
             # A sign-up never verified in time doesn't hold its name forever.
             Log.query.filter_by(user_id=existing.id).delete()
-            db.session.delete(existing)
+            for rec in User.query.filter_by(id=existing.id).all():
+                db.session.delete(rec)
             db.session.flush()
             existing = None
         if existing is not None:
@@ -930,22 +1001,22 @@ def register():
 
         owner = User.query.filter_by(email=form.email.data).first()
         if owner is not None:
-            # Same answer as a new sign-up, so the form doesn't reveal which
-            # emails have accounts; the address's owner is told instead.
             _flash_registered(send_account_exists_email(owner))
             return redirect(url_for("index"))
 
         hashed_password = generate_password_hash(form.password.data)
-        new_user = User(
-            username=form.username.data,
-            password=hashed_password,
-            email=form.email.data,
-            theme="default",
-            board="ondro",
-            pieces="default",
-            active=False,
+        new_user = create_user_version(
+            {
+                "username": form.username.data,
+                "password": hashed_password,
+                "email": form.email.data,
+                "theme": "default",
+                "board": "ondro",
+                "pieces": "default",
+                "active": False,
+                "is_bot": False,
+            }
         )
-        db.session.add(new_user)
         db.session.commit()
         track_event("sign_up", method="email")
         _flash_registered(send_verification_email(new_user))
@@ -972,19 +1043,26 @@ def verify(token):
     if email != user.email and not legacy_signup:
         flash("Invalid or expired verification link.", "danger")
         return redirect(url_for("index"))
-    if user.active:
-        if user.email_verified:
-            flash("Account already verified.", "info")
-        else:
-            user.email_verified = True
-            db.session.commit()
-            flash("New email verified!", "success")
-    else:
-        user.active = True
-        user.email_verified = True
-        db.session.commit()
-        track_event("email_verified")
-        flash("Email verified! You can now log in.", "success")
+
+    create_user_version(
+        {
+            "username": user.username,
+            "password": user.password,
+            "email": user.email,
+            "email_verified": True,
+            "theme": user.theme,
+            "board": user.board,
+            "pieces": user.pieces,
+            "active": True,
+            "is_bot": user.is_bot,
+            "last_login": user.last_login,
+            "rating": user.rating,
+        },
+        existing_user=user,
+    )
+    db.session.commit()
+    track_event("email_verified")
+    flash("Email verified! You can now log in.", "success")
     return redirect(url_for("login"))
 
 

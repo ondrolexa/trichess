@@ -39,9 +39,12 @@ def score_outcome(score, onmove, tag):
 
 
 class User(db.Model):  # ty: ignore
+    """Read-only model mapping to the active user database view."""
+
     __tablename__ = "user"
 
-    id = db.Column(db.Integer, primary_key=True)
+    # ver_id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)  # True user id (Business Key)
     # Unique: JWTs carry the id, but seats, the lobby and logins name users.
     username = db.Column(db.String(64), unique=True)
     password = db.Column(db.String(500))
@@ -98,6 +101,75 @@ class User(db.Model):  # ty: ignore
 
     def __repr__(self):
         return f"<User {self.username!r}>"
+
+
+class UserHis(db.Model):
+    """Write/History model mapping directly to the physical user_his table (SCD2)."""
+
+    __tablename__ = "user_his"
+    ver_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(
+        db.Integer, index=True, nullable=False
+    )  # True user id (Business Key)
+    username = db.Column(db.String(64))
+    password = db.Column(db.String(500))
+    email = db.Column(db.String(120))
+    email_verified = db.Column(db.Boolean, default=False)
+    theme = db.Column(db.String(16), default="default")
+    board = db.Column(db.String(16), default="ondro")
+    pieces = db.Column(db.String(16), default="default")
+    active = db.Column(db.Boolean, default=True)
+    is_bot = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    valid_to = db.Column(
+        db.DateTime, nullable=True
+    )  # Set when record stops being valid
+    last_login = db.Column(db.DateTime)
+    rating = db.Column(db.Float, default=500.0)
+
+
+def create_user_version(user_data, existing_user=None):
+    """Closes current active user record in user_his and inserts a new version using pure ORM (SCD2)."""
+    now = utcnow_naive()
+
+    if existing_user:
+        # === CHANGE 1: Use UserHis model to find and close the active history record ===
+        active_his_record = UserHis.query.filter_by(
+            id=existing_user.id, valid_to=None
+        ).first()
+        if active_his_record:
+            active_his_record.active = False
+            active_his_record.valid_to = now
+            db.session.add(active_his_record)
+        uid = existing_user.id
+    else:
+        # Generate new True User ID from the sequence
+        res = db.session.execute(db.text("SELECT nextval('user_id_seq')"))
+        uid = res.scalar()
+
+    # === CHANGE 2: Instantiate new version using the physical table model (UserHis) ===
+    new_version = UserHis(
+        id=uid,
+        username=user_data.get("username"),
+        password=user_data.get("password"),
+        email=user_data.get("email"),
+        email_verified=user_data.get("email_verified", False),
+        theme=user_data.get("theme", "default"),
+        board=user_data.get("board", "ondro"),
+        pieces=user_data.get("pieces", "default"),
+        active=user_data.get("active", True),
+        is_bot=user_data.get("is_bot", False),
+        created_at=now,
+        valid_to=None,  # Active version has NULL valid_to
+        last_login=user_data.get("last_login"),
+        rating=user_data.get("rating", 500.0),
+    )
+
+    db.session.add(new_version)
+    db.session.flush()
+
+    # === CHANGE 3: Query User by id only (the view implicitly handles valid_to IS NULL) ===
+    return User.query.filter_by(id=uid).first()
 
 
 class TriBoard(db.Model):  # ty: ignore
