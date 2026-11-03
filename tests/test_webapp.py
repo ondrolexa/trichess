@@ -336,13 +336,13 @@ class Test_Google_Analytics:
         monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", "")
         monkeypatch.setitem(app.config, "DEBUG", False)
         html = client.get("/help").get_data(as_text=True)
-        assert "TRICHESS_GA" not in html
+        assert "window.TRICHESS_GA =" not in html
         assert "cookieSettings" not in html
 
     def test_tag_absent_in_debug_mode(self, app, client, monkeypatch):
         monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", self.GA_ID)
         html = client.get("/help").get_data(as_text=True)
-        assert "TRICHESS_GA" not in html
+        assert "window.TRICHESS_GA =" not in html
 
     def test_tag_rendered_when_configured(self, app, client, monkeypatch):
         self._enable(app, monkeypatch)
@@ -356,7 +356,7 @@ class Test_Google_Analytics:
         self._enable(app, monkeypatch)
         _login_as_admin(client)
         html = client.get("/help").get_data(as_text=True)
-        assert "TRICHESS_GA" not in html
+        assert "window.TRICHESS_GA =" not in html
 
     def test_user_id_is_hashed_not_identifying(self, app, client, monkeypatch):
         self._enable(app, monkeypatch)
@@ -386,7 +386,7 @@ class Test_Google_Analytics:
         html = client.get("/help").get_data(as_text=True)
         assert '"name": "game_created", "params": {"seat": 1}' in html
 
-    def test_game_cancelled_event_carries_wait_time(self, app, client, monkeypatch):
+    def test_game_cancelled_event_carries_wait_minutes(self, app, client, monkeypatch):
         self._enable(app, monkeypatch)
         _create_user()
         _login(client)
@@ -400,24 +400,27 @@ class Test_Google_Analytics:
         client.post("/join", data={"delete": board.id})
         html = client.get("/help").get_data(as_text=True)
         assert db.session.get(TriBoard, board.id) is None
-        assert '"name": "game_cancelled", "params": {"wait_time": 42}' in html
+        assert '"name": "game_cancelled", "params": {"wait_minutes": 42}' in html
 
-    def test_view_archive_event_on_first_page_only(self, app, client, monkeypatch):
+    def test_archive_viewed_event_on_first_page_only(self, app, client, monkeypatch):
         self._enable(app, monkeypatch)
         _create_user()
         _login(client)
         client.get("/help")  # drain the login event
         html = client.get("/archive").get_data(as_text=True)
-        assert '"name": "view_archive", "params": {"context": "list"}' in html
+        assert '"name": "archive_viewed", "params": {"context": "list"}' in html
         html = client.get("/archive?page=2").get_data(as_text=True)
-        assert "view_archive" not in html
+        assert "archive_viewed" not in html
 
-    def _user_properties(self, html):
+    def _config(self, html):
         import json
 
         match = re.search(r"window\.TRICHESS_GA = (\{.*?\});\n", html)
         assert match is not None
-        return json.loads(match.group(1))["user_properties"]
+        return json.loads(match.group(1))
+
+    def _user_properties(self, html):
+        return self._config(html)["user_properties"]
 
     @pytest.mark.parametrize(
         "rating, elo_class",
@@ -463,28 +466,71 @@ class Test_Google_Analytics:
         props = self._user_properties(client.get("/help").get_data(as_text=True))
         assert props["games_played_tier"] == tier
 
-    def test_profile_user_properties(self, app, client, monkeypatch):
+    def test_user_properties_are_player_class_prefs_go_to_snapshot(
+        self, app, client, monkeypatch
+    ):
         self._enable(app, monkeypatch)
         user = _create_user()
         user.pieces, user.theme, user.board = "chubby", "night", "filio"
         db.session.commit()
         _login(client)
-        props = self._user_properties(client.get("/help").get_data(as_text=True))
-        assert props == {
+        config = self._config(client.get("/help").get_data(as_text=True))
+        assert config["user_properties"] == {
             "logged_in": "yes",
-            "board_renderer": "filio",
-            "ui_theme": "night",
-            "piece_set": "chubby",
             "elo_class": "Novice",
             "games_played_tier": "0",
         }
+        assert config["prefs"] == {
+            "board_renderer": "filio",
+            "ui_theme": "night",
+            "piece_set": "chubby",
+        }
+
+    def test_anonymous_page_has_no_prefs(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        config = self._config(client.get("/help").get_data(as_text=True))
+        assert config["user_properties"] == {"logged_in": "no"}
+        assert config["prefs"] is None
+
+    def test_pref_changed_event(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        user = _create_user()
+        user.theme = "default"
+        db.session.commit()
+        _login(client)
+        client.get("/help")  # drain the login event
+        client.post(
+            "/profile",
+            data={
+                "email": user.email,
+                "theme": "night",
+                "board": user.board,
+                "pieces": user.pieces,
+            },
+        )
+        events = self._config(client.get("/help").get_data(as_text=True))["events"]
+        assert events == [
+            {
+                "name": "pref_changed",
+                "params": {
+                    "pref": "ui_theme",
+                    "pref_value": "night",
+                    "previous_value": "default",
+                },
+            }
+        ]
+
+    def test_track_event_rejects_unknown_names_and_params(self, app):
+        from webapp.analytics import track_event
+
+        with app.test_request_context():
+            with pytest.raises(ValueError, match="unknown GA event"):
+                track_event("game_join", seat=1)
+            with pytest.raises(ValueError, match="unknown params"):
+                track_event("game_cancelled", wait_time=3)
 
     def _ga_game(self, html):
-        import json
-
-        match = re.search(r"window\.TRICHESS_GA = (\{.*?\});\n", html)
-        assert match is not None
-        return json.loads(match.group(1))["game"]
+        return self._config(html)["game"]
 
     @pytest.mark.parametrize("renderer", ["ondro", "filio"])
     def test_play_page_carries_game_context(self, app, client, monkeypatch, renderer):
@@ -502,11 +548,13 @@ class Test_Google_Analytics:
         assert game == {
             "board_id": tb.id,
             "seat": 1,
-            "type": "bots",
-            "renderer": renderer,
+            "game_type": "bots",
+            "board_renderer": renderer,
             "has_moved": False,
+            "started_recently": True,
+            "wait_minutes": 0,
             "started_minutes_ago": 0,
-            "duration": None,
+            "duration_minutes": None,
             "finished_recently": False,
         }
 
@@ -526,9 +574,9 @@ class Test_Google_Analytics:
         _login(client)
 
         html = client.get(f"/play/{mixed.id}").get_data(as_text=True)
-        assert self._ga_game(html)["type"] == "mixed"
+        assert self._ga_game(html)["game_type"] == "mixed"
         html = client.get(f"/play/{humans.id}").get_data(as_text=True)
-        assert self._ga_game(html)["type"] == "humans"
+        assert self._ga_game(html)["game_type"] == "humans"
 
     def test_play_page_finished_game_completion_context(self, app, client, monkeypatch):
         self._enable(app, monkeypatch)
@@ -545,12 +593,13 @@ class Test_Google_Analytics:
 
         game = self._ga_game(client.get(f"/play/{recent.id}").get_data(as_text=True))
         assert game["finished_recently"] is True
-        assert game["duration"] == 60
+        assert game["started_recently"] is False  # finished: no game_started
+        assert game["duration_minutes"] == 60
         game = self._ga_game(client.get(f"/play/{old.id}").get_data(as_text=True))
         assert game["finished_recently"] is False
-        assert game["duration"] == 24 * 60
+        assert game["duration_minutes"] == 24 * 60
 
-    def test_game_start_event_when_last_seat_filled(self, app, client, monkeypatch):
+    def test_lobby_no_longer_sends_game_started(self, app, client, monkeypatch):
         self._enable(app, monkeypatch)
         _create_user()
         _login(client)
@@ -558,14 +607,32 @@ class Test_Google_Analytics:
         client.post("/join", data={"seat": "Seat 1"})
         board = TriBoard.query.one()
         client.post("/join", data={"board": board.id, "fill_bot": "1"})
-        html = client.get("/help").get_data(as_text=True)
-        assert '"name": "game_started"' not in html
-
         client.post("/join", data={"board": board.id, "fill_bot": "2"})
-        html = client.get("/help").get_data(as_text=True)
+        events = self._config(client.get("/help").get_data(as_text=True))["events"]
         assert db.session.get(TriBoard, board.id).status == 1
-        assert '"name": "game_started"' in html
-        assert '"type": "bots", "wait_time": 0' in html
+        assert [e["name"] for e in events] == [
+            "game_created",
+            "bot_seat_added",
+            "bot_seat_added",
+        ]
+
+    def test_play_page_game_started_context(self, app, client, monkeypatch):
+        self._enable(app, monkeypatch)
+        players = [_create_user(n) for n in ("alice", "bob", "carol")]
+        recent = _seated_board(players, 1)
+        old = _seated_board(players, 1)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        recent.created_at = now - timedelta(minutes=50)
+        recent.started_at = now - timedelta(minutes=5)
+        old.started_at = now - timedelta(days=30)
+        db.session.commit()
+        _login(client)
+
+        game = self._ga_game(client.get(f"/play/{recent.id}").get_data(as_text=True))
+        assert game["started_recently"] is True
+        assert game["wait_minutes"] == 45
+        game = self._ga_game(client.get(f"/play/{old.id}").get_data(as_text=True))
+        assert game["started_recently"] is False
 
     def test_no_events_queued_when_unconfigured(self, app, client, monkeypatch):
         monkeypatch.setitem(app.config, "GA_MEASUREMENT_ID", "")

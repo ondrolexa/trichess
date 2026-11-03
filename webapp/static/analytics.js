@@ -1,31 +1,30 @@
 // Google Analytics 4 with an opt-in consent banner (Consent Mode v2, "basic"
 // implementation): gtag.js is not loaded at all until the visitor accepts.
-// Page config comes from window.TRICHESS_GA, set by templates/_analytics.html.
-// Gameplay is tracked only as milestones (first move, votes, game_completed,
-// opening a finished game) via window.trichessGame, which both board
-// renderers call — never moves or positions; the full record is logged
-// server-side. Lobby/account events are queued server-side (views.track_event).
+// Page config comes from window.TRICHESS_GA, set by templates/_analytics.html
+// (built by webapp/analytics.py ga_config()). This file sends:
+//  - the page view, user properties (player class) and the lobby/account
+//    events queued server-side by analytics.track_event();
+//  - prefs_snapshot: the logged-in user's display preferences, once a day
+//    per browser and again whenever they change;
+//  - gameplay milestones (game_started, first_move, vote_cast,
+//    game_completed, archive_viewed) via window.trichessGame, which both
+//    board renderers call — never moves or positions.
+// The event catalogue is in webapp/analytics.py (BROWSER_EVENTS here).
 (function () {
   const cfg = window.TRICHESS_GA;
   if (!cfg) return;
+  const game = cfg.game; // board page context, or null
 
   const CONSENT_KEY = "ga_consent";
   let loaded = false;
 
   function getConsent() {
-    try {
-      return localStorage.getItem(CONSENT_KEY);
-    } catch (e) {
-      return null;
-    }
+    return storageGet(CONSENT_KEY);
   }
 
+  // Storage blocked: the choice applies to this page view only.
   function setConsent(value) {
-    try {
-      localStorage.setItem(CONSENT_KEY, value);
-    } catch (e) {
-      // Storage blocked: the choice applies to this page view only.
-    }
+    storageSet(CONSENT_KEY, value);
   }
 
   // Password-reset and email-verification links carry live tokens in the
@@ -54,6 +53,36 @@
     if (cfg.user_id) pageConfig.user_id = cfg.user_id;
     gtag("config", cfg.id, pageConfig);
     for (const ev of cfg.events) gtag("event", ev.name, ev.params);
+    sendPrefsSnapshot();
+    if (game) sendGameStarted();
+  }
+
+  function storageGet(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function storageSet(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      // Storage blocked: the event may be sent again on a later page.
+    }
+  }
+
+  // Event-scoped preferences, so GA can count users per board/theme/piece
+  // set per day or week. Re-sent the same day only if they changed.
+  function sendPrefsSnapshot() {
+    if (!cfg.prefs) return;
+    const p = cfg.prefs;
+    const day = new Date().toISOString().slice(0, 10);
+    const stamp = [day, cfg.user_id, p.board_renderer, p.ui_theme, p.piece_set].join("|");
+    if (storageGet("ga_prefs_snapshot") === stamp) return;
+    gtag("event", "prefs_snapshot", p);
+    storageSet("ga_prefs_snapshot", stamp);
   }
 
   function deleteGaCookies() {
@@ -124,35 +153,40 @@
   // Board page hooks, called by ondro.js and filio.js alike (with optional
   // chaining: this file isn't loaded when analytics is off). Events are sent
   // only once gtag is loaded, i.e. after consent.
-  const game = cfg.game;
+  function sendGame(name, params) {
+    if (loaded) {
+      gtag("event", name, Object.assign(
+        { game_type: game.game_type, board_renderer: game.board_renderer, seat: game.seat },
+        params,
+      ));
+    }
+  }
+
+  // game_started: once per game and browser, on each player's first view of
+  // a recently started game (so every player of the game reports it).
+  function sendGameStarted() {
+    if (!game.started_recently) return;
+    const key = "ga_started_" + game.board_id;
+    if (storageGet(key) !== null) return;
+    sendGame("game_started", { wait_minutes: game.wait_minutes });
+    storageSet(key, "1");
+  }
+
   if (game) {
-    const common = { type: game.type, renderer: game.renderer };
     const pageOpened = Date.now();
     const completedKey = "ga_completed_" + game.board_id;
     let startedUnfinished = null; // finished state at the page's first /info
     let endSent = false;
     let hasMoved = game.has_moved;
 
-    function send(name, params) {
-      if (loaded) gtag("event", name, Object.assign({}, common, params));
-    }
-
     // game_completed goes out once per game and browser, whether this page
     // saw the game end or opened it shortly afterwards.
     function completionReported() {
-      try {
-        return localStorage.getItem(completedKey) !== null;
-      } catch (e) {
-        return false;
-      }
+      return storageGet(completedKey) !== null;
     }
 
     function markCompletionReported() {
-      try {
-        localStorage.setItem(completedKey, "1");
-      } catch (e) {
-        // Storage blocked: a later visit may report it again.
-      }
+      storageSet(completedKey, "1");
     }
 
     // Rank by score out of 2.0; ties share the better place (a draw is 1st
@@ -168,7 +202,7 @@
       info(data) {
         if (startedUnfinished === null) {
           startedUnfinished = !data.finished;
-          if (data.finished) send("view_archive", { context: "game" });
+          if (data.finished) sendGame("archive_viewed", { context: "game" });
         }
         if (!data.finished || endSent) return;
         // Seen ending here, or a recently finished game opened for the
@@ -178,11 +212,11 @@
         if (!loaded || completionReported()) return;
         const duration = startedUnfinished
           ? game.started_minutes_ago + Math.floor((Date.now() - pageOpened) / 60000)
-          : game.duration;
+          : game.duration_minutes;
         const scores = data.score || {};
-        send("game_completed", {
+        sendGame("game_completed", {
           endgame: data.endgame,
-          duration: duration,
+          duration_minutes: duration,
           total_turns: data.move_number,
           placement: placement(scores, game.seat),
           points: Math.round((Number(scores[game.seat]) || 0) * 100) / 100,
@@ -194,12 +228,12 @@
       submitted(slog) {
         const tag = slog.slice(-4, -3);
         if (tag === "s" || tag === "S") {
-          send("vote_cast", { kind: "draw" });
+          sendGame("vote_cast", { kind: "draw" });
         } else if (tag === "r" || tag === "R") {
-          send("vote_cast", { kind: "resign" });
+          sendGame("vote_cast", { kind: "resign" });
         } else if (tag && !hasMoved) {
           hasMoved = true;
-          send("first_move", {});
+          sendGame("first_move", {});
         }
       },
     };

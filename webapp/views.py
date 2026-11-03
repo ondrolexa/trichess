@@ -32,11 +32,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from engine import slog_summary
 from webapp.analytics import (
-    LATE_COMPLETION_WINDOW,
+    PREF_PARAMS,
+    board_context,
     ga_config,
-    game_minutes,
     minutes_since,
-    opponents,
     track_event,
 )
 from webapp.api import blueprint as api
@@ -183,10 +182,15 @@ def _delete_bot_game(board_id):
         flash("Game not found or can't be deleted", "error")
         return
     move_number = slog_summary(board.slog or "").move_number
+    duration_minutes = minutes_since(board.started_at)
     delete_game(board)
     db.session.commit()
     flash(f"Game {board_id} deleted", "success")
-    track_event("bot_game_deleted", move_number=move_number)
+    track_event(
+        "bot_game_deleted",
+        total_turns=move_number,
+        duration_minutes=duration_minutes,
+    )
 
 
 GAMES_PER_PAGE = 50
@@ -220,7 +224,7 @@ def archive():
             setattr(game, f"player_{seat}_score", scores.get((game.id, player_id), 0.0))
         game.moves = slog_summary(game.slog or "").move_number
     if request.args.get("page", 1, type=int) == 1:
-        track_event("view_archive", context="list")
+        track_event("archive_viewed", context="list")
     return render_template(
         "archive.html", games=games, pagination=pagination, board=g.user.board
     )
@@ -305,11 +309,11 @@ def _cancel_game(board_id):
         return
     if any(p is not None and p != g.user.id for p in board.player_ids):
         return
-    wait_time = minutes_since(board.created_at)
+    wait_minutes = minutes_since(board.created_at)
     # A plain delete: the game's log rows are kept, detached from it.
     db.session.delete(board)
     db.session.commit()
-    track_event("game_cancelled", wait_time=wait_time)
+    track_event("game_cancelled", wait_minutes=wait_minutes)
 
 
 def _take_seat(board_id, seat, fill_bot):
@@ -341,13 +345,9 @@ def _take_seat(board_id, seat, fill_bot):
     if board.is_full:
         _start_game(board)
     db.session.commit()
-    track_event("bot_seat_added" if fill_bot is not None else "game_join", seat=seat)
+    # game_started is sent by each player's board page (analytics.js).
+    track_event("bot_seat_added" if fill_bot is not None else "game_joined", seat=seat)
     if board.status == GameStatus.ACTIVE:
-        track_event(
-            "game_started",
-            type=opponents(board),
-            wait_time=minutes_since(board.created_at),
-        )
         maybe_trigger_bot(board.id)
 
 
@@ -410,33 +410,13 @@ def play(id):
     if tb:
         pieces_paths = load_style("pieces", g.user.pieces)
         template = "board_ondro.html" if g.user.board == "ondro" else "board_filio.html"
-        seat = tb.seat_of(g.user.id)
-        finished = tb.status == GameStatus.FINISHED
-        ga_game = {
-            "board_id": tb.id,
-            "seat": seat,
-            "type": opponents(tb),
-            "renderer": "ondro" if g.user.board == "ondro" else "filio",
-            # Seats move in order 0, 1, 2, so seat s has moved once more
-            # than s moves were made.
-            "has_moved": slog_summary(tb.slog or "").move_number > seat,
-            # game_completed's duration: minutes since the start while the
-            # game runs; start to last move once it's over.
-            "started_minutes_ago": minutes_since(tb.started_at),
-            "duration": game_minutes(tb) if finished else None,
-            # A finished game seen for the first time soon after its end
-            # still reports game_completed (once per browser).
-            "finished_recently": finished
-            and tb.modified_at is not None
-            and tb.modified_at > utcnow_naive() - LATE_COMPLETION_WINDOW,
-        }
         return render_template(
             template,
             id=id,
             access_token=access_token,
             pieces_paths=pieces_paths,
             board=True,
-            ga_game=ga_game,
+            ga_game=board_context(tb, g.user),
         )
     else:
         flash("You have no access to this game", "error")
@@ -468,8 +448,14 @@ def profile():
 
         for field in ("theme", "board", "pieces"):
             value = getattr(form_profile, field).data
-            if getattr(g.user, field) != value:
-                track_event("profile_pref_change", field=field, pref_value=value)
+            previous = getattr(g.user, field)
+            if previous != value:
+                track_event(
+                    "pref_changed",
+                    pref=PREF_PARAMS[field],
+                    pref_value=value,
+                    previous_value=previous or "",
+                )
                 setattr(g.user, field, value)
         db.session.commit()
         flash("Profile saved successfuly!", "success")

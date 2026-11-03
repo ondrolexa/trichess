@@ -1515,90 +1515,243 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
         <hr>
 
         <h3>Analytics</h3>
-        <p>GA4 only with <code>GA_MEASUREMENT_ID</code> set, never in debug mode or for the admin, and only after the
-          visitor accepts the consent banner. Lobby and account events are queued in the session by
-          <code>views.track_event()</code> and sent by the next rendered page; board events come from
-          <code>static/analytics.js</code> through the <code>window.trichessGame</code> hooks both renderers call.
-          Moves and positions are never sent.</p>
+        <p>Google Analytics 4. Everything is sent from the visitor's browser by gtag.js; the server only decides what
+          each page carries. The event catalogue lives in <code>webapp/analytics.py</code>
+          (<code>SERVER_EVENTS</code>, <code>BROWSER_EVENTS</code>); <code>track_event()</code> raises
+          <code>ValueError</code> for an event or parameter not in it, so tests catch typos.</p>
+
+        <h4>When it runs</h4>
+        <ul>
+          <li>Only with <code>GA_MEASUREMENT_ID</code> set, never in debug mode or for the admin
+            (<code>ga_config()</code> returns <code>None</code> and the page has no tag).</li>
+          <li>Only after the visitor clicks <em>Accept</em> (Consent Mode v2, basic: gtag.js isn't loaded before).
+            The choice is in <code>localStorage.ga_consent</code>; <em>Cookie settings</em> in the footer reopens
+            the banner, and rejecting after accepting deletes the <code>_ga*</code> cookies and reloads.</li>
+          <li>Privacy: logged-in users get an opaque <code>user_id</code> (HMAC-SHA256 of the user id keyed with
+            <code>FLASK_SECRET_KEY</code>, 32 hex chars), never username, email or database id. Google signals and
+            ad personalization are off. Reset/verify token URLs are masked in <code>page_location</code> and
+            <code>page_referrer</code>. Moves and positions are never sent; rating and game counts only as
+            bands.</li>
+        </ul>
+
+        <h4>How it is sent</h4>
+        <ul>
+          <li><strong>Page setup</strong>: <code>views.render_template()</code> → <code>analytics.ga_config()</code>
+            → <code>templates/_analytics.html</code> puts the config into <code>window.TRICHESS_GA</code> and loads
+            <code>static/analytics.js</code>. Its <code>load()</code> sends the page view
+            (<code>content_group</code> = Flask endpoint), the user properties, the queued server events,
+            <code>prefs_snapshot</code> and, on a board page, <code>game_started</code>.</li>
+          <li><strong>Server events</strong> (lobby, account): <code>track_event()</code> queues them in the
+            session (last 10); the next rendered page sends them. A page without the tag (admin, debug) or without
+            consent drops them.</li>
+          <li><strong>Board events</strong>: <code>views.play()</code> passes <code>analytics.board_context()</code>
+            as <code>TRICHESS_GA.game</code>; <code>analytics.js</code> defines <code>window.trichessGame</code>,
+            whose <code>info(data)</code> (every committed <code>/api/v1/game/info</code>) and
+            <code>submitted(slog)</code> (after a successful board POST) both renderers call. Bot moves and the
+            JSON API send nothing.</li>
+        </ul>
+
+        <h4>Events</h4>
         <div class="table-responsive">
         <table class="table">
           <thead>
             <tr>
               <th>Event</th>
+              <th>Sent by</th>
               <th>When</th>
               <th>Parameters</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><code>login</code>, <code>sign_up</code>, <code>email_verified</code></td>
-              <td>Account actions</td>
-              <td><code>method</code> (login, sign_up)</td>
+              <td><code>login</code>, <code>sign_up</code></td>
+              <td>server</td>
+              <td>Password login; account registered</td>
+              <td><code>method</code></td>
+            </tr>
+            <tr>
+              <td><code>email_verified</code></td>
+              <td>server</td>
+              <td>Verification link activates an inactive account</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>contact_sent</code></td>
+              <td>server</td>
+              <td>Contact form sent</td>
+              <td><code>has_attachment</code></td>
+            </tr>
+            <tr>
+              <td><code>pref_changed</code></td>
+              <td>server</td>
+              <td>One per display preference changed in the profile</td>
+              <td><code>pref</code>, <code>pref_value</code>, <code>previous_value</code></td>
+            </tr>
+            <tr>
+              <td><code>prefs_snapshot</code></td>
+              <td>browser</td>
+              <td>Logged-in users: once a day per browser, and again when the preferences change
+                (<code>localStorage.ga_prefs_snapshot</code>)</td>
+              <td><code>board_renderer</code>, <code>ui_theme</code>, <code>piece_set</code></td>
             </tr>
             <tr>
               <td><code>game_created</code></td>
+              <td>server</td>
               <td>New game in the lobby</td>
               <td><code>seat</code></td>
             </tr>
             <tr>
-              <td><code>game_join</code>, <code>bot_seat_added</code></td>
-              <td>A player or bot takes a seat</td>
+              <td><code>game_joined</code>, <code>bot_seat_added</code></td>
+              <td>server</td>
+              <td>A player takes a seat; the owner seats a bot</td>
               <td><code>seat</code></td>
             </tr>
             <tr>
               <td><code>game_cancelled</code></td>
-              <td>Owner deletes a game still waiting for players</td>
-              <td><code>wait_time</code> (minutes since creation)</td>
+              <td>server</td>
+              <td>Owner deletes a waiting game nobody else joined</td>
+              <td><code>wait_minutes</code> (creation → cancel)</td>
             </tr>
             <tr>
               <td><code>bot_game_deleted</code></td>
+              <td>server</td>
               <td>Owner deletes an active game they play alone against 2 bots</td>
-              <td><code>move_number</code></td>
+              <td><code>total_turns</code>, <code>duration_minutes</code> (start → delete)</td>
+            </tr>
+            <tr>
+              <td><code>archive_viewed</code></td>
+              <td>server / browser</td>
+              <td>First page of <code>/archive</code> (<code>context=list</code>); a finished game opened on the board
+                (<code>context=game</code>, once per page)</td>
+              <td><code>context</code></td>
             </tr>
             <tr>
               <td><code>game_started</code></td>
-              <td>The last seat is filled (sent by whoever filled it)</td>
-              <td><code>type</code> (humans / mixed / bots), <code>wait_time</code> (minutes since creation)</td>
+              <td>browser</td>
+              <td>Each human player's first view of a game that started within 7 days
+                (<code>localStorage.ga_started_&lt;id&gt;</code>)</td>
+              <td>board + <code>wait_minutes</code> (creation → start)</td>
             </tr>
             <tr>
-              <td><code>first_move</code>, <code>vote_cast</code></td>
-              <td>Player's first move; draw or resign vote</td>
-              <td><code>type</code>, <code>renderer</code>, <code>kind</code></td>
+              <td><code>first_move</code></td>
+              <td>browser</td>
+              <td>The player's first move in the game</td>
+              <td>board</td>
+            </tr>
+            <tr>
+              <td><code>vote_cast</code></td>
+              <td>browser</td>
+              <td>Draw or resign vote</td>
+              <td>board + <code>kind</code></td>
             </tr>
             <tr>
               <td><code>game_completed</code></td>
-              <td>Once per game and browser: when the board shows the game ending, or when a player first opens it
-                within 7 days of its end</td>
-              <td><code>endgame</code>, <code>type</code>, <code>renderer</code>, <code>duration</code> (minutes),
-                <code>total_turns</code>, <code>placement</code> (1st/2nd/3rd, ties share), <code>points</code>
-                (of 2)</td>
-            </tr>
-            <tr>
-              <td><code>view_archive</code></td>
-              <td>First page of <code>/archive</code>, or a finished game opened on the board</td>
-              <td><code>context</code> (list / game)</td>
-            </tr>
-            <tr>
-              <td><code>contact_sent</code></td>
-              <td>Contact form sent</td>
-              <td><code>has_attachment</code> (yes / no)</td>
-            </tr>
-            <tr>
-              <td><code>profile_pref_change</code></td>
-              <td>Theme, board or piece set changed</td>
-              <td><code>field</code>, <code>pref_value</code></td>
+              <td>browser</td>
+              <td>Once per game and browser (<code>localStorage.ga_completed_&lt;id&gt;</code>): the board shows the
+                end, or the player first opens it within 7 days of the end</td>
+              <td>board + <code>endgame</code>, <code>duration_minutes</code>, <code>total_turns</code>,
+                <code>placement</code>, <code>points</code></td>
             </tr>
           </tbody>
         </table>
         </div>
-        <p><strong>User properties</strong> (set on every page): <code>logged_in</code>, and for logged-in players
-          <code>board_renderer</code>, <code>ui_theme</code>, <code>piece_set</code>, <code>elo_class</code>
-          (Novice &lt;525, Intermediate 525–599, Advanced 600+) and <code>games_played_tier</code> (rated games:
-          0, 1-5, 6-20, 21-50, 51+; bot games never count). Thresholds are constants next to
-          <code>views._ga_config()</code>.</p>
-        <p>GA4 admin setup: register <code>wait_time</code>, <code>duration</code>, <code>total_turns</code> and
-          <code>points</code> as custom metrics, the other parameters and the user properties as custom dimensions
-          (event- and user-scoped respectively) — unregistered ones don't show in reports.</p>
+        <p>"board" = <code>game_type</code>, <code>board_renderer</code>, <code>seat</code>, on every board
+          event.</p>
+
+        <h4>Parameters</h4>
+        <ul>
+          <li><code>game_type</code>: <code>humans</code> / <code>mixed</code> (1 bot) / <code>bots</code> (2
+            bots).</li>
+          <li><code>board_renderer</code> (<code>ondro</code>/<code>filio</code>), <code>ui_theme</code>,
+            <code>piece_set</code>: the display preferences; <code>pref</code> names one of them, with
+            <code>pref_value</code>/<code>previous_value</code>.</li>
+          <li><code>seat</code>: 0 bottom, 1 left, 2 right.</li>
+          <li><code>wait_minutes</code>, <code>duration_minutes</code>: whole minutes. <code>game_completed</code>'s
+            duration is measured live in the browser, or from the server's start → last move for a late open.</li>
+          <li><code>total_turns</code>: moves played. <code>endgame</code>: <code>checkmate</code>,
+            <code>draw</code>, <code>resignation</code>, <code>stalemate</code>, <code>repetition</code>.</li>
+          <li><code>placement</code>: <code>1st</code>/<code>2nd</code>/<code>3rd</code> by score, ties share the
+            better place. <code>points</code>: the player's score out of 2.0 (draw 0.67).</li>
+          <li><code>kind</code>: <code>draw</code>/<code>resign</code>. <code>context</code>:
+            <code>list</code>/<code>game</code>. <code>method</code>: <code>password</code>/<code>email</code>.
+            <code>has_attachment</code>: <code>yes</code>/<code>no</code>.</li>
+        </ul>
+
+        <h4>User properties</h4>
+        <p>The player class, set on every page, segments every event: <code>logged_in</code> (yes/no), and for
+          logged-in players <code>elo_class</code> (Novice &lt;525, Intermediate 525–599, Advanced 600+) and
+          <code>games_played_tier</code> (rated games: 0, 1-5, 6-20, 21-50, 51+; bot games never count). Thresholds:
+          <code>ELO_CLASSES</code>, <code>GAMES_PLAYED_TIERS</code> in <code>analytics.py</code>. Display
+          preferences are event parameters (<code>prefs_snapshot</code>), not user properties, so they can be
+          counted per day.</p>
+
+        <h4>GA property setup</h4>
+        <ul>
+          <li>Admin → Custom definitions (unregistered parameters don't show in reports):
+            <ul>
+              <li>Custom metrics (event scope, standard unit): <code>wait_minutes</code>,
+                <code>duration_minutes</code>, <code>total_turns</code>, <code>points</code>.</li>
+              <li>Custom dimensions, event scope: <code>game_type</code>, <code>board_renderer</code>,
+                <code>ui_theme</code>, <code>piece_set</code>, <code>seat</code>, <code>endgame</code>,
+                <code>placement</code>, <code>kind</code>, <code>context</code>, <code>pref</code>,
+                <code>pref_value</code>, <code>previous_value</code>.</li>
+              <li>Custom dimensions, user scope: <code>logged_in</code>, <code>elo_class</code>,
+                <code>games_played_tier</code>.</li>
+              <li>Calculated metrics: <strong>Avg game minutes</strong> = <code>{duration_minutes} / {Event
+                count}</code>, <strong>Avg wait minutes</strong> = <code>{wait_minutes} / {Event count}</code>,
+                <strong>Avg turns</strong> = <code>{total_turns} / {Event count}</code>. Use them with an Event name
+                filter (custom metrics are sums; the filter makes Event count the count of that event).</li>
+              <li>Archive the definitions of names no longer sent: <code>type</code>, <code>renderer</code>,
+                <code>wait_time</code>, <code>duration</code>, <code>field</code> and the user-scoped
+                <code>board_renderer</code>/<code>ui_theme</code>/<code>piece_set</code>.</li>
+            </ul>
+          </li>
+          <li>Admin → Data display → Key events: <code>sign_up</code>, <code>game_started</code>,
+            <code>game_completed</code>.</li>
+          <li>Admin → Data collection and modification → Data retention: 14 months (explorations can't look further
+            back).</li>
+          <li>Admin → Data display → Reporting identity: Blended or Observed both use the hashed
+            <code>user_id</code>.</li>
+          <li>Testing: DebugView needs the Google Analytics Debugger extension or Tag Assistant; Realtime shows events
+            within seconds without it. Use a non-admin account on a deployment with <code>DEBUG=false</code>.</li>
+        </ul>
+
+        <h4>Reports</h4>
+        <p>Explore → Free form unless noted.</p>
+        <ul>
+          <li><strong>Preference trends</strong>: filter Event name = <code>prefs_snapshot</code>; rows Week (or
+            Date); columns <code>ui_theme</code> (or <code>board_renderer</code>, <code>piece_set</code>); metric
+            Total users; line chart.</li>
+          <li><strong>Preferences by player class</strong>: same filter; rows <code>elo_class</code> or
+            <code>games_played_tier</code>; columns a preference; metric Total users; cell type Heat map.</li>
+          <li><strong>Game length</strong>: filter <code>game_completed</code>; rows <code>game_type</code>, then
+            <code>elo_class</code>; metrics Event count, Avg game minutes, Avg turns.</li>
+          <li><strong>Waiting time</strong>: filter <code>game_started</code>; rows <code>game_type</code>; Avg wait
+            minutes. Against <code>game_cancelled</code> (count, Avg wait minutes): how long people wait before
+            giving up.</li>
+          <li><strong>Funnel</strong> (Funnel exploration): <code>game_created</code> → <code>game_started</code> →
+            <code>first_move</code> → <code>game_completed</code>, breakdown <code>game_type</code> or
+            <code>elo_class</code>.</li>
+          <li><strong>Outcomes and balance</strong>: filter <code>game_completed</code>; rows
+            <code>elo_class</code>; columns <code>placement</code> or <code>endgame</code>; Event count.</li>
+          <li><strong>Time on site</strong>: Reports → Engagement overview, comparison by <code>elo_class</code>:
+            Average engagement time per active user (built in).</li>
+          <li><strong>Exact statistics</strong>: medians and per-game joins need the free BigQuery export (Admin →
+            Product links → BigQuery).</li>
+        </ul>
+
+        <h4>Limitations</h4>
+        <ul>
+          <li>Only visitors who accepted are counted; the database is the source of truth for totals.</li>
+          <li><code>game_started</code>/<code>game_completed</code> are per player and browser: a player on two
+            devices may report a game twice; a player who never opens the board doesn't report it.</li>
+          <li>Older data stays under the old names: <code>game_create</code>/<code>game_start</code>/<code>game_end</code>
+            (≤ 0.5.2), then until 0.5.4 <code>game_join</code>,
+            <code>view_archive</code>, <code>profile_pref_change</code> and the parameters <code>type</code>,
+            <code>renderer</code>, <code>wait_time</code>, <code>duration</code>. Before 0.5.5
+            <code>game_started</code> came only from whoever filled the last seat, and display preferences were
+            user properties.</li>
+        </ul>
 
         <hr>
 
@@ -1810,8 +1963,9 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
         <h3>Analytics (optional)</h3>
         <p>With your consent, we use <strong>Google Analytics</strong> to see how visitors find and use the site —
           which pages are visited, account/lobby actions such as signing up, logging in, or creating and joining
-          games, and game milestones such as a game starting, your first move, a draw or resign vote, and how a
-          finished game ended (its length and your placing). It is <strong>never</strong> loaded before you click
+          games, your display preferences (board, colors and piece set), and game milestones such as a game
+          starting, your first move, a draw or resign vote, and how a finished game ended (its length and your
+          placing). It is <strong>never</strong> loaded before you click
           <em>Accept</em>.</p>
         <ul>
           <li>No usernames or email addresses are sent; logged-in visitors are identified only by an anonymous,
