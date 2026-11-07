@@ -148,7 +148,9 @@
           </h5>
           <div class="card-body">
             {% if rating_history_values %}
-              <canvas id="ratingChart" height="100" style="max-height:300px"></canvas>
+              <div style="position:relative; height:clamp(260px, 45vw, 320px)">
+                <canvas id="ratingChart"></canvas>
+              </div>
             {% else %}
               <p class="text-muted text-center mb-0">{{ selected_user.username }} has no finished games yet.</p>
             {% endif %}
@@ -172,6 +174,7 @@
   var gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
   var lineColor = isDark ? '#6ea8fe' : '#0d6efd';
   var fillColor = isDark ? 'rgba(110,168,254,0.2)' : 'rgba(13,110,253,0.15)';
+  var narrow = window.matchMedia('(max-width: 576px)').matches;
 
   new Chart(document.getElementById('ratingChart'), {
     type: 'line',
@@ -184,22 +187,24 @@
         backgroundColor: fillColor,
         fill: true,
         tension: 0.3,
-        pointRadius: 3,
+        pointRadius: (narrow || values.length > 60) ? 0 : 3,
+        pointHitRadius: 10,
         pointHoverRadius: 6,
         pointBackgroundColor: lineColor,
       }]
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       scales: {
         x: {
-          ticks: { color: textColor, maxTicksLimit: 10, maxRotation: 45 },
+          ticks: { color: textColor, maxTicksLimit: narrow ? 4 : 10, maxRotation: narrow ? 0 : 45, autoSkipPadding: 8 },
           grid: { color: gridColor }
         },
         y: {
           beginAtZero: false,
-          ticks: { color: textColor },
+          ticks: { color: textColor, maxTicksLimit: narrow ? 6 : 10 },
           grid: { color: gridColor }
         }
       },

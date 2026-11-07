@@ -91,10 +91,9 @@ def _jinja2_filter_datetime(date, fmt="%b %d, %Y %H:%M:%S"):
 
 @app.template_filter("deltatime")
 def _jinja2_filter_timedelta(date):
-    utc = date.replace(tzinfo=ZoneInfo("UTC"))
-    native = utc.astimezone(ZoneInfo("Europe/Prague"))
-    now = datetime.now(tz=ZoneInfo("Europe/Prague")).replace(microsecond=0)
-    return str(now - native) + " ago"
+    delta = datetime.now(tz=ZoneInfo("UTC")) - date.replace(tzinfo=ZoneInfo("UTC"))
+    seconds = max(0, round(delta.total_seconds()))
+    return f"{timedelta(seconds=seconds)} ago"
 
 
 def render_template(*args, **kwargs):
