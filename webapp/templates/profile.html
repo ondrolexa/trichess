@@ -113,7 +113,7 @@
             {% set tiles = [
               ("Rating", '%0.2f' % rating|float),
               ("Total score", '%0.2f' % score|float),
-              ("30 days score", '%0.2f' % recent_score|float),
+              ("Avg points / game", '%0.2f' % average_score if average_score is number else '–'),
               ("Win/Co-op/Pass/Loss", stats["win"] ~ '/' ~ stats["coop"] ~ '/' ~ stats["pass"] ~ '/' ~ stats["loss"]),
               ("Active/Finished", active ~ '/' ~ archive),
               ("Average game time", avg_length),

@@ -64,13 +64,12 @@ class User(db.Model):  # ty: ignore
     def score(self):
         return sum(score.score for score in self.scores) if self.scores else 0
 
-    def recent_score(self):
-        thirty_days_ago = datetime.today() - timedelta(days=30)
-        return sum(
-            score.score
-            for score in self.scores
-            if score.board and score.board.modified_at > thirty_days_ago
-        )
+    def average_score(self):
+        """Mean points per rated game (out of 2.0; an average player gets
+        2/3), or None without rated games."""
+        if not self.scores:
+            return None
+        return sum(score.score for score in self.scores) / len(self.scores)
 
     def stats(self):
         stats = {"win": 0, "coop": 0, "pass": 0, "loss": 0}

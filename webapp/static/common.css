@@ -97,3 +97,30 @@ video:-webkit-full-screen {
         display: block !important;
     }
 }
+
+/* /rating Results column: stacked Win/Co-op/Pass/Loss bar over the counts */
+.results-cell {
+    white-space: nowrap;
+}
+.results-bar {
+    height: 6px;
+    min-width: 5rem;
+    max-width: 10rem;
+}
+.results-counts {
+    font-size: 0.8rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: 1.6;
+}
+.results-sep {
+    color: var(--bs-secondary-color);
+    font-weight: 400;
+    margin: 0 0.25rem;
+}
+.results-dot {
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+}

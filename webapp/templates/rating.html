@@ -1,8 +1,22 @@
 {% extends "base.html" %}
 
 {%block content%}
+{# Result kinds (models.score_outcome): key, label, Bootstrap color. #}
+{% set outcomes = [
+  ("win", "Win", "success"),
+  ("coop", "Co-op", "info"),
+  ("pass", "Pass", "secondary"),
+  ("loss", "Loss", "danger"),
+] %}
 <h2>Players rating</h2>
-<p class="text-muted small">WCPL: Win / Co-op / Pass / Loss</p>
+<ul class="results-legend list-unstyled d-flex flex-wrap gap-2 gap-sm-3 small text-body-secondary mb-2">
+  {% for key, label, color in outcomes %}
+  <li class="d-flex align-items-center gap-1 text-nowrap">
+    <span class="results-dot bg-{{ color }}" aria-hidden="true"></span>
+    <strong class="text-{{ color }}-emphasis">{{ label }}</strong>
+  </li>
+  {% endfor %}
+</ul>
 <div class="table-responsive-sm">
   <table class="table table-hover table-sm align-middle">
   <thead>
@@ -10,10 +24,9 @@
     <th scope="col">#</th>
     <th scope="col">Player</th>
     <th scope="col">Rating</th>
-    <th scope="col">Score</th>
     <th scope="col">Games</th>
-    <th scope="col">WCPL</th>
-    <th scope="col">Last</th>
+    <th scope="col">Results</th>
+    <th scope="col" class="d-none d-sm-table-cell">Last</th>
     </tr>
   </thead>
   <tbody>
@@ -25,17 +38,40 @@
     {% endif %}
     <th scope="row">{{user.position}}</th>
     <td>
-    {% if user.uid == uid %}
+    {% if user.id == uid %}
     <strong class="{{ on_move_color }}">{{user.username}}</strong>
     {% else %}
     <span>{{user.username}}</span>
     {% endif %}
     </td>
     <td><span>{{user.rating|round|int}}</span></td>
-    <td><span>{{user.score}}</span></td>
     <td><span>{{user.played_games}}</span></td>
-    <td><span>{{user.counts["win"]}}/{{user.counts["coop"]}}/{{user.counts["pass"]}}/{{user.counts["loss"]}}</span></td>
-    <td><span>{{user.last_game|deltatime}}</span></td>
+    {% set c = user.counts %}
+    {% set total = c["win"] + c["coop"] + c["pass"] + c["loss"] %}
+    {% set summary %}{% for key, label, color in outcomes %}{{ label }} {{ c[key] }}{{ ', ' if not loop.last }}{% endfor %}{% endset %}
+    <td class="results-cell" data-results="{{ c['win'] }}/{{ c['coop'] }}/{{ c['pass'] }}/{{ c['loss'] }}"
+        {%- if total %} title="{{ summary }}"{% endif %}>
+      {% if total %}
+      <span class="visually-hidden">{{ summary }}</span>
+      <div class="progress-stacked results-bar" aria-hidden="true">
+        {% for key, label, color in outcomes if c[key] %}
+        <div class="progress" style="width: {{ '%.2f' % (100 * c[key] / total) }}%">
+          <div class="progress-bar bg-{{ color }}"></div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="results-counts" aria-hidden="true">
+        {%- for key, label, color in outcomes %}
+        {%- if not loop.first %}<span class="results-sep">·</span>{% endif -%}
+        <span class="text-{{ color }}-emphasis">{{ c[key] }}</span>
+        {%- endfor %}
+      </div>
+      {% else %}
+      <span class="text-body-secondary" title="No rated games">–</span>
+      {% endif %}
+    </td>
+    <td class="d-none d-sm-table-cell"><span>{{user.last_game|deltatime}}</span></td>
+    </tr>
     {% endfor %}
    </tbody>
    </table>

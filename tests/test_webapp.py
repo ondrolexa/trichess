@@ -259,6 +259,8 @@ class Test_Profile_Preview:
         page = client.get("/profile").get_data(as_text=True)
         assert "previews/filio_night_chubby.jpg" in page
         assert "Statistics" in page
+        # No rated games yet: no average to show.
+        assert re.search(r"Avg points / game</div>\s*<div[^>]*>–<", page)
 
     def test_every_settings_combination_has_a_preview(self):
         # The preview card builds {board}_{theme}_{pieces}.jpg from the selects.
@@ -813,21 +815,30 @@ class TestGameLists:
         db.session.commit()
         _login(client)
 
-        expected = {
-            "alice": ("2.6666666666666665", "1/1/0/1"),
-            "bob": ("2.6666666666666665", "1/1/0/1"),
-            "carol": ("0.6666666666666666", "0/1/2/0"),
-        }
+        expected = {"alice": "1/1/0/1", "bob": "1/1/0/1", "carol": "0/1/2/0"}
 
         html = client.get("/rating").get_data(as_text=True)
 
+        # The running points total measures games played, not strength.
+        assert '<th scope="col">Score</th>' not in html
         # One chunk per ranking row (the template doesn't close its <tr>s).
         for chunk in html.split('<th scope="row">')[1:]:
             name = re.search(r">(\w+)</(?:strong|span)>", chunk).group(1)
             cells = re.findall(r"<td><span>(.*?)</span></td>", chunk)
-            score, counts = expected.pop(name)
-            assert cells[1:4] == [score, "3", counts], name
+            assert cells[1] == "3", name
+            results = re.search(r'data-results="([\d/]+)"', chunk).group(1)
+            assert results == expected.pop(name), name
+            # One bar segment per non-zero count.
+            assert chunk.count('class="progress"') == sum(
+                n != "0" for n in results.split("/")
+            ), name
         assert expected == {}
+        # The logged-in player's own name is highlighted.
+        assert re.search(r'<strong class="text-\w+">alice</strong>', html)
+
+        # alice: (2.0 + 2/3 + 0.0) / 3 points per game on her profile.
+        profile = client.get("/profile").get_data(as_text=True)
+        assert re.search(r"Avg points / game</div>\s*<div[^>]*>0.89<", profile)
 
     def test_admin_games_paginates_each_list(self, app, client):
         players = self._players()

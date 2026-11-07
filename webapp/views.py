@@ -254,19 +254,16 @@ def rating():
             played[user_id] += count
             if user_id not in last_game or last > last_game[user_id]:
                 last_game[user_id] = last
-    # Score sums and win/coop/pass/loss counts, per user, from one query.
-    totals = defaultdict(float)
+    # Win/coop/pass/loss counts, per user, from one query.
     counts = defaultdict(lambda: {"win": 0, "coop": 0, "pass": 0, "loss": 0})
     for player_id, score, onmove, tag in db.session.query(
         Score.player_id, Score.score, Score.onmove, Score.tag
     ):
-        totals[player_id] += score
         counts[player_id][score_outcome(score, onmove, tag)] += 1
 
     ratings = []
     pos = 1
     for user in users:
-        user.score = totals[user.id]
         user.played_games = played[user.id]
         if user.played_games > 0:
             user.last_game = last_game[user.id]
@@ -494,7 +491,7 @@ def profile():
         username=g.user.username,
         rating=g.user.rating,
         score=g.user.score(),
-        recent_score=g.user.recent_score(),
+        average_score=g.user.average_score(),
         active=len(active),
         archive=len(archive),
         avg_length=avg_length,
