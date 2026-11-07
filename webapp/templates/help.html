@@ -1249,8 +1249,11 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
 
         <h4>Multi-Player Elo</h4>
         <pre><code>e_i = 10^(rating_i / L) / sum(10^(rating_j / L) for j in 0..2)
-    rating_i += K * (actual_score_i - e_i)</code></pre>
-        <p>K=9.0, L=400.0, starting rating 500 (<code>webapp/ratings.py</code>). Each finished rated game is applied
+    rating_i += K * (actual_score_i - 2 * e_i)</code></pre>
+        <p>K=9.0, L=400.0, starting rating 500 (<code>webapp/ratings.py</code>). Scores are out of 2.0 per game, so the
+          expected score is <code>2 * e_i</code> and the three changes of a game add up to 0: the average rating stays
+          500. Until 0.5.5 the expectation was <code>e_i</code>, which added K to the total with every game
+          (<code>ELO_PROBLEM.md</code>); 0.5.6 recomputed all ratings with <code>rebuild-ratings</code>. Each finished rated game is applied
           incrementally under row locks on its three players (<code>record_game_rating()</code>) and appended to <code>RatingHistory</code>.
           <code>flask rebuild-ratings</code> replays every rated game from scratch — the repair path, also run when
           the admin deletes a rated game.</p>
@@ -1679,7 +1682,8 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
 
         <h4>User properties</h4>
         <p>The player class, set on every page, segments every event: <code>logged_in</code> (yes/no), and for
-          logged-in players <code>elo_class</code> (Novice &lt;525, Intermediate 525–599, Advanced 600+) and
+          logged-in players <code>elo_class</code> (Novice &lt;490, Intermediate 490–539, Advanced 540+; until 0.5.5, on the inflated scale:
+          &lt;525, 525–599, 600+) and
           <code>games_played_tier</code> (rated games: 0, 1-5, 6-20, 21-50, 51+; bot games never count). Thresholds:
           <code>ELO_CLASSES</code>, <code>GAMES_PLAYED_TIERS</code> in <code>analytics.py</code>. Display
           preferences are event parameters (<code>prefs_snapshot</code>), not user properties, so they can be
@@ -1751,6 +1755,8 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
             <code>renderer</code>, <code>wait_time</code>, <code>duration</code>. Before 0.5.5
             <code>game_started</code> came only from whoever filled the last seat, and display preferences were
             user properties.</li>
+          <li><code>elo_class</code> changes meaning with 0.5.6: ratings were recomputed zero-sum and the bands
+            moved, so compare classes across that deploy only with care.</li>
         </ul>
 
         <hr>

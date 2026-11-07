@@ -99,9 +99,10 @@ def board_renderer(user):
     return "ondro" if user.board == "ondro" else "filio"
 
 
-# GA user properties: rating classes (ratings start at 500, K=9) and rated
-# games played; bot games are casual and never counted.
-ELO_CLASSES = ((600, "Advanced"), (525, "Intermediate"), (0, "Novice"))
+# GA user properties: rating classes and rated games played; bot games are
+# casual and never counted. Ratings are zero-sum around the starting 500
+# since 0.5.6 (ELO_PROBLEM.md), so the bands sit close to it.
+ELO_CLASSES = ((540, "Advanced"), (490, "Intermediate"), (0, "Novice"))
 GAMES_PLAYED_TIERS = ((51, "51+"), (21, "21-50"), (6, "6-20"), (1, "1-5"), (0, "0"))
 
 # A game opened this soon after it started (game_started) or ended

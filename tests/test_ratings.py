@@ -71,6 +71,36 @@ def test_winner_gains_and_others_lose(app, client, players):
     assert alice.rating == pytest.approx(carol.rating)
 
 
+@pytest.mark.parametrize(
+    "before, scores",
+    [
+        ([500, 500, 500], [2.0, 0.0, 0.0]),
+        ([620, 480, 530], [1.0, 1.0, 0.0]),
+        ([450, 700, 515], [0.0, 2.0, 0.0]),
+        ([600, 500, 400], [2 / 3, 2 / 3, 2 / 3]),
+    ],
+)
+def test_elo_update_is_zero_sum(before, scores):
+    after = ratings.elo_update(before, scores)
+    assert sum(after) == pytest.approx(sum(before))
+
+
+def test_elo_update_equal_players():
+    r = ratings.STARTING_RATING
+    k = ratings.ELO_K
+    # A draw between equals changes nothing; a full win is +12/-6/-6 at K=9.
+    assert ratings.elo_update([r, r, r], [2 / 3] * 3) == pytest.approx([r, r, r])
+    assert ratings.elo_update([r, r, r], [2.0, 0.0, 0.0]) == pytest.approx(
+        [r + 4 / 3 * k, r - 2 / 3 * k, r - 2 / 3 * k]
+    )
+
+
+def test_favourite_loses_more_than_underdog():
+    strong, weak = ratings.elo_update([600, 400, 500], [0.0, 2.0, 0.0])[:2]
+    assert 600 - strong > 0
+    assert weak - 400 > 4 / 3 * ratings.ELO_K  # beat the odds: more than +12
+
+
 def test_bot_game_changes_no_rating(app, client):
     alice, bob = _create_user("alice"), _create_user("bob")
     bot = User.query.filter_by(username="Bot 1").one()

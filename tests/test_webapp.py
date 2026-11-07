@@ -426,10 +426,10 @@ class Test_Google_Analytics:
         "rating, elo_class",
         [
             (480.0, "Novice"),
-            (524.9, "Novice"),
-            (525.0, "Intermediate"),
-            (599.9, "Intermediate"),
-            (600.0, "Advanced"),
+            (489.9, "Novice"),
+            (490.0, "Intermediate"),
+            (539.9, "Intermediate"),
+            (540.0, "Advanced"),
         ],
     )
     def test_elo_class_user_property(self, app, client, monkeypatch, rating, elo_class):
@@ -477,7 +477,7 @@ class Test_Google_Analytics:
         config = self._config(client.get("/help").get_data(as_text=True))
         assert config["user_properties"] == {
             "logged_in": "yes",
-            "elo_class": "Novice",
+            "elo_class": "Intermediate",  # the starting 500
             "games_played_tier": "0",
         }
         assert config["prefs"] == {

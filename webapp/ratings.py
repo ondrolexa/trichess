@@ -28,10 +28,18 @@ STARTING_RATING = 500.0
 
 def elo_update(ratings, scores):
     """3-player Elo: the three players' new ratings after one game, from their
-    ratings before it and their scores in it (out of 2.0)."""
+    ratings before it and their scores in it.
+
+    Scores are out of 2.0 per game (GameAPI.outcome_scores(): the 3 scores
+    sum to 2), so player i's expected score is 2 * e_i, where
+    e_i = 10^(r_i / ELO_SCALE) / sum_j 10^(r_j / ELO_SCALE) is their share
+    (the 3 shares sum to 1). Then r_i += ELO_K * (s_i - 2 * e_i): zero-sum,
+    the changes of one game add up to 0. (Until 0.5.5 the expectation was
+    e_i, which added ELO_K to the total with every game; see ELO_PROBLEM.md.)
+    """
     q = [10 ** (r / ELO_SCALE) for r in ratings]
     total = sum(q)
-    return [r + ELO_K * (s - qi / total) for r, s, qi in zip(ratings, scores, q)]
+    return [r + ELO_K * (s - 2 * qi / total) for r, s, qi in zip(ratings, scores, q)]
 
 
 def _rated_games():
