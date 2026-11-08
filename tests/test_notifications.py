@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from webapp import cli, main, notifications
 from webapp import email as email_module
 from webapp.notifications import _send_email_job, _send_push_notification_job
@@ -60,6 +62,7 @@ class TestSendPushNotificationJob:
 
         def fake_post(url, data, headers, timeout):
             calls.append((url, data, headers, timeout))
+            return SimpleNamespace(ok=True, status_code=200, text="")
 
         monkeypatch.setattr(notifications.requests, "post", fake_post)
         _send_push_notification_job("alice", "It's your turn", "Your turn", 42)
@@ -71,6 +74,15 @@ class TestSendPushNotificationJob:
         assert headers["Title"] == "Your turn"
         assert headers["Click"] == "https://trichess.mykuna.eu/play/42"
         assert timeout == (3, 5)
+
+    def test_logs_rejected_response(self, monkeypatch, caplog):
+        def fake_post(*args, **kwargs):
+            return SimpleNamespace(ok=False, status_code=429, text="rate limited")
+
+        monkeypatch.setattr(notifications.requests, "post", fake_post)
+        with caplog.at_level("WARNING", logger=notifications.logger.name):
+            _send_push_notification_job("alice", "hi", "Title", 1)
+        assert "HTTP 429" in caplog.text
 
     def test_swallows_connection_errors(self, monkeypatch):
         import requests

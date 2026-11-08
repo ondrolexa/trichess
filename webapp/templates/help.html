@@ -586,6 +586,9 @@
             <div class="card-body">
               <h6>6. Tick use another server and provide service URL.</h6>
               <p>Set server to: <code>https://ntfy.mykuna.eu</code></p>
+              <p class="small text-body-secondary">On iPhone, type the address exactly like this (no trailing
+                slash) and allow notifications for ntfy in iOS Settings, otherwise messages only arrive while the
+                app is open.</p>
               <figure class="figure">
                 <img class="figure-img img-fluid mx-auto d-block w-75"
                   src="{{ url_for('static', filename='img/setup_ntfy_5.png') }}">
@@ -1515,7 +1518,11 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
           <li><code>webapp/notifications.py</code>: ntfy.sh push notifications (<code>post_notification</code>) and
             SMTP email (<code>send_email</code>) are queued instead of blocking the request. The wrappers keep their
             synchronous "is this configured" checks; send failures are logged in the worker.</li>
-          <li>Push notifications go to <code>ntfy.mykuna.eu</code>, never in debug mode.</li>
+          <li>Push notifications go to <code>ntfy.mykuna.eu</code>, never in debug mode; a non-2xx ntfy response is
+            logged as a warning. iOS delivery depends on the ntfy server's <code>NTFY_BASE_URL=https://ntfy.mykuna.eu</code>
+            and <code>NTFY_UPSTREAM_BASE_URL=https://ntfy.sh</code>: iOS can't hold a background connection, so the
+            server forwards a poll request through ntfy.sh/APNs. <code>NTFY_BASE_URL</code> must match the URL users
+            enter in the app exactly.</li>
         </ul>
 
         <hr>

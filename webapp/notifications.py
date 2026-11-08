@@ -33,7 +33,7 @@ notification_queue = Queue("notifications", connection=_redis)
 def _send_push_notification_job(username, text, title, gameid):
     click = f"https://trichess.mykuna.eu/play/{gameid}"
     try:
-        requests.post(
+        resp = requests.post(
             f"https://ntfy.mykuna.eu/trichess_{username}",
             data=text.encode("utf-8"),
             headers={
@@ -42,6 +42,13 @@ def _send_push_notification_job(username, text, title, gameid):
             },
             timeout=(3, 5),
         )
+        if not resp.ok:
+            logger.warning(
+                "ntfy rejected notification for %s: HTTP %s %s",
+                username,
+                resp.status_code,
+                resp.text[:200],
+            )
     except requests.exceptions.ConnectionError:
         logger.error("Connection error during notification post.")
     except Exception as err:
