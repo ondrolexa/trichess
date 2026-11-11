@@ -1094,14 +1094,23 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
           are tried), then captures by MVV-LVA (most valuable victim, least valuable attacker), then quiet moves by
           the history heuristic (a quiet move that caused a cutoff earns <code>depth&sup2;</code>, shared across the
           whole search and its iterations). Only about 5% of moves are captures on this board, so the history
-          heuristic orders most of the tree. There is no transposition table and no quiescence search.</p>
+          heuristic orders most of the tree. Two more speed-ups keep the result identical: a transposition table
+          (Zobrist hash, 2<sup>20</sup> entries; a stored score is reused only at exactly the same remaining depth,
+          otherwise its best move is just tried first) with two killer moves per depth, and futility pruning one ply
+          above the leaves (quiet moves that cannot move the score past the alpha-beta window by more than 2.5 are
+          skipped, never when they give check or could stalemate). There is no quiescence search.</p>
+        <p><strong>Safety veto.</strong> After the search, if the chosen move loses material to an immediate capture
+          by either opponent (a SEE-lite test that credits one recapture), a safe alternative is played instead when
+          its score plus the material saved is at least the best score. A forced win/loss, a forced sacrifice and
+          positions where every move loses material keep the search's choice. The opening book uses the same test
+          on its single candidate move.</p>
         <p><strong>Evaluation</strong> (<code>engine/eval.py</code>, ported exactly into <code>search.py</code>),
           one weighted sum per position:</p>
         <ul>
           <li>Material &times;1.0: own piece values minus half of both opponents' together (P 1, N 3, B 3, R 5,
             Q 9).</li>
-          <li>Mobility &times;0.1: the number of moves of the bot's own pieces.</li>
-          <li>King safety &times;0.3: (own pieces within 2 cells of the king, minus 1 when in check) &times; 2.</li>
+          <li>Mobility &times;0.03: the number of moves of the bot's own pieces (at most 12 per piece).</li>
+          <li>King safety &times;0.3: (own pieces within 2 cells of the king, at most 6, minus 1 when in check) &times; 2.</li>
           <li>Activity &times;0.05: a bonus near the centre (3/2/1/1 at distance 0&ndash;3) and, for pawns, a bonus
             growing as they near promotion (0, 0, 0, 1, 2, 3, 5, 8 by distance).</li>
         </ul>

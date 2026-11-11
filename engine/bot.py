@@ -2,9 +2,17 @@ import time
 
 from engine.eval import evaluate_for_pid
 from engine.gameapi import GameAPI, get_game
-from engine.opening import book_move
-from engine.pieces import Pawn, Pos
-from engine.search import CELLS, WIN_VALUE, Position, Search, Timeout, terminal_value
+from engine.opening import book_move, has_book
+from engine.pieces import Pos
+from engine.search import (
+    CELLS,
+    INDEX,
+    WIN_VALUE,
+    Position,
+    Search,
+    Timeout,
+    terminal_value,
+)
 
 # The search (engine.search.Search) alternates strictly between "the root
 # pid" (maximizing) and "whoever's actually on move" (minimizing) for each
@@ -66,39 +74,20 @@ def _all_moves(ga: GameAPI):
     return moves
 
 
-def _has_piece_under_attack(ga: GameAPI) -> bool:
-    """True if any of the on-move player's own pieces is currently attacked.
+def _book_move_safe(ga: GameAPI, from_gid: int, to_gid: int, label: str) -> bool:
+    """Would this book move avoid losing material to the immediate reply?
 
-    The opening book (see below) is a context-blind historical-frequency
-    lookup — it only checks that its top candidate is legal, never whether
-    it's tactically sound. That's fine in a quiet opening, but once a piece
-    is hanging the book has to be skipped in favor of real search, or the
-    bot will happily push a book pawn move while leaving a rook to be
-    captured.
-
-    Deliberately uses pos_in_chess() (full piece-iteration), not the faster
-    _is_attacked() ray-scanner — _is_attacked is only proven correct for a
-    player's own king square (see TestAttackDetectionConsistency in
-    tests/test_board.py); using it here for arbitrary own pieces produced
-    false positives on a fresh board (flagging untouched pawns as attacked).
-
-    Pawns are excluded: a long-range slider "attacking" an undeveloped edge
-    pawn is routine even on the starting position (nothing blocks the
-    diagonal yet) and isn't worth abandoning the book over. Restricting this
-    to Knight/Bishop/Rook/Queen/King catches real hanging-piece situations
-    (the reported bug: an undefended Rook) without defeating the book on
-    essentially every opening move.
+    The opening book is a context-blind historical-frequency lookup: fine in
+    a quiet opening, but it must not push a pawn while a rook hangs. Instead
+    of scanning the whole board before consulting the book, validate the one
+    candidate with the same SEE-lite check the root safety veto uses
+    (Position.see_loss_after); if the reply wins material, fall through to
+    real search.
     """
-    player = ga.board.players[ga.on_move]
-    for hex in ga.board:
-        if (
-            hex.has_piece
-            and hex.piece.player.pid == ga.on_move
-            and not isinstance(hex.piece, Pawn)
-        ):
-            if ga.board.pos_in_chess(player, hex.pos)[0]:
-                return True
-    return False
+    pos = Position.from_game(ga)
+    frm = ga.gid2hex[from_gid].pos
+    to = ga.gid2hex[to_gid].pos
+    return pos.see_loss_after(INDEX[(frm.q, frm.r)], INDEX[(to.q, to.r)], label) >= 0
 
 
 def choose_move(
@@ -123,10 +112,12 @@ def choose_move(
         # choose_vote() first.
         return None
 
-    if not _has_piece_under_attack(ga):
+    if has_book():
         opening = book_move(ga)
         if opening is not None:
-            return opening
+            from_gid, move, label = opening
+            if _book_move_safe(ga, from_gid, move["tgid"], label):
+                return opening
 
     search = Search(Position.from_game(ga))
     if time_limit is None:
@@ -135,6 +126,11 @@ def choose_move(
         best = _iterative_deepening(search, depth, time_limit, max_depth)
     if best is None:
         return None
+    # The safety veto is part of choosing the move: let it finish even if the
+    # deepening deadline has just passed. It probes a handful of root moves at
+    # the last completed depth, so the overrun is small and bounded.
+    search.deadline = None
+    best = search.safe_root() or best
     i, to, promo, victim, label, _ = best
     tgid = ga.pos2gid[Pos(*CELLS[to])]
     move = {"tgid": tgid, "kind": "attack" if victim else "safe", "promotion": promo}

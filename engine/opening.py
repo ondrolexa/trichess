@@ -58,6 +58,11 @@ def load_book(path: Path = BOOK_PATH) -> dict[int, dict[str, int]]:
 _BOOK = load_book()
 
 
+def has_book() -> bool:
+    """True when a non-empty book file was loaded."""
+    return bool(_BOOK)
+
+
 def book_move(ga: GameAPI) -> tuple[int, dict, str] | None:
     """Suggest an opening move for the player on move, from historical games.
 
@@ -77,7 +82,7 @@ def book_move(ga: GameAPI) -> tuple[int, dict, str] | None:
     for move, count in sorted(candidates.items(), key=lambda kv: -kv[1]):
         if count < MIN_SUPPORT:
             break
-        from_pos, to_pos, _ = ga.slog2pos(*move)
+        from_pos, to_pos, new_piece = ga.slog2pos(*move)
         if from_pos not in ga.pos2gid or to_pos not in ga.pos2gid:
             continue
         from_gid = ga.pos2gid[from_pos]
@@ -86,6 +91,10 @@ def book_move(ga: GameAPI) -> tuple[int, dict, str] | None:
             continue
         for m in ga.valid_moves(from_gid):
             if ga.gid2hex[m["tgid"]].pos == to_pos:
+                # Keep the slog's promotion piece: "" would move the pawn
+                # without promoting.
+                if m["promotion"]:
+                    return (from_gid, m, new_piece or "Q")
                 return (from_gid, m, "")
 
     return None

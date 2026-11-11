@@ -11,6 +11,7 @@ import random
 import pytest
 
 from engine import bot
+from engine import search as search_module
 from engine.eval import evaluate_for_pid
 from engine.gameapi import get_game
 from engine.pieces import Pos
@@ -143,12 +144,12 @@ REFERENCE = [
     (
         1,
         "BOIAFCIANGLGENGMGBLGOEMFGMBHDFDGODIGBNCMIAJCOGCMEOEKBGINMFNGFNFLCFBIIGINEKDJEECFCMGEDJGGCFBHINHOFOEMLGJKNGMFAOHHBHFLNHMIHHNBHANAHOJKGGAMDEEEJKHKCOFMFLHKOBAIAMMG",
-        "EEEJ",
+        "NANB",
     ),
     (
         1,
         "BOIAFCIANGLGENGMGBLGOEMFGMBHDFDGODIGBNCMIAJCOGCMEOEKBGINMFNGFNFLCFBIIGINEKDJEECFCMGEDJGGCFBHINHOFOEMLGJKNGMFAOHHBHFLNHMIHHNBHANAHOJKGGAMDEEEJKHKCOFMFLHKOBAIAMMGNAOAMFMGGNHMJCIFNCMCANCLAHBHAIEMGOEMFDGEOHFHNBMBBHFHNEDJMBHBEEEMNFLFDOCOEMLFMGLFHNIMFHMADJCLCODOOAMCNDMCHBHIMAMCOCNAHIGJ",
-        "MCHH",
+        "MCAO",
     ),
     (2, "BNDLBGINNEJGFOINGCGDOGEL", "GOKG"),
     (
@@ -164,7 +165,7 @@ REFERENCE = [
     (
         2,
         "BNDLBGINNEJGFOINGCGDOGELCOELDEHINBMCFNGMHINIJGGDINKKEEGDODENDOENNINHOHLKGOMCNHIHOEODCNDMIHELNDMCENDOGDKHLKKKHOOHKHHNNGLIEOELDFEFKKHNOHHOBHBIHNGNHOHBAHDHGNHMELFJHAHBHMHBFJFECFFELIKIDOCNFEHBOCLDBOEIHBIDOFMEEIIAGBIANALACNDOIAGEOANAAOBNGEKINAKDBNBICGBIKDKIANAMDHJBKIIIDOCOJBOBLDOBDLDK",
-        "IDHG",
+        "IDFE",
     ),
     (0, "BOIABGINOBAIEOFMFCIAAIFN", "GOFN"),
     (
@@ -186,7 +187,7 @@ REFERENCE = [
     (
         1,
         "BOIABGHMOBAIGOHMGBMHAIFNCOFNEEHHNFMHBNBMDEHEOGIAGNGLAHANNBLDEOGNHHNEODNEAOFJHAIAMHLHHMLEHEHDNELEENILHDHNLECNDOENHNNHCNDNENGMGCHCDNANFNELNHOHANFDFJFLCFFDNALAILFI",
-        "IAIG",
+        "EDEE",
     ),
 ]
 
@@ -207,3 +208,96 @@ def test_search_root_puts_first_move_first():
     search = Search(pos)
     best = search.search_root(3)
     assert Search(pos).search_root(3, first=best[:4])[:5] == best[:5]
+
+
+# ── root safety veto ──────────────────────────────────────────────────────
+
+HANGING_ROOK_SLOG = "HNIMBHBINFLHINKLHBHDOCMFGOIKDFEF"
+SECOND_OPPONENT_SLOG = "FNFLBHBIOCMFFOHLCFFENIMIFLFKFDHDNALABNDLHBIBNCLEGNGL"
+
+
+def test_safe_root_replaces_a_move_that_hangs_a_piece():
+    pos = Position.from_game(get_game(0, HANGING_ROOK_SLOG))
+    search = Search(pos)
+    best = search.search_root(1)
+    chosen = search.safe_root()
+    assert pos.see_loss_after(best[0], best[1], best[4]) < 0
+    assert pos.see_loss_after(chosen[0], chosen[1], chosen[4]) >= 0
+    assert chosen[:3] != best[:3]
+
+
+def test_safe_root_keeps_a_safe_best_move():
+    pos = Position.from_game(get_game(0, REFERENCE[1][1]))
+    search = Search(pos)
+    best = search.search_root(2)
+    if pos.see_loss_after(best[0], best[1], best[4]) >= 0:
+        assert search.safe_root() == best
+
+
+def test_safe_root_without_a_search_is_none():
+    assert (
+        Search(Position.from_game(get_game(0, HANGING_ROOK_SLOG))).safe_root() is None
+    )
+
+
+def test_see_loss_counts_the_second_opponent():
+    # Bishop (-6,-1) takes the pawn on (-2,3): the next player cannot reply
+    # there, but pid 0's pieces can take the bishop two plies later.
+    pos = Position.from_game(get_game(0, SECOND_OPPONENT_SLOG))
+    assert pos.see_loss_after(INDEX[(-6, -1)], INDEX[(-2, 3)], "") < 0
+    # A quiet pawn move that hangs nothing stays safe.
+    assert pos.see_loss_after(INDEX[(-7, 1)], INDEX[(-7, 3)], "") >= 0
+
+
+# ── Zobrist hash, transposition table, futility ───────────────────────────
+
+
+def _fresh_hash(pos):
+    return Position(list(pos.board), list(pos.used), list(pos.kings), pos.stm).hash
+
+
+def test_incremental_hash_matches_a_recomputed_one():
+    pos = Position.from_game(get_game(0, REFERENCE[1][1]))
+    start = pos.hash
+    stack = []
+    # Walk a few plies (first legal move each time), checking after each make
+    # and again after each unmake.
+    for _ in range(6):
+        i, to, promo, _victim = pos.legal_moves()[0]
+        stack.append(pos.make(i, to, "Q" if promo else ""))
+        assert pos.hash == _fresh_hash(pos)
+    while stack:
+        pos.unmake(stack.pop())
+        assert pos.hash == _fresh_hash(pos)
+    assert pos.hash == start
+
+
+def test_hash_includes_side_to_move_and_used_flag():
+    pos = Position.from_game(get_game(0, REFERENCE[1][1]))
+    h = pos.hash
+    pos.stm = (pos.stm + 1) % 3
+    assert _fresh_hash(pos) != h
+
+
+@pytest.mark.parametrize("view_pid, slog, expected", REFERENCE[::5])
+def test_futility_pruning_does_not_change_the_result(
+    view_pid, slog, expected, monkeypatch
+):
+    ga = get_game(view_pid, slog)
+    results = []
+    for margin in (-1.0, search_module.FUTILITY_MARGIN):
+        monkeypatch.setattr(search_module, "FUTILITY_MARGIN", margin)
+        results.append(Search(Position.from_game(ga)).search_root(4))
+    assert results[0] == results[1]
+
+
+def test_tt_search_matches_a_cold_search_across_iterations():
+    # Iterative deepening reuses one Search (TT, killers, history); the final
+    # depth must agree with a cold search on the best score.
+    pos = Position.from_game(get_game(0, REFERENCE[1][1]))
+    warm = Search(pos)
+    best = None
+    for d in range(1, 4):
+        best = warm.search_root(d, first=best[:4] if best else None)
+    cold = Search(Position.from_game(get_game(0, REFERENCE[1][1]))).search_root(3)
+    assert best[5] == cold[5]

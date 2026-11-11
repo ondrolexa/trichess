@@ -8,10 +8,23 @@ _CENTER_BONUS = {0: 3, 1: 2, 2: 1, 3: 1}
 # Promotion proximity bonus for pawns: distance to own promotion zone.
 _PROMO_BONUS = [0, 0, 0, 1, 2, 3, 5, 8]
 
+# Material must stay dominant: at 1.0 a rook is worth 5.0, while the positional
+# terms are kept small enough that they cannot add up to a piece. Earlier values
+# (mobility 0.1, uncapped) let a root move that sacrificed a rook still outscore
+# a quiet, safe alternative; the mobility weight and caps below keep that in
+# check. King safety is back at 0.3: tuned by self-play (scripts/selfplay.py,
+# 150-game matches vs 0.1: 0.75 and 0.78 points per game vs an even 0.67;
+# 0.2 -> 0.71, 0.5 -> 0.63; mobility 0 -> 0.58, king safety 0 -> 0.61).
+# Changing a weight changes the safe futility margin (search.FUTILITY_MARGIN).
 MATERIAL_WEIGHT = 1.0
-MOBILITY_WEIGHT = 0.1
+MOBILITY_WEIGHT = 0.03
 KING_SAFETY_WEIGHT = 0.3
 ACTIVITY_WEIGHT = 0.05
+
+# An unblocked queen has 20+ pseudo-moves; cap per-piece mobility and the
+# king-defender count (also in search.Position.evaluate -- the cap is logic).
+MOBILITY_CAP = 12
+DEFENDER_CAP = 6
 
 
 _CENTER = Pos(0, 0)
@@ -60,7 +73,9 @@ def evaluate_for_pid(ga: GameAPI, pid: int) -> float:
             # it doesn't pass through check) on every single call, which
             # dominated profiled search time (~63% of a depth-3 search) for
             # no benefit to the evaluation.
-            my_mob += len(board.possible_moves(piece, castling=False))
+            my_mob += min(
+                len(board.possible_moves(piece, castling=False)), MOBILITY_CAP
+            )
             # center bonus
             cb = _CENTER_BONUS.get(axial_distance(pos, _CENTER))
             if cb is not None:
@@ -78,7 +93,8 @@ def evaluate_for_pid(ga: GameAPI, pid: int) -> float:
 
     material = my_mat - opp_mat / 2.0
     king_safety = (
-        defenders - (1 if board._is_attacked(king_pos, players[pid]) else 0)
+        min(defenders, DEFENDER_CAP)
+        - (1 if board._is_attacked(king_pos, players[pid]) else 0)
     ) * 2.0
 
     return (

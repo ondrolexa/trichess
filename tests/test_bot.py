@@ -6,16 +6,18 @@ from engine import GameAPI, bot, choose_move, choose_vote, evaluate, get_game
 from engine.bot import (
     MIN_SOUND_DEPTH,
     WIN_VALUE,
-    _has_piece_under_attack,
+    _book_move_safe,
     _terminal_score,
     _terminal_value,
 )
 from engine.eval import evaluate_for_pid
+from engine.pieces import Pos
+from engine.search import CELLS
 
 # A real reported position (8 plies in, still within the opening book's
 # depth) where pid 2's Rook on OH is hanging to a Bishop. Regression case:
 # the book used to fire regardless and suggest an unrelated pawn push,
-# abandoning the rook — see _has_piece_under_attack.
+# abandoning the rook — see _book_move_safe.
 HANGING_ROOK_SLOG = "HNIMBHBINFLHINKLHBHDOCMFGOIKDFEF"
 
 # HANGING_ROOK_SLOG continued 3 more plies (the bot walked its Bishop to a
@@ -58,17 +60,15 @@ class TestEvaluate:
         assert scores[0] == scores[1] == scores[2]
 
 
-class TestHasPieceUnderAttack:
-    def test_fresh_board_is_false(self, game):
-        # A long-range slider can legally "attack" an untouched edge pawn on
-        # the starting position (nothing blocks the diagonal yet) — that's
-        # routine, not a reason to abandon the opening book, so pawns are
-        # deliberately excluded from this check.
-        assert not _has_piece_under_attack(game)
+class TestBookMoveSafe:
+    def test_quiet_opening_move_is_safe(self, game):
+        from_pos, to_pos, _ = game.slog2pos("F", "O", "E", "M")
+        assert _book_move_safe(game, game.pos2gid[from_pos], game.pos2gid[to_pos], "")
 
-    def test_true_when_a_non_pawn_piece_is_hanging(self):
+    def test_unrelated_pawn_push_leaves_a_hanging_rook(self):
         ga = get_game(0, HANGING_ROOK_SLOG)
-        assert _has_piece_under_attack(ga)
+        from_pos, to_pos, _ = ga.slog2pos("N", "B", "M", "B")
+        assert not _book_move_safe(ga, ga.pos2gid[from_pos], ga.pos2gid[to_pos], "")
 
 
 class TestChooseMove:
@@ -107,7 +107,7 @@ class TestChooseMove:
         move = choose_move(game_with_one_move, depth=1)
         self._assert_legal(game_with_one_move, move)
 
-    def test_skips_the_book_when_a_piece_is_hanging(self):
+    def test_skips_the_book_when_a_piece_is_hanging(self, monkeypatch):
         # Regression test: the opening book used to fire regardless of
         # tactics and suggest NB->MB (an unrelated pawn push) here, leaving
         # pid 2's Rook on OH hanging to a Bishop. depth=1 is enough to prove
@@ -118,8 +118,7 @@ class TestChooseMove:
         # full 3-ply search too slow, ~70s, for a unit test).
         ga = get_game(0, HANGING_ROOK_SLOG)
         assert ga.on_move == 2
-        assert _has_piece_under_attack(ga)
-
+        monkeypatch.setattr("engine.opening._BOOK", {8: {"NBMB": 9}})
         book_from_pos, book_to_pos, _ = ga.slog2pos("N", "B", "M", "B")
         book_choice = (ga.pos2gid[book_from_pos], ga.pos2gid[book_to_pos])
 
@@ -218,24 +217,43 @@ class TestSearchDepth:
             == MIN_SOUND_DEPTH
         )
 
-    def test_shallow_depth_hangs_a_piece_to_the_second_opponent(self):
-        # Depth 1 and depth 2 each blunder a different piece here (Queen,
-        # then Bishop) — both hang to pid 1, but pid 0 is who actually moves
-        # next, so neither depth ever simulates the piece that's really
-        # threatening.
-        expected = {1: ("OD", "GH"), 2: ("OB", "IE")}
-        for depth, (from_code, to_code) in expected.items():
-            ga = get_game(0, HANGING_ROOK_SLOG)
-            from_gid, m, _ = choose_move(ga, depth=depth)
-            assert ga.gid2hex[from_gid].pos.code == from_code
-            assert ga.gid2hex[m["tgid"]].pos.code == to_code
+    @staticmethod
+    def _raw_search(slog, depth):
+        """Best root move of the bare search, before the safety veto."""
+        from engine.search import Position, Search
 
-    def test_shallow_depth_hangs_a_queen_to_the_second_opponent(self):
-        ga = get_game(0, HANGING_QUEEN_SLOG)
-        for depth in (1, 2):
-            from_gid, m, _ = choose_move(ga, depth=depth)
-            assert ga.gid2hex[from_gid].pos.code == "OD"
-            assert ga.gid2hex[m["tgid"]].pos.code == "GH"
+        ga = get_game(0, slog)
+        i, to, *_ = Search(Position.from_game(ga)).search_root(depth)
+        return ga, i, to
+
+    def test_shallow_depth_hangs_a_piece_to_the_second_opponent(self):
+        # Depth 1 and depth 2 each hang the Bishop (to different squares) —
+        # both squares are attacked by the other players, but depth < 3
+        # never simulates the second opponent that's really threatening.
+        expected = {1: ("OB", "AI"), 2: ("OB", "IE")}
+        for depth, (from_code, to_code) in expected.items():
+            ga, i, to = self._raw_search(HANGING_ROOK_SLOG, depth)
+            assert ga.gid2hex[ga.pos2gid[Pos(*CELLS[i])]].pos.code == from_code
+            assert ga.gid2hex[ga.pos2gid[Pos(*CELLS[to])]].pos.code == to_code
+
+    def test_safety_veto_rescues_the_shallow_blunders(self):
+        # choose_move runs the same shallow search but then vetoes a move
+        # that loses material to an immediate reply, so the blunders above
+        # are not played.
+        for slog, depth in (
+            (HANGING_ROOK_SLOG, 1),
+            (HANGING_ROOK_SLOG, 2),
+            (HANGING_QUEEN_SLOG, 1),
+        ):
+            ga, i, to = self._raw_search(slog, depth)
+            raw = (
+                ga.gid2hex[ga.pos2gid[Pos(*CELLS[i])]].pos.code,
+                ga.gid2hex[ga.pos2gid[Pos(*CELLS[to])]].pos.code,
+            )
+            from_gid, m, _ = choose_move(get_game(0, slog), depth=depth)
+            ga2 = get_game(0, slog)
+            chosen = (ga2.gid2hex[from_gid].pos.code, ga2.gid2hex[m["tgid"]].pos.code)
+            assert chosen != raw
 
 
 class TestTerminalScore:
