@@ -13,15 +13,17 @@ let canH = 0;
 const ctx0 = canvas0.getContext("2d");
 ctx0.lineCap = "round";
 const url = `${window.location.protocol}//${window.location.host}`;
-const bpiece_lineWidth = 0.1;
+const bpiece_lineWidth = 0.19;
 const epiece_lineWidth = 0.3;
 const lineWidth = 5;
-const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"));
 const modal_go = new bootstrap.Modal(document.getElementById("gameOver"));
 const modalDraw = new bootstrap.Modal(document.getElementById("voteDialog"));
-// todo vsetky konstanty vytiahnut sem
+const modal_wt = new bootstrap.Modal(document.getElementById("waitingMsg"));
+
 let SemaforGreen = true;
-let SemaforWait = false;
+let semaforToken = 0;
+let semaforTimerId = null;
+// todo vsetky konstanty vytiahnut sem
 
 // tools /////////////////////////////////////////////
 function isMobile() {
@@ -30,48 +32,43 @@ function isMobile() {
     return regex.test(navigator.userAgent);
 }
 
-function wait_msg(yes) {
-    const tx = document.getElementById("waitingText");
-    if (yes && !SemaforWait) {
-        SemaforWait = true;
-        setTimeout(function () {
-            if (SemaforWait) {
-                tx.style.color = theme["canvas"]["info"];
-                modal_wt.show();
-            }
-        }, 500);
-    }
+function rotateArray(arr, rotateBy) {
+    const n = arr.length;
+    rotateBy %= n;
+    return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
 }
 
-
-let semaforToken = 0;
-let semaforTimerId = null;
-
-function SemaforRed() {
-    const wasGreen = Boolean(SemaforGreen);
-    const currentToken = ++semaforToken;
-
-    SemaforGreen = false;
-
+// Semafor ///////////////////////////
+function clearSemaforTimer() {
     if (semaforTimerId !== null) {
         clearTimeout(semaforTimerId);
         semaforTimerId = null;
     }
+}
 
-    const tx = document.getElementById("waitingText");
-    if (tx) {
-        tx.style.color = theme["canvas"]["info"];
+function showWaitingModal() {
+    if (SemaforGreen) return;
+    modal_wt.show();
+}
+
+function SemaforRed() {
+    const wasGreen = Boolean(SemaforGreen);
+    const token = ++semaforToken;
+    SemaforGreen = false;
+    clearSemaforTimer();
+    const waitingText = document.getElementById("waitingText");
+    if (waitingText) {
+        waitingText.style.color = theme.canvas.info;
     }
-
     if (wasGreen) {
         semaforTimerId = setTimeout(() => {
             semaforTimerId = null;
-            if (currentToken === semaforToken && !SemaforGreen) {
-                modal_wt.show();
+            if (token === semaforToken) {
+                showWaitingModal();
             }
-        }, 2000);
-    } else if (!SemaforGreen) {
-        modal_wt.show();
+        }, 500);
+    } else {
+        showWaitingModal();
     }
 }
 
@@ -80,20 +77,16 @@ function SemaforGreenn() {
     if (semaforTimerId !== null) {
         clearTimeout(semaforTimerId);
         semaforTimerId = null;
+
+        modal_wt.hide();
+        SemaforGreen = true;
     }
-    modal_wt.hide();
-    SemaforGreen = true;
 }
 
 function debug(itext) {
     window.alert("Debug:" + itext);
 }
 
-function rotateArray(arr, rotateBy) {
-    const n = arr.length;
-    rotateBy %= n;
-    return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
-}
 
 function draw_piece_common(
     i_piece,
@@ -134,20 +127,16 @@ class fetchData {
 
     async _request(method, iurl, ijson = null, icallback = null) {
         let statusCode = null;
-
         const fetchOptions = {
             method: method,
             headers: this.headers,
         };
-
         if (ijson !== null) {
             fetchOptions.body = JSON.stringify(ijson);
         }
-
         try {
             const response = await fetch(iurl, fetchOptions);
             statusCode = response.status;
-
             if (!response.ok) {
                 if (response.status === 503) {
                     location.reload(); // Maintenance mode
@@ -161,9 +150,7 @@ class fetchData {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
             }
-
             const data = await response.json();
-
             // 2-second delay simulation with proper resolve() execution
             await new Promise(resolve => {
                 setTimeout(() => {
@@ -171,9 +158,8 @@ class fetchData {
                         icallback(data);
                     }
                     resolve();
-                }, 4000);
+                }, 0);
             });
-
             return data;
 
         } catch (error) {
@@ -219,7 +205,7 @@ class ssel {
             "right",
             200,
             info_size + " " + theme["pieces"]["font-family"],
-            "green",
+            theme["canvas"]["info"], // todo test
             2,
             theme["pieces"]["stroke-color"],
         );
@@ -632,7 +618,7 @@ class iinfos {
         if (a == 's' || a == 'S') {
             last_move = ""
         } else {
-            last_move = last_move.substr(0, 2) + "-" + last_move.substr(2, 2)
+            last_move = last_move.substring(0, 2) + "-" + last_move.substring(2, 2)
         }
         let cursor_coor = ""
         //if (B.gid_new>=0) { todo remove
@@ -655,7 +641,7 @@ class iinfos {
             let index2 = rotateArray([0, 1, 2], idata.onmove - vc); //todo
             for (let i = 0; i < 3; i++) {
                 if (idata.vote_results[index2[i]] == "A") {
-                    this.panel[3].lines[2 - j].set_text(this.players[index2[i]].substr(0, 12) + verb + idata.vote_results.kind + ".");
+                    this.panel[3].lines[2 - j].set_text(this.players[index2[i]].substring(0, 12) + verb + idata.vote_results.kind + ".");
                     verb = " accepts ";
                     j++;
                 } else if (idata.vote_results[index2[i]] == "D") {
@@ -1259,7 +1245,7 @@ class board {
     }
 
     getSlog() {
-        let slog = this.slog.substr(0, this.slog_pointer * 4);
+        let slog = this.slog.substring(0, this.slog_pointer * 4);
         return slog;
     }
 
@@ -1357,6 +1343,11 @@ class board {
         await Step_make_move(response);
         return response;
     }
+
+    draw_board() {
+        this.draw_tile();
+        this.draw_pieces();
+    }
 }
 
 // Button ////////////////////////////////////////////////////////////////////////////////
@@ -1451,7 +1442,6 @@ function Step_valid_moves(idata) {
         B.hexs[obj.tgid].chang_flag = true;
         B.hexs[obj.tgid].promo_flag = obj.promotion;
     }
-    //F.semaforwait_green();
 }
 
 async function Step_1_settoken() {
@@ -1523,8 +1513,7 @@ function Step_4_set_votedraw(idata) {
 function Step_3_setelim_board_and_draw(idata) {
     window.trichessGame?.info(idata);
     B.set(idata);
-    B.draw_tile();
-    B.draw_pieces();
+    B.draw_board();
     II.set(idata);
     II.write();
     II.elim_lines();
@@ -1568,46 +1557,31 @@ function Step_3_setelim_board_and_draw(idata) {
         rp2.innerHTML = `<td>${II.players[2]}</td> <td>${Math.round(idata.score[2] * 100) / 100}</td>`;
         modal_go.show();
     }
-    //SemaforGreenn()
+    SemaforGreenn()
 }
 
 function button_control() {
-    if (B.move_number_org == B.move_number && B.slog_pointer == B.slog.length / 4) {
-        //&& SemaforVoteDraw
-        document.getElementById("b_dr").disabled = false;
-        document.getElementById("b_rs").disabled = false;
-    } else {
-        document.getElementById("b_dr").disabled = true;
-        document.getElementById("b_rs").disabled = true;
-    }
-    if (B.finished) {
-        document.getElementById("b_dr").disabled = true;
-        document.getElementById("b_rs").disabled = true;
-        document.getElementById("b_rt").disabled = true;
-    } else {
-        document.getElementById("b_rt").disabled = false;
-    }
-    if (
-        B.move_number_org == B.move_number - 1 &&
-        B.view_player_org == (B.onmove + 2) % 3 &&
-        !B.hist_changed
-    ) {
-        document.getElementById("b_ok").disabled = false;
-        document.getElementById("b_ok").style.backgroundColor = theme["canvas"]["name_onmove"];
-    } else {
-        document.getElementById("b_ok").style.backgroundColor = "#6c757d";
-        document.getElementById("b_ok").disabled = true;
-    }
-    if (B.move_number == 0) {
-        document.getElementById("b_bw").disabled = true;
-    } else {
-        document.getElementById("b_bw").disabled = false;
-    }
-    if (B.slog_pointer == B.slog.length / 4) {
-        document.getElementById("b_fw").disabled = true;
-    } else {
-        document.getElementById("b_fw").disabled = false;
-    }
+    const atLatestLog = B.slog_pointer === B.slog.length / 4;
+    const canDrawOrResign =
+        !B.finished &&
+        B.move_number_org === B.move_number &&
+        atLatestLog;
+    const canConfirmMove =
+        B.move_number_org === B.move_number - 1 &&
+        B.view_player_org === (B.onmove + 2) % 3 &&
+        !B.hist_changed;
+    document.getElementById("b_rf").disabled = false;
+    document.getElementById("b_dr").disabled = !canDrawOrResign;
+    document.getElementById("b_rs").disabled = !canDrawOrResign;
+    document.getElementById("b_rt").disabled = Boolean(B.finished);
+    document.getElementById("b_bw").disabled = B.move_number === 0;
+    document.getElementById("b_fw").disabled = atLatestLog;
+
+    const okBtn = document.getElementById("b_ok");
+    okBtn.disabled = !canConfirmMove;
+    okBtn.style.backgroundColor = canConfirmMove
+        ? theme.canvas.name_onmove
+        : "#6c757d";
 }
 
 function button_dis_all() {
@@ -1639,32 +1613,6 @@ function window_vote(ikind, itext) {
 }
 
 // Click ////////////////////////////////////////////////////////////////////////////////
-function Click_Vote(ivalue) {
-    if (!B.vote_needed && !ivalue) {
-        return; //chncel decline
-    }
-    SS.active = false;
-    F.fetchPOST(
-        url + "/api/v1/vote/" + B.vote_results_kind,
-        {slog: B.slog, view_pid: B.view_player, vote: ivalue},
-        Step_4_set_votedraw,
-    );
-}
-
-function Click_Draw() {
-    let b_decline = document.getElementById("b_decline");
-    b_decline.style.display = "none";
-    B.vote_results_kind = "draw";
-    window_vote("draw", ["Do you want to offer the draw?"]);
-}
-
-function Click_Resign() {
-    let b_decline = document.getElementById("b_decline");
-    b_decline.style.display = "none";
-    B.vote_results_kind = "resign";
-    window_vote("resign", ["Do you want to offer the resignation?"]);
-}
-
 function Click_Demo() {
     function code2gid(code) {
         for (let z = 0; z < 169; z++) {
@@ -1715,8 +1663,7 @@ function Click_Demo() {
                 Step_3_setelim_board_and_draw,
             );
             await delay(200);
-            B.draw_tile(); // remove cursor
-            B.draw_pieces();
+            B.draw_board(); // remove cursor
             //  II.write()
             await delay(1000);
             let code1 = slog.substring((B.slog_pointer * 4), (B.slog_pointer * 4) + 2)
@@ -1727,8 +1674,7 @@ function Click_Demo() {
             await delay(500);
             fff_valid(); // show valid moves
             await delay(1000);
-            B.draw_tile(); // remove cursor
-            B.draw_pieces();
+            B.draw_board(); // remove cursor
             B.moveValid(); // show valid moves
             //await delay(1500);
             let code2 = slog.substring((B.slog_pointer * 4) + 2, (B.slog_pointer * 4) + 4)
@@ -1738,8 +1684,7 @@ function Click_Demo() {
                 B.hexs[B.gid_new].draw_mark("rect")
             }
             await delay(300);
-            B.draw_tile(); // remove cursor
-            B.draw_pieces();
+            B.draw_board(); // remove cursor
             B.moveMake();
             B.slog = B.slog + B.hexs[B.gid_old].code + B.hexs[B.gid_new].code
             B.slog_pointer = B.slog_pointer + 1
@@ -1749,137 +1694,235 @@ function Click_Demo() {
     runLoopWithDelay();
 }
 
-function Click_Backward() {
-    SS.active = false;
-    B.slog_pointer = B.slog_pointer - 1;
-    F.fetchPOST(
-        url + "/api/v1/game/info",
-        {slog: B.slog.substr(0, B.slog_pointer * 4), view_pid: B.view_player},
-        Step_3_setelim_board_and_draw,
-    );
-}
-
-function Click_Forward() {
-    SS.active = false;
-    B.slog_pointer = B.slog_pointer + 1;
-    F.fetchPOST(
-        url + "/api/v1/game/info",
-        {slog: B.slog.substr(0, B.slog_pointer * 4), view_pid: B.view_player},
-        Step_3_setelim_board_and_draw,
-    );
-}
-
-function Click_OK() {
-    SS.active = false;
-    if (
-        B.move_number_org == B.move_number - 1 &&
-        B.view_player_org == (B.onmove + 2) % 3
-    ) {
-        F.fetchPOST(
-            url + "/api/v1/manager/board",
-            {id: ID, slog: B.getSlog()},
-            function () {
-                window.trichessGame?.submitted(B.getSlog());
-                //F.semaforwait_green()
-            },
+async function Click_Vote(ivalue) {
+    if (!SemaforGreen || (!B.vote_needed && !ivalue)) {
+        return; // cancel decline
+    }
+    SemaforRed();
+    button_dis_all();
+    try {
+        SS.active = false;
+        await F.fetchPOST(
+            url + "/api/v1/vote/" + B.vote_results_kind,
+            {slog: B.slog, view_pid: B.view_player, vote: ivalue},
+            Step_4_set_votedraw,
         );
+    } catch (err) {
+        console.error("Click_Vote error:", err);
+    } finally {
+        button_control();
+        SemaforGreenn();
     }
-    B.move_number_org = -1;
-    B.move_number_max = -1;
-    document.getElementById("b_ok").disabled = false;
-    document.getElementById("b_ok").style.backgroundColor = "#9fa5aa";
-    B.hist_changed = false;
 }
 
-function Click_Refresh() {
-    B.move_number_max = -1;
-    B.move_number_org = -1;
-    B.hist_changed = false;
-    II.panel[3].lines[3].set_text("")      // remove cursor
-    B.gid_new = -1;
-    F.fetchGET(
-        url + "/api/v1/manager/board?id=" + ID.toString() + "&view_pid=" + B.view_player.toString(),
-        Step_2_setplayers,
-    );
+async function Click_Draw() {
+    if (!SemaforGreen) return;
+    SemaforRed();
+    button_dis_all();
+    try {
+        document.getElementById("b_decline").style.display = "none";
+        B.vote_results_kind = "draw";
+        await window_vote("draw", ["Do you want to offer the draw?"]);
+    } catch (err) {
+        console.error("Click_Draw error:", err);
+    } finally {
+        button_control();
+        SemaforGreenn();
+    }
 }
 
-function Click_Rotate() {
-    SS.active = false;
-    let slog = B.getSlog();
-    if (B.gid_new != -1) {
-        B.gid_new = B.get_gid_rotate();
+async function Click_Resign() {
+    if (!SemaforGreen) return;
+    SemaforRed();
+    button_dis_all();
+    try {
+        document.getElementById("b_decline").style.display = "none";
+        B.vote_results_kind = "resign";
+        await window_vote("resign", ["Do you want to offer the resignation?"]);
+    } catch (err) {
+        console.error("Click_Resign error:", err);
+    } finally {
+        button_control();
+        SemaforGreenn();
     }
-    B.view_player = (B.view_player + 1) % 3;
-    F.fetchPOST(
-        url + "/api/v1/game/info",
-        {slog: slog, view_pid: B.view_player},
-        Step_3_setelim_board_and_draw,
-    );
+}
+
+async function Click_Backward() {
+    if (!SemaforGreen) return;
+    SemaforRed();
+    button_dis_all();
+    try {
+        SS.active = false;
+        B.slog_pointer -= 1;
+        await F.fetchPOST(
+            url + "/api/v1/game/info",
+            {
+                slog: B.slog.substring(0, B.slog_pointer * 4),
+                view_pid: B.view_player,
+            },
+            Step_3_setelim_board_and_draw
+        );
+    } catch (err) {
+        console.error("Click_Backward error:", err);
+    } finally {
+        button_control();
+        SemaforGreenn();
+    }
+}
+
+async function Click_Forward() {
+    if (!SemaforGreen) return;
+    SemaforRed();
+    button_dis_all();
+    try {
+        SS.active = false;
+        B.slog_pointer += 1;
+        await F.fetchPOST(
+            url + "/api/v1/game/info",
+            {slog: B.slog.substring(0, B.slog_pointer * 4), view_pid: B.view_player,},
+            Step_3_setelim_board_and_draw
+        );
+    } catch (err) {
+        console.error("Click_Forward error:", err);
+    } finally {
+        button_control();
+        SemaforGreenn();
+    }
+}
+
+async function Click_OK() {
+    if (!SemaforGreen) return;
+    SemaforRed();
+    button_dis_all();
+    try {
+        SS.active = false;
+        if (
+            B.move_number_org === B.move_number - 1 &&
+            B.view_player_org === (B.onmove + 2) % 3
+        ) {
+            const slog = B.getSlog();
+            await F.fetchPOST(
+                url + "/api/v1/manager/board",
+                {id: ID, slog},
+                function () {
+                    window.trichessGame?.submitted(slog);
+                }
+            );
+        }
+        B.move_number_org = -1;
+        B.move_number_max = -1;
+        const okBtn = document.getElementById("b_ok");
+        okBtn.disabled = false;
+        okBtn.style.backgroundColor = "#9fa5aa"; // todo
+        B.hist_changed = false;
+    } catch (err) {
+        console.error("Click_OK error:", err);
+    } finally {
+        button_control();
+        SemaforGreenn();
+    }
+}
+
+async function Click_Refresh() {
+    if (!SemaforGreen) return;
+    SemaforRed();
+    button_dis_all();
+    try {
+        B.move_number_max = -1;
+        B.move_number_org = -1;
+        B.hist_changed = false;
+        II.panel[3].lines[3].set_text(""); // remove cursor
+        B.gid_new = -1;
+        await F.fetchGET(
+            url +
+            "/api/v1/manager/board?id=" +
+            ID.toString() +
+            "&view_pid=" +
+            B.view_player.toString(),
+            Step_2_setplayers
+        );
+    } catch (err) {
+        console.error("Click_Refresh error:", err);
+    } finally {
+        button_control();
+        SemaforGreenn();
+    }
+}
+
+async function Click_Rotate() {
+    if (!SemaforGreen) return;
+    SemaforRed();
+    button_dis_all();
+    try {
+        SS.active = false;
+        const slog = B.getSlog();
+
+        if (B.gid_new !== -1) {
+            B.gid_new = B.get_gid_rotate();
+        }
+        B.view_player = (B.view_player + 1) % 3;
+
+        await F.fetchPOST(
+            url + "/api/v1/game/info",
+            {slog, view_pid: B.view_player},
+            Step_3_setelim_board_and_draw
+        );
+    } catch (err) {
+        console.error("Click_Rotate error:", err);
+    } finally {
+        button_control();
+        SemaforGreenn();
+    }
 }
 
 function getMousePosition(e, canvas) {
     return {
-        x: ((e.offsetX * canvas.width) / canvas.clientWidth) | 0,
-        y: ((e.offsetY * canvas.height) / canvas.clientHeight) | 0
+        x: (((e.offsetX ?? 0) * canvas.width) / (canvas.clientWidth || 1)) | 0,
+        y: (((e.offsetY ?? 0) * canvas.height) / (canvas.clientHeight || 1)) | 0
     };
 }
 
 async function Click_Board(event) {
     if (!SemaforGreen) return;
-
     SemaforRed();
     button_dis_all();
-
     try {
         const {x, y} = getMousePosition(event, canvas0);
-
-        if (B.gid_new == -1) {
+        if (B.gid_new === -1) {
             B.gid_new = 84;
         }
-
-        // If promo pieces window is open
-        if (B.hexs[B.gid_new].promo_flag && SS.active) {
+        let currentHex = B.hexs[B.gid_new];
+        // Handle active promotion picker click
+        if (currentHex?.promo_flag && SS.active) {
             const promoChoice = SS.getpromo(x, y);
             if (promoChoice === "") {
-                B.draw_tile();
-                B.draw_pieces();
-                button_control();
-                SemaforGreenn();
+                B.draw_board();
                 return;
             }
             await B.moveMake(promoChoice);
-            B.hexs[B.gid_new].promo_flag = false;
-            button_control();
-            SemaforGreenn();
+            currentHex.promo_flag = false;
             return;
         }
-
         B.getGid(x, y);
-        B.draw_tile();
-
-        if (B.gid_new !== -1) {
-            B.hexs[B.gid_new].draw_mark("rect");
-        } else {
+        B.draw_tile(); //remove board
+        currentHex = B.hexs[B.gid_new];
+        if (B.gid_new !== -1 && currentHex) {
+            currentHex.draw_mark("rect");
+        } else { // remove cursor coordinates
             II.panel[3].lines[3].set_text("");
             II.panel[3].lines[3].clear_text();
         }
-
         B.draw_pieces();
-
-        if (B.gid_new !== -1 && B.hexs[B.gid_new].promo_flag) {
-            SS.line[1].color = theme["pieces"]["color"][B.onmove % 3];
+        if (currentHex?.promo_flag) {
+            SS.line[1].color = theme.pieces.color[B.onmove % 3];
             SS.write();
-            button_control();
-            SemaforGreenn();
             return;
         }
-
         await B.moveValid();
         await B.moveMake();
-        button_control();
-        SemaforGreenn();
     } catch (err) {
         console.error("Click_Board error:", err);
+    } finally {
         button_control();
         SemaforGreenn();
     }
@@ -1919,7 +1962,7 @@ function resizee_init() {
 function resizee_refresh() {
     resizee_init()
     B.init_xy();
-    let slog = B.slog.substr(0, B.slog_pointer * 4);
+    let slog = B.slog.substring(0, B.slog_pointer * 4);
     F.fetchPOST(
         url + "/api/v1/game/info",
         {slog: slog, view_pid: B.view_player},
