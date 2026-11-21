@@ -38,6 +38,37 @@ function rotateArray(arr, rotateBy) {
     return arr.slice(rotateBy).concat(arr.slice(0, rotateBy));
 }
 
+function debug(itext) {
+    window.alert("Debug:" + itext);
+}
+
+function draw_piece_common(
+    i_piece,
+    i_lineWidth = 1,
+    i_lineColor = "#000000",
+    i_fillColor = "#000000",
+    i_x,
+    i_y,
+    i_rotate = 0,
+    i_hp = piece_size,
+    i_hs = 0,
+    i_vs = 0,
+    i_vp = piece_size,
+) {
+    if (i_piece !== undefined || i_piece !== "") {
+        var path = new Path2D(pieces_paths["pieces"][i_piece]);
+        ctx0.save();
+        ctx0.lineWidth = i_lineWidth;
+        ctx0.fillStyle = i_fillColor;
+        ctx0.strokeStyle = i_lineColor;
+        ctx0.transform(i_hp, i_hs, i_vs, i_vp, i_x, i_y);
+        ctx0.rotate((i_rotate * Math.PI) / 180);
+        ctx0.fill(path);
+        ctx0.stroke(path);
+        ctx0.restore();
+    }
+}
+
 // Semafor ///////////////////////////
 function clearSemaforTimer() {
     if (semaforTimerId !== null) {
@@ -80,38 +111,6 @@ function SemaforGreenn() {
 
         modal_wt.hide();
         SemaforGreen = true;
-    }
-}
-
-function debug(itext) {
-    window.alert("Debug:" + itext);
-}
-
-
-function draw_piece_common(
-    i_piece,
-    i_lineWidth = 1,
-    i_lineColor = "#000000",
-    i_fillColor = "#000000",
-    i_x,
-    i_y,
-    i_rotate = 0,
-    i_hp = piece_size,
-    i_hs = 0,
-    i_vs = 0,
-    i_vp = piece_size,
-) {
-    if (i_piece !== undefined || i_piece !== "") {
-        var path = new Path2D(pieces_paths["pieces"][i_piece]);
-        ctx0.save();
-        ctx0.lineWidth = i_lineWidth;
-        ctx0.fillStyle = i_fillColor;
-        ctx0.strokeStyle = i_lineColor;
-        ctx0.transform(i_hp, i_hs, i_vs, i_vp, i_x, i_y);
-        ctx0.rotate((i_rotate * Math.PI) / 180);
-        ctx0.fill(path);
-        ctx0.stroke(path);
-        ctx0.restore();
     }
 }
 
@@ -179,7 +178,7 @@ class fetchData {
     }
 }
 
-// ssel - promotion ////////////////////////////////////////////////
+// ssel - promotion //////////////////////////////////////
 class ssel {
     constructor() {
         this.active = false;
@@ -1350,15 +1349,6 @@ class board {
     }
 }
 
-// Button ////////////////////////////////////////////////////////////////////////////////
-class butt {
-    constructor(iid, icolor) {
-        this.id = iid;
-        this.disabled = true;
-        this.color_enable = icolor;
-    }
-}
-
 //----------------------------------------------------
 function elim2array(idata) {
     if (idata.length == 0) {
@@ -1557,15 +1547,15 @@ function Step_3_setelim_board_and_draw(idata) {
         rp2.innerHTML = `<td>${II.players[2]}</td> <td>${Math.round(idata.score[2] * 100) / 100}</td>`;
         modal_go.show();
     }
-    SemaforGreenn()
+    SemaforGreenn() //todo
 }
 
 function button_control() {
     const atLatestLog = B.slog_pointer === B.slog.length / 4;
     const canDrawOrResign =
         !B.finished &&
-        B.move_number_org === B.move_number &&
-        atLatestLog;
+        B.view_player_org == B.onmove;
+
     const canConfirmMove =
         B.move_number_org === B.move_number - 1 &&
         B.view_player_org === (B.onmove + 2) % 3 &&
@@ -1581,9 +1571,10 @@ function button_control() {
     okBtn.disabled = !canConfirmMove;
     okBtn.style.backgroundColor = canConfirmMove
         ? theme.canvas.name_onmove
-        : "#6c757d";
+        : "#6c757d"; // gray color button
 }
 
+// Button ////////////////////////////////////////////////////////////////////////////////
 function button_dis_all() {
     document.getElementById("b_ok").disabled = true;
     document.getElementById("b_ch").disabled = true;
@@ -1813,7 +1804,6 @@ async function Click_OK() {
         B.move_number_max = -1;
         const okBtn = document.getElementById("b_ok");
         okBtn.disabled = false;
-        okBtn.style.backgroundColor = "#9fa5aa"; // todo
         B.hist_changed = false;
     } catch (err) {
         console.error("Click_OK error:", err);
