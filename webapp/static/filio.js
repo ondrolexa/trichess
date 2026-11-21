@@ -1,5 +1,5 @@
 const canvas0 = document.getElementById("canvas");
-canvas0.addEventListener("mouseclick", Click_Board);
+//canvas0.addEventListener("mouseclick", Click_Board);
 let portrait = true
 let r = 82
 let boardXoffset = -411;
@@ -41,6 +41,48 @@ function wait_msg(yes) {
             }
         }, 500);
     }
+}
+
+
+let semaforToken = 0;
+let semaforTimerId = null;
+
+function SemaforRed() {
+    const wasGreen = Boolean(SemaforGreen);
+    const currentToken = ++semaforToken;
+
+    SemaforGreen = false;
+
+    if (semaforTimerId !== null) {
+        clearTimeout(semaforTimerId);
+        semaforTimerId = null;
+    }
+
+    const tx = document.getElementById("waitingText");
+    if (tx) {
+        tx.style.color = theme["canvas"]["info"];
+    }
+
+    if (wasGreen) {
+        semaforTimerId = setTimeout(() => {
+            semaforTimerId = null;
+            if (currentToken === semaforToken && !SemaforGreen) {
+                modal_wt.show();
+            }
+        }, 2000);
+    } else if (!SemaforGreen) {
+        modal_wt.show();
+    }
+}
+
+function SemaforGreenn() {
+    semaforToken++;
+    if (semaforTimerId !== null) {
+        clearTimeout(semaforTimerId);
+        semaforTimerId = null;
+    }
+    modal_wt.hide();
+    SemaforGreen = true;
 }
 
 function debug(itext) {
@@ -90,71 +132,25 @@ class fetchData {
         };
     }
 
-    semaforwait_green() {
-        SemaforWait = false;
-        modal_wt.hide();
-    }
-
-    async fetchPOST(iurl, ijson, icallback) {
-        const jsonData = JSON.stringify(ijson);
+    async _request(method, iurl, ijson = null, icallback = null) {
         let statusCode = null;
 
-        try {
-            const response = await fetch(iurl, {
-                method: "POST",
-                headers: this.headers,
-                body: jsonData,
-            });
-            statusCode = response.status;
-            wait_msg(true);
+        const fetchOptions = {
+            method: method,
+            headers: this.headers,
+        };
 
-            if (!response.ok) {
-                if (response.status === 503) {
-                    location.reload(); // maintenance mode: reload shows the maintenance page
-                    return;
-                }
-                if (response.status === 401 || response.status === 422) {
-                    window.alert("Token expired!");
-                    location.reload();
-                    return;
-                } else {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-            }
-            const data = await response.json();
-            if (typeof icallback === "function") {
-                //setTimeout(() => {
-                this.semaforwait_green();
-                icallback(data);
-                //}, 1000);
-            }
-            return data;
-
-        } catch (error) {
-            this.semaforwait_green();
-            if (statusCode !== 401 && statusCode !== 422) {
-                debug("fetchPOST:" + error + " url:" + iurl);
-            }
-            throw error; // Rethrow if you want calling functions to catch it too
+        if (ijson !== null) {
+            fetchOptions.body = JSON.stringify(ijson);
         }
-    }
-
-    async fetchGET(iurl, icallback) {
-        let statusCode = null;
 
         try {
-            const response = await fetch(iurl, {
-                method: "GET",
-                headers: this.headers,
-            });
-
+            const response = await fetch(iurl, fetchOptions);
             statusCode = response.status;
-            wait_msg(true);
 
             if (!response.ok) {
                 if (response.status === 503) {
-                    location.reload(); // maintenance mode: reload shows the maintenance page
+                    location.reload(); // Maintenance mode
                     return;
                 }
                 if (response.status === 401 || response.status === 422) {
@@ -165,20 +161,35 @@ class fetchData {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
             }
+
             const data = await response.json();
-            //setTimeout(() => {
-            this.semaforwait_green();
-            icallback(data);
-            //}, 1000);
+
+            // 2-second delay simulation with proper resolve() execution
+            await new Promise(resolve => {
+                setTimeout(() => {
+                    if (typeof icallback === "function") {
+                        icallback(data);
+                    }
+                    resolve();
+                }, 4000);
+            });
+
             return data;
 
         } catch (error) {
-            this.semaforwait_green();
             if (statusCode !== 401 && statusCode !== 422) {
-                debug("fetchGET:" + error + " url:" + iurl);
+                debug(`fetch${method}:${error} url:${iurl}`);
             }
             throw error;
         }
+    }
+
+    async fetchPOST(iurl, ijson, icallback) {
+        return this._request("POST", iurl, ijson, icallback);
+    }
+
+    async fetchGET(iurl, icallback) {
+        return this._request("GET", iurl, null, icallback);
     }
 }
 
@@ -1281,27 +1292,39 @@ class board {
 
     // move ---------------------------------------------
     moveValid() {
-        if (B.gid_new >= 0) {
-            II.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
-            II.panel[3].lines[3].clear_text()
-            II.panel[3].lines[3].write()
-            if (
-                !(
-                    this.hexs[this.gid_new].piece.piece != undefined &&
-                    this.hexs[this.gid_new].piece.player_id == this.onmove
-                )
-            ) {
-                return;
-            }
+        if (B.gid_new < 0) return Promise.resolve();
+
+        II.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code);
+        II.panel[3].lines[3].clear_text();
+        II.panel[3].lines[3].write();
+
+        if (
+            !(
+                this.hexs[this.gid_new].piece.piece != undefined &&
+                this.hexs[this.gid_new].piece.player_id == this.onmove
+            )
+        ) {
+            return Promise.resolve();
+        }
+
+        // Return a Promise so `await B.moveValid()` actually waits for the callback
+        return new Promise((resolve, reject) => {
             F.fetchPOST(
                 url + "/api/v1/move/valid",
                 {slog: this.getSlog(), view_pid: this.view_player, gid: this.gid_new},
-                Step_valid_moves,
+                (response) => {
+                    try {
+                        Step_valid_moves(response);
+                        resolve(response);
+                    } catch (err) {
+                        reject(err);
+                    }
+                }
             );
-        }
+        });
     }
 
-    moveMake(inew_piece = "") {
+    async moveMake(inew_piece = "") {
         if (this.gid_old == -1 || this.gid_old == this.gid_new || this.gid_new === -1) {
             return;
         }
@@ -1316,17 +1339,23 @@ class board {
         if (!this.hexs[this.gid_new].valid_flag) {
             return;
         }
-        F.fetchPOST(
-            url + "/api/v1/move/make",
-            {
-                slog: this.getSlog(),
-                view_pid: this.view_player,
-                gid: this.gid_old,
-                tgid: this.gid_new,
-                new_piece: inew_piece,
-            },
-            Step_make_move,
-        );
+
+        const response = await new Promise((resolve) => {
+            F.fetchPOST(
+                url + "/api/v1/move/make",
+                {
+                    slog: this.getSlog(),
+                    view_pid: this.view_player,
+                    gid: this.gid_old,
+                    tgid: this.gid_new,
+                    new_piece: inew_piece,
+                },
+                resolve
+            );
+        });
+
+        await Step_make_move(response);
+        return response;
     }
 }
 
@@ -1375,7 +1404,8 @@ function elim2array(idata) {
     return t;
 }
 
-function Step_make_move(idata) {
+async function Step_make_move(idata) {
+    console.log("A. Step_make_move started");
     B.slog = idata.slog;
     B.slog_pointer = idata.slog.length / 4;
     B.hexs[B.gid_old].piece.piece = "";
@@ -1384,11 +1414,28 @@ function Step_make_move(idata) {
         B.hist_changed = true;
     }
     B.move_number_max = B.move_number + 1;
-    F.fetchPOST(
-        url + "/api/v1/game/info",
-        {slog: B.slog, view_pid: B.view_player},
-        Step_3_setelim_board_and_draw,
-    );
+
+    await new Promise((resolve, reject) => {
+        console.log("B. Sending /api/v1/game/info");
+        F.fetchPOST(
+            url + "/api/v1/game/info",
+            {slog: B.slog, view_pid: B.view_player},
+            (infoData) => {
+                console.log("C. Got /api/v1/game/info response, calling Step_3");
+                try {
+                    Promise.resolve(Step_3_setelim_board_and_draw(infoData))
+                        .then(() => {
+                            console.log("D. Step_3 finished, resolving Step_make_move");
+                            resolve();
+                        })
+                        .catch(reject);
+                } catch (err) {
+                    reject(err);
+                }
+            }
+        );
+    });
+    console.log("E. Step_make_move completely finished");
 }
 
 function Step_valid_moves(idata) {
@@ -1404,29 +1451,54 @@ function Step_valid_moves(idata) {
         B.hexs[obj.tgid].chang_flag = true;
         B.hexs[obj.tgid].promo_flag = obj.promotion;
     }
-    F.semaforwait_green();
+    //F.semaforwait_green();
 }
 
-function Step_1_settoken() {
+async function Step_1_settoken() {
+    SemaforRed();
     F.headers.Authorization = TOKEN;
-    F.fetchGET(
-        url + "/api/v1/manager/board?id=" + ID.toString(),
-        Step_2_setplayers,
-    );
+
+    await new Promise((resolve, reject) => {
+        F.fetchGET(
+            url + "/api/v1/manager/board?id=" + ID.toString(),
+            (response) => {
+                try {
+                    Promise.resolve(Step_2_setplayers(response))
+                        .then(resolve)
+                        .catch(reject);
+                } catch (err) {
+                    reject(err);
+                }
+            }
+        );
+    });
+
+    await SemaforGreenn();
 }
 
-function Step_2_setplayers(idata) {
+async function Step_2_setplayers(idata) {
     II.players = [idata.player_0, idata.player_1, idata.player_2];
     B.view_player = idata.view_pid;
     B.view_player_org = idata.view_pid;
     B.slog = idata.slog;
     B.slog_pointer = idata.slog.length / 4;
-    B.set_code(idata)
-    F.fetchPOST(
-        url + "/api/v1/game/info",
-        {slog: B.slog, view_pid: B.view_player},
-        Step_3_setelim_board_and_draw,
-    );
+    B.set_code(idata);
+
+    await new Promise((resolve, reject) => {
+        F.fetchPOST(
+            url + "/api/v1/game/info",
+            {slog: B.slog, view_pid: B.view_player},
+            (infoData) => {
+                try {
+                    Promise.resolve(Step_3_setelim_board_and_draw(infoData))
+                        .then(resolve)
+                        .catch(reject);
+                } catch (err) {
+                    reject(err);
+                }
+            }
+        );
+    });
 }
 
 function Step_5_game_info() {
@@ -1495,8 +1567,8 @@ function Step_3_setelim_board_and_draw(idata) {
         rp1.innerHTML = `<td>${II.players[1]}</td> <td>${Math.round(idata.score[1] * 100) / 100}</td>`;
         rp2.innerHTML = `<td>${II.players[2]}</td> <td>${Math.round(idata.score[2] * 100) / 100}</td>`;
         modal_go.show();
-        F.semaforwait_green();
     }
+    //SemaforGreenn()
 }
 
 function button_control() {
@@ -1536,6 +1608,17 @@ function button_control() {
     } else {
         document.getElementById("b_fw").disabled = false;
     }
+}
+
+function button_dis_all() {
+    document.getElementById("b_ok").disabled = true;
+    document.getElementById("b_ch").disabled = true;
+    document.getElementById("b_dr").disabled = true;
+    document.getElementById("b_rs").disabled = true;
+    document.getElementById("b_rf").disabled = true;
+    document.getElementById("b_bw").disabled = true;
+    document.getElementById("b_fw").disabled = true;
+    document.getElementById("b_rt").disabled = true;
 }
 
 function window_vote(ikind, itext) {
@@ -1697,7 +1780,7 @@ function Click_OK() {
             {id: ID, slog: B.getSlog()},
             function () {
                 window.trichessGame?.submitted(B.getSlog());
-                F.semaforwait_green()
+                //F.semaforwait_green()
             },
         );
     }
@@ -1734,63 +1817,71 @@ function Click_Rotate() {
     );
 }
 
-function Click_Board(event) {
-    function getMouesPosition(e) {
-        var mouseX = ((e.offsetX * canvas0.width) / canvas0.clientWidth) | 0;
-        var mouseY = ((e.offsetY * canvas0.height) / canvas0.clientHeight) | 0;
-        return {x: mouseX, y: mouseY};
-    }
+function getMousePosition(e, canvas) {
+    return {
+        x: ((e.offsetX * canvas.width) / canvas.clientWidth) | 0,
+        y: ((e.offsetY * canvas.height) / canvas.clientHeight) | 0
+    };
+}
 
-    const pos = getMouesPosition(event);
-    if (SemaforGreen) {
-        SemaforGreen = false;
-        const bounds = canvas0.getBoundingClientRect();
-        let x = pos.x;
-        let y = pos.y;
+async function Click_Board(event) {
+    if (!SemaforGreen) return;
+
+    SemaforRed();
+    button_dis_all();
+
+    try {
+        const {x, y} = getMousePosition(event, canvas0);
+
         if (B.gid_new == -1) {
-            B.gid_new = 84
+            B.gid_new = 84;
         }
-        //if pieces window is open
+
+        // If promo pieces window is open
         if (B.hexs[B.gid_new].promo_flag && SS.active) {
-            //CP.elems[7].e.show_flag = false
-            //CP.elems[8].e.show_flag = false
-            a = SS.getpromo(x, y);
-            if (a == "") {
-                // ked klikne do prdele
-                SemaforGreen = true;
+            const promoChoice = SS.getpromo(x, y);
+            if (promoChoice === "") {
                 B.draw_tile();
                 B.draw_pieces();
+                button_control();
+                SemaforGreenn();
                 return;
             }
-            B.moveMake(a);
+            await B.moveMake(promoChoice);
             B.hexs[B.gid_new].promo_flag = false;
-            SemaforGreen = true;
+            button_control();
+            SemaforGreenn();
             return;
         }
-        // gid_new gid_old change
-        else {
-            B.getGid(x, y);
-        }
+
+        B.getGid(x, y);
         B.draw_tile();
+
         if (B.gid_new !== -1) {
-            B.hexs[B.gid_new].draw_mark("rect"); // show cursor
+            B.hexs[B.gid_new].draw_mark("rect");
         } else {
-            II.panel[3].lines[3].set_text("")      // remove cursor
+            II.panel[3].lines[3].set_text("");
             II.panel[3].lines[3].clear_text();
         }
+
         B.draw_pieces();
-        //if new piece promotion
-        if (B.gid_new !== -1) {
-            if (B.hexs[B.gid_new].promo_flag) {
-                SS.line[1].color = theme["pieces"]["color"][B.onmove % 3];
-                SS.write();
-                SemaforGreen = true;
-                return;
-            }
+
+        if (B.gid_new !== -1 && B.hexs[B.gid_new].promo_flag) {
+            SS.line[1].color = theme["pieces"]["color"][B.onmove % 3];
+            SS.write();
+            button_control();
+            SemaforGreenn();
+            return;
         }
-        B.moveValid();
-        B.moveMake();
-        SemaforGreen = true;
+
+        await B.moveValid();
+        await B.moveMake();
+        button_control();
+        SemaforGreenn();
+    } catch (err) {
+        console.error("Click_Board error:", err);
+        button_control();
+        SemaforGreenn();
     }
 }
 
