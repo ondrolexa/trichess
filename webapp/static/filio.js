@@ -105,13 +105,9 @@ function SemaforRed() {
 
 function SemaforGreenn() {
     semaforToken++;
-    if (semaforTimerId !== null) {
-        clearTimeout(semaforTimerId);
-        semaforTimerId = null;
-
-        modal_wt.hide();
-        SemaforGreen = true;
-    }
+    clearSemaforTimer();
+    SemaforGreen = true;
+    modal_wt.hide();
 }
 
 // fetchData /////////////////////////////////////////////
@@ -122,6 +118,7 @@ class fetchData {
             "Content-Type": "application/json",
             Authorization: "",
         };
+        this.isReloading = false;
     }
 
     async _request(method, iurl, ijson = null, icallback = null) {
@@ -138,20 +135,27 @@ class fetchData {
             statusCode = response.status;
             if (!response.ok) {
                 if (response.status === 503) {
-                    location.reload(); // Maintenance mode
+                    if (!this.isReloading) {
+                        this.isReloading = true;
+                        SemaforGreenn();
+                        window.alert("Maintenance ...");
+                        location.reload();
+                    }
                     return;
                 }
                 if (response.status === 401 || response.status === 422) {
-                    window.alert("Token expired!");
-                    location.reload();
+                    if (!this.isReloading) {
+                        this.isReloading = true;
+                        SemaforGreenn();
+                        window.alert("Token expired!");
+                        location.reload();
+                    }
                     return;
-                } else {
-                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
-            // 2-second delay simulation with proper resolve() execution
-            await new Promise(resolve => {
+            await new Promise((resolve) => {
                 setTimeout(() => {
                     if (typeof icallback === "function") {
                         icallback(data);
@@ -160,9 +164,8 @@ class fetchData {
                 }, 0);
             });
             return data;
-
         } catch (error) {
-            if (statusCode !== 401 && statusCode !== 422) {
+            if (statusCode !== 401 && statusCode !== 422 && !this.isReloading) {
                 debug(`fetch${method}:${error} url:${iurl}`);
             }
             throw error;
@@ -259,9 +262,7 @@ class ssel {
         const ps = piece_size * 9;
         const pcs = ["N", "B", "R", "Q"];
         for (let i = 0; i < 4; i++) {
-            ctx0.fillStyle = "green";
-            ctx0.rect(this.selx + i * this.ps, this.sely, this.ps, this.ps);
-            ctx0.fill();
+            ctx0.clearRect(this.selx + i * this.ps, this.sely, this.ps, this.ps);
             if (
                 this.selx + i * this.ps < ix &&
                 ix < this.selx + (i + 1) * this.ps &&
@@ -1550,6 +1551,7 @@ function Step_3_setelim_board_and_draw(idata) {
     SemaforGreenn() //todo
 }
 
+// Button ////////////////////////////////////////////////////////////////////////////////
 function button_control() {
     const atLatestLog = B.slog_pointer === B.slog.length / 4;
     const canDrawOrResign =
@@ -1574,7 +1576,6 @@ function button_control() {
         : "#6c757d"; // gray color button
 }
 
-// Button ////////////////////////////////////////////////////////////////////////////////
 function button_dis_all() {
     document.getElementById("b_ok").disabled = true;
     document.getElementById("b_ch").disabled = true;
@@ -1584,23 +1585,6 @@ function button_dis_all() {
     document.getElementById("b_bw").disabled = true;
     document.getElementById("b_fw").disabled = true;
     document.getElementById("b_rt").disabled = true;
-}
-
-function window_vote(ikind, itext) {
-    //var modal = document.getElementById("voteDrawDialog");
-    const vp = document.getElementById("votePlayers");
-    const vk1 = document.getElementById("voteKind1");
-    const vk2 = document.getElementById("voteKind2");
-    const av = document.getElementById("acceptVote");
-    vp.innerHTML = itext;
-    vk1.innerHTML = ikind;
-    vk2.innerHTML = ikind;
-    if (ikind == "draw") {
-        av.innerHTML = "accept";
-    } else {
-        av.innerHTML = "vote";
-    }
-    modalDraw.show();
 }
 
 // Click ////////////////////////////////////////////////////////////////////////////////
@@ -1683,6 +1667,23 @@ function Click_Demo() {
     }
 
     runLoopWithDelay();
+}
+
+function window_vote(ikind, itext) {
+    //var modal = document.getElementById("voteDrawDialog");
+    const vp = document.getElementById("votePlayers");
+    const vk1 = document.getElementById("voteKind1");
+    const vk2 = document.getElementById("voteKind2");
+    const av = document.getElementById("acceptVote");
+    vp.innerHTML = itext;
+    vk1.innerHTML = ikind;
+    vk2.innerHTML = ikind;
+    if (ikind == "draw") {
+        av.innerHTML = "accept";
+    } else {
+        av.innerHTML = "vote";
+    }
+    modalDraw.show();
 }
 
 async function Click_Vote(ivalue) {
@@ -1839,8 +1840,17 @@ async function Click_Refresh() {
     }
 }
 
+function enterFullscreenLandscape() {
+    const isLandscape = window.innerWidth > window.innerHeight;
+    if (isLandscape && document.fullscreenEnabled && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {
+        });
+    }
+}
+
 async function Click_Rotate() {
     if (!SemaforGreen) return;
+    enterFullscreenLandscape();
     SemaforRed();
     button_dis_all();
     try {

@@ -35,8 +35,9 @@
     .btnwid {
         height: 10vh !important;
     }
+
     .divmain {
-        transform: scale(0.9);
+        transform: scale(0.96);
         transform-origin: top center;
     }
 }
@@ -62,6 +63,7 @@
     .btnbig {
         width: 150px !important;
     }
+
     .btnwid {
         width: 100px !important;
     }
@@ -86,15 +88,14 @@
     text-align: center;
 
     /* Multi-directional text stroke effect using multiple black box shadows */
-    text-shadow:
-        -2px -2px 0 #000,
-        2px -2px 0 #000,
-        -2px 2px 0 #000,
-        2px 2px 0 #000,
-        -3px 0px 0 #000,
-        3px 0px 0 #000,
-        0px -3px 0 #000,
-        0px 3px 0 #000;
+    text-shadow: -2px -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+    2px 2px 0 #000,
+    -3px 0px 0 #000,
+    3px 0px 0 #000,
+    0px -3px 0 #000,
+    0px 3px 0 #000;
 
     background-color: #ffffff;
     font-size: 60px;
