@@ -1,7 +1,7 @@
 const canvas0 = document.getElementById("canvas");
 //canvas0.addEventListener("mouseclick", Click_Board);
-let portrait = true
-let r = 82
+let portrait = true;
+let r = 82;
 let boardXoffset = -411;
 let boardYoffset = 8;
 let piece_size = 15;
@@ -259,7 +259,6 @@ class ssel {
     }
 
     getpromo(ix, iy) {
-        const ps = piece_size * 9;
         const pcs = ["N", "B", "R", "Q"];
         for (let i = 0; i < 4; i++) {
             ctx0.clearRect(this.selx + i * this.ps, this.sely, this.ps, this.ps);
@@ -364,12 +363,10 @@ class llines {
             var align = 1;
             var strokeColor = this.strokeColor;
             var c = 0;
-            let center_cor = 0;
             if (this.align === "right") {
                 align = -1;
             }
             if (this.align === "center") {
-                center_cor = -200;
                 align = -1;
                 offset = -1 * (piece_size * 4.5) * (this.text.length - 1)
             }
@@ -457,10 +454,10 @@ class iinfo {
         var inf_ofs;
         const dist_top = 30; // top and bottom distance
         var nam_ofs = (Number(mame_size.substring(0, mame_size.length - 2)) + dist_top) * ivert;
-        if (ivert == -1) {
+        if (ivert === -1) {
             nam_ofs = dist_top * ivert;
         }
-        if (ivert == 1) {
+        if (ivert === 1) {
             inf_ofs =
                 nam_ofs +
                 dist_top +
@@ -472,7 +469,7 @@ class iinfo {
                 dist_top * ivert;
         }
         // info panel
-        if (iinfo_id == 3) {
+        if (iinfo_id === 3) {
             //todo
             let x_corr = 0 //correction
             let y_corr = 0 //correction
@@ -516,10 +513,10 @@ class iinfo {
             var ofs =
                 inf_ofs +
                 (40 + Number(mame_size.substring(0, mame_size.length - 2))) * ivert;
-            if (ivert == 1) {
+            if (ivert === 1) {
                 ofs = ofs - 70;
             } //todo
-            let line_num = 0
+            let line_num
             if (portrait) {
                 line_num = 8
             } else {
@@ -554,7 +551,7 @@ class iinfo {
             row_cnt = 8
         }
         for (let i = 2; i < row_cnt; i++) {
-            if (this.info_id != 3) {
+            if (this.info_id !== 3) {
                 this.lines[i].clear_piece(); //elim pieces
                 this.lines[i].draw(); //elim pieces
             } else { // info panel 3 power lines...
@@ -567,8 +564,6 @@ class iinfo {
 
 class iinfos {
     constructor() {
-        var a = theme["canvas"]["font-family"];
-        var dist_rl = 150;
         this.players = [];
         this.index = [];
         this.panel = [];
@@ -615,15 +610,11 @@ class iinfos {
 
         let last_move = B.slog.substring((B.slog_pointer - 1) * 4, B.slog_pointer * 4);
         let a = last_move.substring(0, 1)
-        if (a == 's' || a == 'S') {
+        if (a === 's' || a === 'S') {
             last_move = ""
         } else {
             last_move = last_move.substring(0, 2) + "-" + last_move.substring(2, 2)
         }
-        let cursor_coor = ""
-        //if (B.gid_new>=0) { todo remove
-        //  cursor_coor = B.hexs[B.gid_new].sc
-        //}
         this.panel[3].lines[4].set_text("Move: " + B.move_number_org.toString() + "/" + B.move_number.toString() + "  " + last_move)//+"-"+cursor_coor
         if (B.gid_new >= 0) {
             this.panel[3].lines[3].set_text("Cursor: " + B.hexs[B.gid_new].code)
@@ -634,17 +625,17 @@ class iinfos {
             let j = 0;
             let vc = 0; // vote count
             for (let i = 0; i < 3; i++) {
-                if (idata.vote_results[i] != "X") {
+                if (idata.vote_results[i] !== "X") {
                     vc++;
                 }
             }
             let index2 = rotateArray([0, 1, 2], idata.onmove - vc); //todo
             for (let i = 0; i < 3; i++) {
-                if (idata.vote_results[index2[i]] == "A") {
+                if (idata.vote_results[index2[i]] === "A") {
                     this.panel[3].lines[2 - j].set_text(this.players[index2[i]].substring(0, 12) + verb + idata.vote_results.kind + ".");
                     verb = " accepts ";
                     j++;
-                } else if (idata.vote_results[index2[i]] == "D") {
+                } else if (idata.vote_results[index2[i]] === "D") {
                     this.panel[3].lines[2 - j].set_text(this.players[index2[i]] + " declines " + idata.vote_results.kind + ".");
                     j++;
                 } else {
@@ -664,7 +655,7 @@ class iinfos {
         }
         for (let i = 0; i < 3; i++) {
             // highlight players
-            if (this.index[i] == idata.onmove) {
+            if (this.index[i] === idata.onmove) {
                 this.panel[i].lines[0].strokeLine = 0;
                 this.panel[i].lines[0].strokeColor = theme["canvas"]["name"];
                 this.panel[i].lines[0].color = theme["canvas"]["name_onmove"];
@@ -678,7 +669,7 @@ class iinfos {
             this.panel[i].lines[1].text = ""; // idata.eliminated_value[this.index[i]].toString()
             // set eliminated pieces
             var e = elim2array(idata.eliminated[this.index[i]]);
-            if (e != undefined) {
+            if (e !== undefined) {
                 for (let j = 2; j < this.panel[i].lines.length; j++) {
                     if (e[j - 2] !== undefined) {
                         this.panel[i].lines[j].color = theme["pieces"]["color"][this.index[i]];
@@ -696,7 +687,7 @@ class iinfos {
     }
 
     daw_line(ix, iy, i_width, i_high, i_color) {
-        if (i_width == 0 || undefined) {
+        if (i_width === 0 || undefined) {
             return;
         }
         ctx0.save();
@@ -758,7 +749,8 @@ class iinfos {
         let step = r / 7;
         let al = -1;
         for (let i = 0; i < 3; i++) {
-            if (this.panel[i].align == "left") {
+            if (
+                this.panel[i].align === "left") {
                 al = 1;
             } else {
                 al = -1;
@@ -770,7 +762,7 @@ class iinfos {
             let y = this.panel[i].lines[1].pos_y - 10;
             let corr1 = 0;
             let corr2 = 0;
-            if (this.panel[i].lines[1].align == "center" && e1 != 0 && e2 != 0) {
+            if (this.panel[i].lines[1].align === "center" && e1 !== 0 && e2 !== 0) {
                 corr1 = (e1 * step) / 2;
                 corr2 = (e2 * step) / 2;
             }
@@ -832,7 +824,7 @@ class hex {
         this.lumi = undefined; // R,G,B, luminiscence todo
         this.show_flag = true; // true means to redraw the hex todo revizia ci to pouzouzivam.
         this.valid_flag = false;
-        this.promo_flag = false;
+
     }
 
     set(ipiece) {
