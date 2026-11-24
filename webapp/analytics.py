@@ -13,7 +13,8 @@ from flask import g, request, session
 
 from engine import slog_summary
 from webapp.main import app
-from webapp.models import GameStatus, Score, utcnow_naive
+from webapp.models import GameStatus, utcnow_naive
+from webapp.ratings import UNRATED, rating_statuses
 
 # Events queued by track_event(), with the parameters each may carry.
 # Naming: object_action in the past tense (GA's recommended login/sign_up
@@ -101,7 +102,9 @@ def board_renderer(user):
 
 # GA user properties: rating classes and rated games played; bot games are
 # casual and never counted. Ratings are zero-sum around the starting 500
-# since 0.5.6 (ELO_PROBLEM.md), so the bands sit close to it.
+# since 0.5.6 (ELO_PROBLEM.md), so the bands sit close to it. A player whose
+# rating is not shown yet (ratings.rating_status: fewer than RATED_MIN_GAMES
+# rated games) is "Unrated" instead of a band.
 ELO_CLASSES = ((540, "Advanced"), (490, "Intermediate"), (0, "Novice"))
 GAMES_PLAYED_TIERS = ((51, "51+"), (21, "21-50"), (6, "6-20"), (1, "1-5"), (0, "0"))
 
@@ -177,10 +180,12 @@ def ga_config(game=None):
             f"ga-user-{g.user.id}".encode(),
             hashlib.sha256,
         ).hexdigest()[:32]
-        rated_games = Score.query.filter_by(player_id=g.user.id).count()
+        status = rating_statuses([g.user.id])[g.user.id]
         config["user_properties"].update(
-            elo_class=_classify(g.user.rating or 0, ELO_CLASSES),
-            games_played_tier=_classify(rated_games, GAMES_PLAYED_TIERS),
+            elo_class="Unrated"
+            if status.status == UNRATED
+            else _classify(g.user.rating or 0, ELO_CLASSES),
+            games_played_tier=_classify(status.games, GAMES_PLAYED_TIERS),
         )
         config["prefs"] = {
             "board_renderer": board_renderer(g.user),

@@ -17,26 +17,18 @@
   </li>
   {% endfor %}
 </ul>
-<div class="table-responsive-sm">
-  <table class="table table-hover table-sm align-middle">
-  <thead>
-    <tr>
-    <th scope="col">#</th>
-    <th scope="col">Player</th>
-    <th scope="col">Rating</th>
-    <th scope="col">Games</th>
-    <th scope="col">Results</th>
-    <th scope="col" class="d-none d-sm-table-cell">Last</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for user in ratings %}
+{# One standings row. kind: "rated", "unrated" or "inactive" (RATINGS.md section 9). #}
+{% macro standing(user, kind) %}
     {% if user.id == uid %}
-    <tr  class="table-active">
+    <tr class="table-active">
     {% else %}
     <tr class="seat">
     {% endif %}
+    {% if kind == "rated" %}
     <th scope="row">{{user.position}}</th>
+    {% else %}
+    <th scope="row" class="text-body-secondary" title="Not ranked">–</th>
+    {% endif %}
     <td>
     {% if user.id == uid %}
     <strong class="{{ on_move_color }}">{{user.username}}</strong>
@@ -44,7 +36,13 @@
     <span>{{user.username}}</span>
     {% endif %}
     </td>
-    <td><span>{{user.rating|round|int}}</span></td>
+    {% if kind == "rated" %}
+    <td><span>{{user.rating|round|int}}{% if user.status.provisional %}<sup title="Provisional: fewer than {{ established }} rated games">?</sup>{% endif %}</span></td>
+    {% elif kind == "inactive" %}
+    <td><span class="text-body-secondary" title="Inactive: no rated game for {{ inactive_days }} days">{{user.rating|round|int}}</span></td>
+    {% else %}
+    <td><span class="text-body-secondary" title="{{ user.status.window_games }} of {{ min_games }} rated games">–</span></td>
+    {% endif %}
     <td><span>{{user.played_games}}</span></td>
     {% set c = user.counts %}
     {% set total = c["win"] + c["coop"] + c["pass"] + c["loss"] %}
@@ -70,10 +68,38 @@
       <span class="text-body-secondary" title="No rated games">–</span>
       {% endif %}
     </td>
-    <td class="d-none d-sm-table-cell"><span>{{user.last_game|deltatime}}</span></td>
+    <td class="d-none d-sm-table-cell"><span>{% if user.last_game %}{{user.last_game|deltatime}}{% else %}–{% endif %}</span></td>
     </tr>
-    {% endfor %}
-   </tbody>
-   </table>
+{% endmacro %}
+{# One standings table. kind: "rated", "unrated" or "inactive". #}
+{% macro standings(users, kind) %}
+<div class="table-responsive-sm">
+  <table class="table table-hover table-sm align-middle">
+  <thead>
+    <tr>
+    <th scope="col">#</th>
+    <th scope="col">Player</th>
+    <th scope="col">Rating</th>
+    <th scope="col">Games</th>
+    <th scope="col">Results</th>
+    <th scope="col" class="d-none d-sm-table-cell">Last</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for user in users %}{{ standing(user, kind) }}{% endfor %}
+  </tbody>
+  </table>
 </div>
+{% endmacro %}
+{{ standings(rated, "rated") }}
+{% if unrated %}
+<h4 class="mt-4 mb-1">Unrated</h4>
+<p class="text-body-secondary small">fewer than {{ min_games }} rated games in the last {{ window_months }} months</p>
+{{ standings(unrated, "unrated") }}
+{% endif %}
+{% if inactive %}
+<h4 class="mt-4 mb-1">Inactive</h4>
+<p class="text-body-secondary small">no rated game for a year</p>
+{{ standings(inactive, "inactive") }}
+{% endif %}
 {%endblock%}

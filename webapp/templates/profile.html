@@ -111,7 +111,7 @@
           <h5 class="card-header">Statistics</h5>
           <div class="card-body">
             {% set tiles = [
-              ("Rating", '%0.2f' % rating|float),
+              ("Rating", rating_text),
               ("Total score", '%0.2f' % score|float),
               ("Avg points / game", '%0.2f' % average_score if average_score is number else '–'),
               ("Win/Co-op/Pass/Loss", stats["win"] ~ '/' ~ stats["coop"] ~ '/' ~ stats["pass"] ~ '/' ~ stats["loss"]),

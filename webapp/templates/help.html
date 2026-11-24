@@ -164,7 +164,12 @@
           <li><strong>Win (checkmate)</strong>: 2.0 points (split among attackers if multiple)</li>
           <li><strong>Draw / Stalemate / Threefold repetition</strong>: 2/3 point each</li>
           <li><strong>Resignation</strong>: The non-resigning player gets 2.0</li>
-          <li><strong>Rating</strong>: Multi-player Elo starting at 500</li>
+          <li><strong>Rating</strong>: Multi-player Elo starting at 500. It is shown once you have played
+            <strong>10 rated games</strong> (in the last 26 months); until then you are <strong>unrated</strong>, listed
+            below the ranked players without a rating (your own rating stays visible on your Profile). A
+            <strong>?</strong> after a rating means fewer than 30 rated games, so it can still move a lot. A rated player
+            with no rated game for a year is <strong>inactive</strong>: listed last, not ranked, and back as soon as they
+            play again</li>
           <li><strong>Results</strong> on the Rating page count each player's rated games as <strong>Win</strong> (all
             2 points), <strong>Co-op</strong> (a share of the points: a shared checkmate or a draw), <strong>Pass</strong>
             (no points, but neither mated nor resigned) and <strong>Loss</strong> (mated or resigned)</li>
@@ -470,7 +475,8 @@
         <p>Any game with at least one bot seat is <strong>casual</strong>:</p>
         <ul>
           <li>No effect on any player's <strong>rating</strong></li>
-          <li>Not counted in the leaderboard on the <strong>Ratings</strong> page</li>
+          <li>Not counted in the leaderboard on the <strong>Ratings</strong> page (neither as games played nor towards the
+            10 rated games a rating needs)</li>
           <li>Not counted toward your <strong>win/loss/score statistics</strong> on your Profile page</li>
         </ul>
         <p>Bot games are purely for fun and practice — play as many as you like without any impact on your standing.
@@ -1272,6 +1278,17 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
           incrementally under row locks on its three players (<code>record_game_rating()</code>) and appended to <code>RatingHistory</code>.
           <code>flask rebuild-ratings</code> replays every rated game from scratch — the repair path, also run when
           the admin deletes a rated game.</p>
+        <p><strong>Rating status</strong> (derived on every request, never stored, never changes a rating; no migration or rebuild).
+          <code>ratings.rating_status()</code> takes a player's rated games (Score rows of finished games, dated by
+          <code>TriBoard.modified_at</code>): fewer than <code>RATED_MIN_GAMES</code> (10) in the last
+          <code>RATING_WINDOW_DAYS</code> (792 = 26 months) is <em>unrated</em>; otherwise a newest game older than
+          <code>INACTIVE_DAYS</code> (365) is <em>inactive</em>, else <em>rated</em>; a rated player under
+          <code>ESTABLISHED_GAMES</code> (30) is <em>provisional</em> (a "?"). It drives the Ratings page (rated ranked, then
+          unrated, then inactive), the rating labels in the lobby and game lists (<code>rating_label</code> filter), the Rating tile
+          on the profile (always the own number, with its status) and the GA <code>elo_class</code>. There is deliberately no
+          rating floor, no "opponents must be rated" rule and no experience-adaptive K: <code>RATINGS.md</code> (section 9)
+          has the simulations behind that. <code>scripts/rating_variants.py</code>, <code>rating_inclusion.py</code> and
+          <code>rating_montecarlo.py</code> replay them from a database dump.</p>
 
         <hr>
 
@@ -1701,7 +1718,8 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
 
         <h4>User properties</h4>
         <p>The player class, set on every page, segments every event: <code>logged_in</code> (yes/no), and for
-          logged-in players <code>elo_class</code> (Novice &lt;490, Intermediate 490–539, Advanced 540+; until 0.5.5, on the inflated scale:
+          logged-in players <code>elo_class</code> (<code>Unrated</code> until the rating status makes the rating visible, i.e. fewer than
+          10 rated games; then Novice &lt;490, Intermediate 490–539, Advanced 540+; until 0.5.5, on the inflated scale:
           &lt;525, 525–599, 600+) and
           <code>games_played_tier</code> (rated games: 0, 1-5, 6-20, 21-50, 51+; bot games never count). Thresholds:
           <code>ELO_CLASSES</code>, <code>GAMES_PLAYED_TIERS</code> in <code>analytics.py</code>. Display
@@ -1776,6 +1794,9 @@ kBKA          a promotion: q1 'k' = 'K'+32, so (3,-6) -&gt; (3,-7) promoting to 
             user properties.</li>
           <li><code>elo_class</code> changes meaning with 0.5.6: ratings were recomputed zero-sum and the bands
             moved, so compare classes across that deploy only with care.</li>
+          <li><code>elo_class</code> changes meaning again with the rating status (<code>Unrated</code> is new, and new accounts
+            no longer count as <code>Intermediate</code> at their starting 500): add a GA annotation on the deploy date and
+            compare classes across it only with care.</li>
         </ul>
 
         <hr>

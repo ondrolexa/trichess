@@ -3,10 +3,16 @@ and the full replay (rating history, `flask rebuild-ratings`).
 
 Rated games are finished games without a bot seat; their Score rows (out of
 2.0 per game) are the input.
+
+Whether a rating is *shown* is a separate, derived status (`rating_status()`):
+unrated until RATED_MIN_GAMES rated games, inactive after a year without one.
+It never changes a rating, so there is nothing to rebuild or migrate. There is
+deliberately no rating floor, no "opponents must be rated" rule and no
+experience-adaptive K (RATINGS.md section 9 shows why).
 """
 
-from collections import defaultdict
-from datetime import datetime
+from collections import defaultdict, namedtuple
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import aliased
@@ -24,6 +30,94 @@ from webapp.models import (
 ELO_K = 9.0  # rating change per point of surprise
 ELO_SCALE = 400.0  # 400 rating points = 10x expected strength
 STARTING_RATING = 500.0
+
+# Rating status (derived on read, see rating_status()). Looked up at call time,
+# so tests can monkeypatch them.
+RATED_MIN_GAMES = 10  # rated games (in the window) before a rating is shown
+ESTABLISHED_GAMES = 30  # below this a shown rating carries a "?"
+RATING_WINDOW_DAYS = 792  # 26 months: older games no longer count towards the minimum
+INACTIVE_DAYS = 365  # rated, but no rated game for this long
+
+UNRATED, RATED, INACTIVE = "unrated", "rated", "inactive"
+
+# status: UNRATED / RATED / INACTIVE; games: all rated games ever; window_games:
+# those inside the window; last: newest rated game (None if there is none);
+# provisional: rated, but fewer than ESTABLISHED_GAMES games in the window.
+RatingStatus = namedtuple("RatingStatus", "status games window_games last provisional")
+
+
+def rating_status(dates, now=None):
+    """Status of a player from the finish times of their rated games.
+
+    Fewer than RATED_MIN_GAMES games in the last RATING_WINDOW_DAYS: unrated.
+    Otherwise inactive if the newest game is older than INACTIVE_DAYS, else
+    rated. A None date (old rows) counts as very old.
+    """
+    now = now or utcnow_naive()
+    dates = list(dates)
+    cutoff = now - timedelta(days=RATING_WINDOW_DAYS)
+    window_games = sum(1 for d in dates if d is not None and d >= cutoff)
+    known = [d for d in dates if d is not None]
+    last = max(known) if known else None
+    if window_games < RATED_MIN_GAMES:
+        status = UNRATED
+    elif last is not None and now - last > timedelta(days=INACTIVE_DAYS):
+        status = INACTIVE
+    else:
+        status = RATED
+    provisional = status == RATED and window_games < ESTABLISHED_GAMES
+    return RatingStatus(status, len(dates), window_games, last, provisional)
+
+
+def rated_game_rows(user_ids=None):
+    """(player_id, score, onmove, tag, finished_at) for every Score row of a
+    finished game, i.e. one row per player per rated game (bot games have no
+    Score rows). `user_ids` limits it to those players."""
+    stmt = (
+        select(
+            Score.player_id, Score.score, Score.onmove, Score.tag, TriBoard.modified_at
+        )
+        .join(TriBoard, TriBoard.id == Score.board_id)
+        .where(TriBoard.status == GameStatus.FINISHED)
+    )
+    if user_ids is not None:
+        stmt = stmt.where(Score.player_id.in_(list(user_ids)))
+    return db.session.execute(stmt).all()
+
+
+def rating_statuses(user_ids=None, now=None):
+    """{user_id: RatingStatus} for the given players (default: everyone with a
+    rated game). A requested player without any rated game is unrated, 0 games."""
+    dates = defaultdict(list)
+    for player_id, _, _, _, finished in rated_game_rows(user_ids):
+        dates[player_id].append(finished)
+    for uid in user_ids or ():
+        dates.setdefault(uid, [])
+    return {uid: rating_status(ds, now) for uid, ds in dates.items()}
+
+
+def rating_display(rating, st):
+    """(text, tooltip) for a rating next to a name in a list (lobby, games):
+    the number, a "?" while provisional, or "unrated"."""
+    number = f"{rating if rating is not None else STARTING_RATING:.0f}"
+    if st.status == UNRATED:
+        return "unrated", f"{st.window_games} of {RATED_MIN_GAMES} rated games"
+    if st.status == INACTIVE:
+        return number, f"Inactive: no rated game for {INACTIVE_DAYS} days"
+    if st.provisional:
+        return number + "?", f"Provisional: fewer than {ESTABLISHED_GAMES} rated games"
+    return number, ""
+
+
+def profile_rating_text(rating, st):
+    """The player's own rating for their profile: always the number, with what
+    its status means."""
+    number = f"{rating if rating is not None else STARTING_RATING:.2f}"
+    if st.status == UNRATED:
+        return f"{number}? ({st.window_games} of {RATED_MIN_GAMES} games)"
+    if st.status == INACTIVE:
+        return f"{number} (inactive)"
+    return number + ("?" if st.provisional else "")
 
 
 def elo_update(ratings, scores):

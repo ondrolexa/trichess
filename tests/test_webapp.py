@@ -436,6 +436,9 @@ class Test_Google_Analytics:
     )
     def test_elo_class_user_property(self, app, client, monkeypatch, rating, elo_class):
         self._enable(app, monkeypatch)
+        # The bands apply once a rating is shown; with no minimum even a player
+        # without games has one (below: "Unrated" until RATED_MIN_GAMES).
+        monkeypatch.setattr("webapp.ratings.RATED_MIN_GAMES", 0)
         user = _create_user()
         user.rating = rating
         db.session.commit()
@@ -468,6 +471,24 @@ class Test_Google_Analytics:
         props = self._user_properties(client.get("/help").get_data(as_text=True))
         assert props["games_played_tier"] == tier
 
+    @pytest.mark.parametrize("rated, elo_class", [(9, "Unrated"), (10, "Intermediate")])
+    def test_elo_class_is_unrated_below_the_minimum(
+        self, app, client, monkeypatch, rated, elo_class
+    ):
+        self._enable(app, monkeypatch)
+        alice = _create_user()
+        bob = _create_user("bob")
+        carol = _create_user("carol")
+        for _ in range(rated):
+            tb = _seated_board([alice, bob, carol], 2)
+            db.session.add(
+                Score(player_id=alice.id, board_id=tb.id, score=2.0, tag="N")
+            )
+        db.session.commit()
+        _login(client)
+        props = self._user_properties(client.get("/help").get_data(as_text=True))
+        assert props["elo_class"] == elo_class  # alice is still at 500
+
     def test_user_properties_are_player_class_prefs_go_to_snapshot(
         self, app, client, monkeypatch
     ):
@@ -479,7 +500,7 @@ class Test_Google_Analytics:
         config = self._config(client.get("/help").get_data(as_text=True))
         assert config["user_properties"] == {
             "logged_in": "yes",
-            "elo_class": "Intermediate",  # the starting 500
+            "elo_class": "Unrated",  # no rated game yet
             "games_played_tier": "0",
         }
         assert config["prefs"] == {
@@ -784,7 +805,9 @@ class TestGameLists:
         assert "Page 1 of 2" in first
         assert "page=2" in first
 
-    def test_rating_matches_per_user_values(self, app, client):
+    def test_rating_matches_per_user_values(self, app, client, monkeypatch):
+        # Three games each: rated for this test (production needs 10).
+        monkeypatch.setattr("webapp.ratings.RATED_MIN_GAMES", 1)
         alice, bob, carol = self._players()
         outcomes = [
             {alice: (2.0, False, "N"), bob: (0.0, True, "N"), carol: (0.0, False, "N")},

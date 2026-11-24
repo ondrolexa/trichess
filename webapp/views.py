@@ -31,6 +31,7 @@ from markupsafe import Markup
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from engine import slog_summary
+from webapp import ratings as rating_rules
 from webapp.analytics import (
     PREF_PARAMS,
     board_context,
@@ -71,7 +72,18 @@ from webapp.models import (
     score_outcome,
     utcnow_naive,
 )
-from webapp.ratings import get_user_rating_history, rebuild_ratings
+from webapp.ratings import (
+    INACTIVE,
+    RATED,
+    UNRATED,
+    get_user_rating_history,
+    profile_rating_text,
+    rated_game_rows,
+    rating_display,
+    rating_status,
+    rating_statuses,
+    rebuild_ratings,
+)
 from webapp.styles import load_style
 from webapp.token import (
     password_fingerprint,
@@ -94,6 +106,39 @@ def _jinja2_filter_timedelta(date):
     delta = datetime.now(tz=ZoneInfo("UTC")) - date.replace(tzinfo=ZoneInfo("UTC"))
     seconds = max(0, round(delta.total_seconds()))
     return f"{timedelta(seconds=seconds)} ago"
+
+
+@app.template_filter("rating_label")
+def _jinja2_filter_rating_label(user, statuses):
+    """A player's rating for lists next to their name: the number ("?" while
+    provisional), or "unrated". `statuses` is ratings.rating_statuses()."""
+    if user.is_bot:
+        return Markup('<span title="Bots play unrated games">bot</span>')
+    text, title = rating_display(
+        user.rating, statuses.get(user.id) or rating_status([])
+    )
+    return Markup('<span title="{}">{}</span>').format(title, text) if title else text
+
+
+@app.template_filter("rating_suffix")
+def _jinja2_filter_rating_suffix(user, statuses):
+    """ " (541)" to append to a name, "" for an unrated player or a bot: the
+    games list shows just the name for them."""
+    if user.is_bot:
+        return ""
+    status = statuses.get(user.id) or rating_status([])
+    if status.status == UNRATED:
+        return ""
+    text, title = rating_display(user.rating, status)
+    if not title:
+        return f" ({text})"
+    return Markup(' (<span title="{}">{}</span>)').format(title, text)
+
+
+def _seated_statuses(games):
+    """Rating statuses of everyone seated in `games`, in one query."""
+    ids = {pid for game in games for pid in game.player_ids if pid is not None}
+    return rating_statuses(ids)
 
 
 def render_template(*args, **kwargs):
@@ -170,7 +215,11 @@ def active_games():
         game.onmove = summary.on_move
         game.voting = summary.voting_active
     return render_template(
-        "games.html", games=active, uid=g.user.id, board=g.user.board
+        "games.html",
+        games=active,
+        uid=g.user.id,
+        board=g.user.board,
+        statuses=_seated_statuses(active),
     )
 
 
@@ -232,46 +281,48 @@ def archive():
 @app.route("/rating")
 @login_required
 def rating():
-    users = (
-        User.query.filter_by(is_bot=False)
-        .order_by(User.rating.desc())  # .filter(User.last_login is not None)
-        .all()
-    )
-    # Finished games played and the latest one, per user: one grouped query
-    # per seat column, merged.
-    played = defaultdict(int)
-    last_game = {}
-    for seat in range(3):
-        column = getattr(TriBoard, f"player_{seat}_id")
-        rows = (
-            db.session.query(
-                column, db.func.count(TriBoard.id), db.func.max(TriBoard.modified_at)
-            )
-            .filter(TriBoard.status == GameStatus.FINISHED, column.is_not(None))
-            .group_by(column)
-        )
-        for user_id, count, last in rows:
-            played[user_id] += count
-            if user_id not in last_game or last > last_game[user_id]:
-                last_game[user_id] = last
-    # Win/coop/pass/loss counts, per user, from one query.
+    """Standings: rated players ranked first, then unrated, then inactive.
+    The status (ratings.rating_status) is derived from the rated games on every
+    request; it never changes a rating."""
+    users = {user.id: user for user in User.query.filter_by(is_bot=False)}
+    # One row per player per rated game: win/coop/pass/loss counts and dates.
     counts = defaultdict(lambda: {"win": 0, "coop": 0, "pass": 0, "loss": 0})
-    for player_id, score, onmove, tag in db.session.query(
-        Score.player_id, Score.score, Score.onmove, Score.tag
-    ):
+    dates = defaultdict(list)
+    for player_id, score, onmove, tag, finished in rated_game_rows():
         counts[player_id][score_outcome(score, onmove, tag)] += 1
+        dates[player_id].append(finished)
 
-    ratings = []
-    pos = 1
-    for user in users:
-        user.played_games = played[user.id]
-        if user.played_games > 0:
-            user.last_game = last_game[user.id]
-            user.position = pos
-            pos += 1
-            user.counts = counts[user.id]
-            ratings.append(user)
-    return render_template("rating.html", ratings=ratings, uid=g.user.id)
+    blocks = {RATED: [], UNRATED: [], INACTIVE: []}
+    for user_id, finished in dates.items():
+        user = users.get(user_id)
+        if user is None:  # bots have no Score rows; just in case
+            continue
+        status = rating_status(finished)
+        user.status = status
+        user.played_games = status.games
+        user.last_game = status.last
+        user.counts = counts[user_id]
+        blocks[status.status].append(user)
+
+    def by_rating(user):
+        return (-(user.rating if user.rating is not None else 0), user.username)
+
+    rated = sorted(blocks[RATED], key=by_rating)
+    for position, user in enumerate(rated, 1):
+        user.position = position
+    unrated = sorted(blocks[UNRATED], key=lambda u: (-u.played_games, u.username))
+    inactive = sorted(blocks[INACTIVE], key=by_rating)
+    return render_template(
+        "rating.html",
+        rated=rated,
+        unrated=unrated,
+        inactive=inactive,
+        uid=g.user.id,
+        min_games=rating_rules.RATED_MIN_GAMES,
+        established=rating_rules.ESTABLISHED_GAMES,
+        inactive_days=rating_rules.INACTIVE_DAYS,
+        window_months=round(rating_rules.RATING_WINDOW_DAYS / 30.4),
+    )
 
 
 @app.route("/join", methods=["GET", "POST"])
@@ -290,7 +341,11 @@ def available_games():
     available = TriBoard.query.filter_by(status=GameStatus.WAITING).all()
     form = NewGameForm()
     return render_template(
-        "available.html", games=available, player_id=g.user.id, form=form
+        "available.html",
+        games=available,
+        player_id=g.user.id,
+        form=form,
+        statuses=_seated_statuses(available),
     )
 
 
@@ -478,6 +533,7 @@ def profile():
         users = []
         rh_raw = get_user_rating_history(g.user.id)
 
+    own_status = rating_statuses([g.user.id])[g.user.id]
     rh_labels = []
     rh_values = []
     for dt, r in rh_raw:
@@ -489,7 +545,7 @@ def profile():
         form_profile=form_profile,
         form_password=form_password,
         username=g.user.username,
-        rating=g.user.rating,
+        rating_text=profile_rating_text(g.user.rating, own_status),
         score=g.user.score(),
         average_score=g.user.average_score(),
         active=len(active),
