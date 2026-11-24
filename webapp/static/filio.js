@@ -187,7 +187,7 @@ class ssel {
         this.active = false;
         this.selx = 0;
         this.sely = 0;
-        this.ps = 0
+        this.ps = 0;
         this.line = [];
         this.line[0] = new llines();
         this.line[0].set_text("Select piece:");
@@ -217,10 +217,10 @@ class ssel {
         if (portrait) {
             this.line[0].pos_x = 1080;
             this.line[0].pos_y = 1300;
-            this.line[0].length = 200
+            this.line[0].length = 200;
             this.line[1].pos_x = 1320;
             this.line[1].pos_y = 1420;
-            this.line[1].length = 200
+            this.line[1].length = 200;
             this.selx = 870;
             this.sely = 1364;
             this.ps = piece_size * 9;
@@ -228,7 +228,7 @@ class ssel {
         } else {
             this.line[0].pos_x = 2160;
             this.line[0].pos_y = 1040;
-            this.line[0].length = 200
+            this.line[0].length = 200;
             this.line[1].pos_x = 2463;
             this.line[1].pos_y = 1170;
             this.line[1].length = 200
@@ -318,8 +318,8 @@ class llines {
 
     set_text(itext) {
         ctx0.save();
-        ctx0.font = this.font
-        this.text_width_old = this.text_width
+        ctx0.font = this.font;
+        this.text_width_old = this.text_width;
         this.text_width = ctx0.measureText(itext).width;
         this.text_height = parseInt(ctx0.font.match(/\d+/), 10);
         this.text = itext;
@@ -328,8 +328,8 @@ class llines {
 
     set_piece(itext) {
         ctx0.save();
-        ctx0.font = this.font
-        this.text_width_old = this.text_width
+        ctx0.font = this.font;
+        this.text_width_old = this.text_width;
         this.text_width = itext.length;
         this.text_height = parseInt(ctx0.font.match(/\d+/), 10);
         this.text = itext;
@@ -1832,17 +1832,8 @@ async function Click_Refresh() {
     }
 }
 
-function enterFullscreenLandscape() {
-    const isLandscape = window.innerWidth > window.innerHeight;
-    if (isLandscape && document.fullscreenEnabled && !document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {
-        });
-    }
-}
-
 async function Click_Rotate() {
     if (!SemaforGreen) return;
-    enterFullscreenLandscape();
     SemaforRed();
     button_dis_all();
     try {
@@ -1920,23 +1911,38 @@ async function Click_Board(event) {
     }
 }
 
+function enterFullscreenLandscape() {
+    const isLandscape = window.innerWidth > window.innerHeight;
+    if (!isLandscape) {
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {
+            });
+        }
+        return;
+    }
+    if (document.fullscreenEnabled && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {
+        });
+    }
+}
+
 function resizee_init() {
     if (window.innerWidth > window.innerHeight) {
-        canvas0.width = 4320
-        canvas0.height = 2180
-        portrait = false
-        r = 94
-        boardXoffset = 450
+        canvas0.width = 4320;
+        canvas0.height = 2180;
+        portrait = false;
+        r = 94;
+        boardXoffset = 450;
         boardYoffset = 8;
         piece_size = 15;
         mame_size = "150px";
         info_size = "100px"; //r.toString()+"px";
 
     } else {
-        canvas0.width = 2160
-        canvas0.height = 3330
-        portrait = true
-        r = 83
+        canvas0.width = 2160;
+        canvas0.height = 3330;
+        portrait = true;
+        r = 83;
         boardXoffset = -429;
         boardYoffset = 380;
         piece_size = 12;
@@ -1947,11 +1953,12 @@ function resizee_init() {
     canH = canvas0.height;
     if (isMobile()) {
         document.getElementById("baseFooter").classList.remove("footer");
+        enterFullscreenLandscape();
         window.scrollTo({top: 50, behavior: "smooth",});
     }
 }
 
-function resizee_refresh() {
+function resizee_refresh() {// TODO semafor
     resizee_init()
     B.init_xy();
     let slog = B.slog.substring(0, B.slog_pointer * 4);
