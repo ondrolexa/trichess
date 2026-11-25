@@ -1953,7 +1953,6 @@ function resizee_init() {
     canH = canvas0.height;
     if (isMobile()) {
         document.getElementById("baseFooter").classList.remove("footer");
-        enterFullscreenLandscape();
         window.scrollTo({top: 50, behavior: "smooth",});
     }
 }
@@ -1961,6 +1960,9 @@ function resizee_init() {
 function resizee_refresh() {// TODO semafor
     resizee_init()
     B.init_xy();
+    if (isMobile()) {
+        enterFullscreenLandscape();
+    }
     let slog = B.slog.substring(0, B.slog_pointer * 4);
     F.fetchPOST(
         url + "/api/v1/game/info",
